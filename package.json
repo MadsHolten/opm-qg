@@ -1,0 +1,28 @@
+{
+  "name": "opm-query-generator",
+  "version": "0.1.0",
+  "description": "A SPARQL query generator for managing data with OPM.",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "tsc || node examples/opm-calc/example1.js"
+  },
+  "author": "Mads Holten Rasmussen <mhoras@byg.dtu.dk> (http://www.dtu.dk/service/telefonbog/person?id=42843&cpid=202565&tab=3&qt=dtuprojectquery)",
+  "license": "MIT", 
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/w3c-lbd-cg/opm.git"
+  },
+  "keywords": [
+    "sparql",
+    "seas",
+    "opm",
+    "lbd"
+  ],
+  "dependencies": {
+    "underscore": "^1.8.3",
+    "underscore.string": "^3.3.4"
+  },
+  "devDependencies": {
+    "typescript": "^2.0.0"
+  }
+}
