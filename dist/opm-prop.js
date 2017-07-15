@@ -134,6 +134,70 @@ var OPMProp = (function () {
         }
         return q;
     };
+    //Delete a property
+    OPMProp.prototype.deleteProp = function () {
+        var propertyURI = this.input.propertyURI;
+        var hostURI = this.input.hostURI;
+        var prefixes = this.input.prefixes;
+        var q = '';
+        //Define prefixes
+        for (var i in prefixes) {
+            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + "> \n";
+        }
+        q += 'CONSTRUCT {\n';
+        q += '\t?propertyURI opm:hasState ?stateURI .\n';
+        q += '\t?stateURI prov:generatedAtTime ?now ;\n';
+        q += '\t\topm:deleted "true"^^xsd:boolean .\n';
+        q += '}\n';
+        q += 'WHERE {\n';
+        //Get latest state
+        q += "\t#GET LATEST STATE\n";
+        q += "\t{ SELECT (MAX(?_t) AS ?t) WHERE {\n";
+        q += "\t\tGRAPH ?g {\n";
+        q += "\t\t\t" + propertyURI + " opm:hasState/prov:generatedAtTime ?_t .\n";
+        q += '\t\t}\n';
+        q += '\t} }\n';
+        q += "\t#A STATE MUST EXIST AND IT MUST NOT BE DELETED ALREADY\n";
+        q += '\tGRAPH ?g {\n';
+        q += "\t\t" + propertyURI + " opm:hasState ?state .\n";
+        q += "\t\t?state prov:generatedAtTime ?t ;\n";
+        q += '\t\t\t^opm:hasState ?propertyURI .\n';
+        q += '\t\tOPTIONAL{\n';
+        q += '\t\t\t?state opm:deleted ?del\n';
+        q += '\t\t\tFILTER(?del != "true")\n';
+        q += '\t\t}\n';
+        q += '\t}\n';
+        q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
+        q += "\tBIND(URI(CONCAT(\"" + hostURI + "\", \"/State/\", ?guid)) AS ?stateURI)\n";
+        q += '\tBIND(now() AS ?now)\n';
+        q += '}';
+        return q;
+    };
+    //Restore a deleted property
+    OPMProp.prototype.restoreProp = function () {
+        var propertyURI = this.input.propertyURI;
+        var prefixes = this.input.prefixes;
+        var q = '';
+        //Define prefixes
+        for (var i in prefixes) {
+            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + "> \n";
+        }
+        q += 'CONSTRUCT {\n';
+        q += '\t?propertyURI opm:hasState ?stateURI .\n';
+        q += '\t?stateURI opm:valueAtState ?val ;\n';
+        q += '\t\tprov:generatedAtTime ?now .\n';
+        q += '}\n';
+        q += 'WHERE {\n';
+        //Get latest state
+        q += "\t#GET LATEST STATE\n";
+        q += "\t{ SELECT (MAX(?_t) AS ?t) WHERE {\n";
+        q += "\t\tGRAPH ?g {\n";
+        q += "\t\t\t" + propertyURI + " opm:hasState/prov:generatedAtTime ?_tc\n";
+        q += '\t\t}\n';
+        q += '\t} }\n';
+        q += '}';
+        return q;
+    };
     //Get a single property
     OPMProp.prototype.getProp = function () {
         var prefixes = this.input.prefixes;
