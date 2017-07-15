@@ -8,8 +8,8 @@ export class OPMProp {
 
     constructor(input: IProp) {
         this.input = input;
-        //Add predefined prefixes
-        if(this.input){
+        if(input){
+            //Add predefined prefixes
             var prefixes: string[] = _.pluck(this.input.prefixes, 'prefix');
             if(!this.input.prefixes){this.input.prefixes = []};
             if(!_.contains(prefixes, 'rdf')){
@@ -171,7 +171,6 @@ export class OPMProp {
         var property = this.input.propertyURI;
         var latest = this.input.latest;
         
-
         if(!property) this.err = "Please specify a propertyURI";
 
         var q: string = '';
@@ -179,7 +178,7 @@ export class OPMProp {
         for(var i in prefixes){
             q+= `PREFIX  ${prefixes[i].prefix}: <${prefixes[i].uri}>\n`;
         }
-        q+= `SELECT ?value `;
+        q+= `SELECT ?value ?deleted `;
         q+= latest ? '(?ts AS ?timestamp) ' : '(MAX(?ts) AS ?timestamp) ';
         q+= returnResource ? '?resource\n' : '\n';
         q+= 'WHERE {\n';
@@ -191,8 +190,10 @@ export class OPMProp {
             q+= '\t\t} GROUP BY ?prop }\n'
         }
         q+= `\t\t${resource} ${property} ?prop .\n`;
-        q+= `\t\t?prop opm:hasState [ prov:generatedAtTime ?ts ;\n`;
-        q+= `\t\t\topm:valueAtState ?value ] .\n`;
+        q+= `\t\t?prop opm:hasState ?state .\n`;
+        q+= `\t\t?state prov:generatedAtTime ?ts ;\n`
+        q+= '\t\tOPTIONAL{?state opm:valueAtState ?value .}\n';
+        q+= '\t\tOPTIONAL{?state opm:deleted ?deleted .}\n';
         q+= `\t}\n`;
         q+= `}`; 
         if(!latest){
@@ -216,23 +217,28 @@ export class OPMProp {
             q+= `PREFIX  ${prefixes[i].prefix}: <${prefixes[i].uri}> \n`;
         }
 
-        q+= `SELECT ?resource ?property ?value ?lastUpdated ?g ?uri ?evaluation ?label `;
-        q+= `WHERE { GRAPH ?g {
-                {
-                  SELECT ?property (MAX(?timestamp) AS ?lastUpdated)
-                  WHERE {
-                    ${resource} ?property [ opm:hasState [ prov:generatedAtTime ?timestamp ] ] .
-                  }
-                  GROUP BY ?property
-                }
-            OPTIONAL{ GRAPH ?gy {?property rdfs:label ?label}
-                FILTER(lang(?label)="${strLang}")
-            }
-            ?resource ?property ?uri .
-            ?uri opm:hasState ?evaluation .
-            ?evaluation prov:generatedAtTime ?lastUpdated ; 
-                        opm:valueAtState ?value .
-        }}`;
+        q+= `SELECT ?resource ?property ?value ?lastUpdated ?g ?uri ?state ?label ?deleted `;
+        q+= `WHERE {\n`;
+        q+= `\tGRAPH ?g {\n`;
+        q+= `\t\t{ SELECT ?property (MAX(?timestamp) AS ?lastUpdated) WHERE {\n`;
+        q+= `\t\t\t${resource} ?property ?propertyURI .\n`;
+        q+= `\t\t\t?propertyURI opm:hasState ?state .\n`;
+        q+= `\t\t\t?state prov:generatedAtTime ?timestamp .\n`;
+        q+= `\t\t} GROUP BY ?property }\n`;
+        q+= `\t\tOPTIONAL{\n`
+        q+= `\t\t\tGRAPH ?gy {\n`
+        q+= `\t\t\t\t?property rdfs:label ?label\n`
+        q+= `\t\t}\t\n`;
+        q+= `\t\t\tFILTER(lang(?label)="${strLang}")\n`;
+        q+= '\t\t}\n';
+        q+= '\t\t?resource ?property ?uri .\n';
+        q+= '\t\t?uri opm:hasState ?state .\n';
+        q+= '\t\t?state prov:generatedAtTime ?lastUpdated .\n';
+        q+= '\t\tOPTIONAL{?state opm:valueAtState ?value .}\n';
+        q+= '\t\tOPTIONAL{?state opm:deleted ?deleted .}\n';
+        q+= `\t\tFILTER(?resource = ${resource})\n`;
+        q+= '\t}\n';
+        q+= '}';
 
         return q;
     }
@@ -255,7 +261,7 @@ export class OPMProp {
         for(var i in prefixes){
             q+= `PREFIX  ${prefixes[i].prefix}: <${prefixes[i].uri}>\n`;
         }
-        q+= `SELECT ?value ?timestamp\n`;
+        q+= `SELECT ?value ?timestamp ?deleted\n`;
         q+= 'WHERE {\n';
         q+= '\tGRAPH ?g {\n';
         if(latest){
@@ -267,8 +273,9 @@ export class OPMProp {
         }
         q+= `\t\t${propertyURI} opm:hasState ?state .\n`;
         q+= '\t\t?state prov:generatedAtTime ?timestamp ;\n';
-        q+= `\t\t\topm:valueAtState ?value ;\n`;
         q+= '\t\t\t^opm:hasState ?propertyURI .\n';
+        q+= '\t\tOPTIONAL{?state opm:valueAtState ?value .}\n';
+        q+= '\t\tOPTIONAL{?state opm:deleted ?deleted .}\n';
         q+= `\t}\n`;
         q+= `}`;
         if(this.err){q = 'Error: '+this.err;}

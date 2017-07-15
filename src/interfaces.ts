@@ -3,7 +3,7 @@ export interface ICalc {
     result: IRes;
     hostURI: string;
     resourceURI?: string;
-    prefixes: IPrefix[];
+    prefixes?: IPrefix[];
 }
 
 export interface IProp {
@@ -14,7 +14,7 @@ export interface IProp {
     pattern: string;
     value: IVal;
     hostURI: string;
-    prefixes: IPrefix[];
+    prefixes?: IPrefix[];
     language: string;
 }
 

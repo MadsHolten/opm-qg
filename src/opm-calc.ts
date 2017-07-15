@@ -8,29 +8,31 @@ export class OPMCalc {
 
     constructor(input: ICalc) {
         this.input = input;
-        //Add predefined prefixes
-        var prefixes: string[] = _.pluck(this.input.prefixes, 'prefix');
-        if(!this.input.prefixes){this.input.prefixes = []};
-        if(!_.contains(prefixes, 'rdf')){
-            this.input.prefixes.push({prefix: 'rdf', uri: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'});
-        }
-        if(!_.contains(prefixes, 'xsd')){
-            this.input.prefixes.push({prefix: 'xsd', uri: 'http://www.w3.org/2001/XMLSchema#'});
-        }
-        if(!_.contains(prefixes, 'seas')){
-            this.input.prefixes.push({prefix: 'seas', uri: 'https://w3id.org/seas/'});
-        }
-        if(!_.contains(prefixes, 'prov')){
-            this.input.prefixes.push({prefix: 'prov', uri: 'http://www.w3.org/ns/prov#'});
-        }
-        if(!_.contains(prefixes, 'opm')){
-            this.input.prefixes.push({prefix: 'opm', uri: 'https://w3id.org/opm#'});
-        }
-        //Remove backslash at end of hostURI
-        this.input.hostURI ? this.input.hostURI.replace(/\/$/, "") : null;
-        //datatype defaults to xsd:string
-        if(this.input.result){
-            this.input.result.datatype = this.input.result.datatype ? this.input.result.datatype : 'xsd:string';
+        if(input){
+            //Add predefined prefixes
+            var prefixes: string[] = _.pluck(this.input.prefixes, 'prefix');
+            if(!this.input.prefixes){this.input.prefixes = []};
+            if(!_.contains(prefixes, 'rdf')){
+                this.input.prefixes.push({prefix: 'rdf', uri: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'});
+            }
+            if(!_.contains(prefixes, 'xsd')){
+                this.input.prefixes.push({prefix: 'xsd', uri: 'http://www.w3.org/2001/XMLSchema#'});
+            }
+            if(!_.contains(prefixes, 'seas')){
+                this.input.prefixes.push({prefix: 'seas', uri: 'https://w3id.org/seas/'});
+            }
+            if(!_.contains(prefixes, 'prov')){
+                this.input.prefixes.push({prefix: 'prov', uri: 'http://www.w3.org/ns/prov#'});
+            }
+            if(!_.contains(prefixes, 'opm')){
+                this.input.prefixes.push({prefix: 'opm', uri: 'https://w3id.org/opm#'});
+            }
+            //Remove backslash at end of hostURI
+            this.input.hostURI ? this.input.hostURI.replace(/\/$/, "") : null;
+            //datatype defaults to xsd:string
+            if(this.input.result){
+                this.input.result.datatype = this.input.result.datatype ? this.input.result.datatype : 'xsd:string';
+            }
         }
     }
 
@@ -367,17 +369,16 @@ export class OPMCalc {
     //Checks either generally or for a specific resource
     //Returns the following:
     listOutdated(): string{
-        var prefixes = this.input.prefixes;
-        var resourceURI = this.input.resourceURI;
+        var resourceURI = this.input ? this.input.resourceURI : undefined;
         var evalPath: string = '';
         if(resourceURI){
             evalPath = `<${resourceURI}> ?hasProp ?propertyURI . `;
         }
         var q = '';
         //Define prefixes
-        for(var i in prefixes){
-            q+= `PREFIX  ${prefixes[i].prefix}: <${prefixes[i].uri}> \n`;
-        }
+        q+= 'PREFIX prov: <http://www.w3.org/ns/prov#>\n';
+        q+= 'PREFIX opm: <https://w3id.org/opm#>\n';
+        
         q+= `SELECT ?propertyURI ?calc_time ?arg_last_update ?new_arg ?old_val ?new_val 
              WHERE {`;
         //Get the time of the latest calculation

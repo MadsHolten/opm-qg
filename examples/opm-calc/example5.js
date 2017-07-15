@@ -14,6 +14,6 @@ var qg = require("../../dist/index");
 var input = {
     resourceURI: 'https://localhost/seas/HeatingSystem/14532928-3bb5-4396-a4a3-aea6aa4fa56c'
 };
-var sc = new qg.OPMCalc(input);
+var sc = new qg.OPMCalc();
 var q = sc.listOutdated();
 console.log(q);
