@@ -206,7 +206,7 @@ export class OPMProp {
         q+= `\t}\n`;
         q+= `}`; 
         if(!latest){
-            q+=` GROUP BY ?value `
+            q+=` GROUP BY ?value ?deleted`
             q+= returnResource ? '?resource' : '';
         }
         if(this.err){q = 'Error: '+this.err;}
