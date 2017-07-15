@@ -271,6 +271,7 @@ var OPMProp = (function () {
     //Restore a deleted property
     OPMProp.prototype.restoreProp = function () {
         var propertyURI = this.input.propertyURI;
+        var hostURI = this.input.hostURI;
         var prefixes = this.input.prefixes;
         var q = '';
         //Define prefixes
@@ -279,17 +280,41 @@ var OPMProp = (function () {
         }
         q += 'CONSTRUCT {\n';
         q += '\t?propertyURI opm:hasState ?stateURI .\n';
-        q += '\t?stateURI opm:valueAtState ?val ;\n';
-        q += '\t\tprov:generatedAtTime ?now .\n';
+        q += '\t?stateURI opm:valueAtState ?value ;\n';
+        q += '\t\tprov:generatedAtTime ?now ;\n';
+        q += '\t\topm:expression ?expression ;\n';
+        q += '\t\tprov:wasDerivedFrom ?dependencies .\n';
         q += '}\n';
         q += 'WHERE {\n';
+        q += '\tGRAPH ?g {\n';
         //Get latest state
-        q += "\t#GET LATEST STATE\n";
-        q += "\t{ SELECT (MAX(?_t) AS ?t) WHERE {\n";
-        q += "\t\tGRAPH ?g {\n";
-        q += "\t\t\t" + propertyURI + " opm:hasState/prov:generatedAtTime ?_tc\n";
-        q += '\t\t}\n';
-        q += '\t} }\n';
+        q += "\t\t#GET LATEST STATE\n";
+        q += "\t\t{ SELECT ?propertyURI (MAX(?_t) AS ?t) WHERE {\n";
+        q += "\t\t\t" + propertyURI + " opm:hasState ?state .\n";
+        q += "\t\t\t?state prov:generatedAtTime ?_t ;\n";
+        q += "\t\t\t\t^opm:hasState ?propertyURI .\n";
+        q += '\t\t} GROUP BY ?propertyURI }\n';
+        //Make sure it is deleted and get data
+        q += "\t\t#A STATE MUST EXIST AND IT SHOULD BE DELETED\n";
+        q += "\t\t?propertyURI opm:hasState ?state .\n";
+        q += "\t\t?state prov:generatedAtTime ?t ;\n";
+        q += '\t\t\topm:deleted ?del .\n';
+        q += '\t\tFILTER(?del = true)\n';
+        //Get latest value
+        q += "\t\t#RETRIEVE LAST VALUE\n";
+        q += "\t\t{ SELECT ?propertyURI (MAX(?_t) AS ?tval) WHERE {\n";
+        q += "\t\t\t?propertyURI opm:hasState ?st .\n";
+        q += "\t\t\t?st prov:generatedAtTime ?_t ;\n";
+        q += "\t\t\t\t opm:valueAtState ?val .\n";
+        q += '\t\t} GROUP BY ?propertyURI }\n';
+        q += "\t\t?st prov:generatedAtTime ?tval ;\n";
+        q += '\t\t\topm:valueAtState ?value .\n';
+        q += '\t\t\tOPTIONAL{?st opm:expression ?expression .}\n';
+        q += '\t\t\tOPTIONAL{?st prov:wasDerivedFrom ?dependencies .}\n';
+        q += '\t}\n';
+        q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
+        q += "\tBIND(URI(CONCAT(\"" + hostURI + "\", \"/State/\", ?guid)) AS ?stateURI)\n";
+        q += '\tBIND(now() AS ?now)\n';
         q += '}';
         return q;
     };
