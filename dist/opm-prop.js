@@ -5,61 +5,63 @@ var OPMProp = (function () {
     function OPMProp(input) {
         this.input = input;
         //Add predefined prefixes
-        var prefixes = _.pluck(this.input.prefixes, 'prefix');
-        if (!this.input.prefixes) {
-            this.input.prefixes = [];
-        }
-        ;
-        if (!_.contains(prefixes, 'rdf')) {
-            this.input.prefixes.push({ prefix: 'rdf', uri: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#' });
-        }
-        if (!_.contains(prefixes, 'xsd')) {
-            this.input.prefixes.push({ prefix: 'xsd', uri: 'http://www.w3.org/2001/XMLSchema#' });
-        }
-        if (!_.contains(prefixes, 'seas')) {
-            this.input.prefixes.push({ prefix: 'seas', uri: 'https://w3id.org/seas/' });
-        }
-        if (!_.contains(prefixes, 'prov')) {
-            this.input.prefixes.push({ prefix: 'prov', uri: 'http://www.w3.org/ns/prov#' });
-        }
-        if (!_.contains(prefixes, 'rdfs')) {
-            this.input.prefixes.push({ prefix: 'rdfs', uri: 'http://www.w3.org/2000/01/rdf-schema#' });
-        }
-        if (!_.contains(prefixes, 'opm')) {
-            this.input.prefixes.push({ prefix: 'opm', uri: 'https://w3id.org/opm#' });
-        }
-        //Remove backslash at end of hostURI
-        this.input.hostURI ? this.input.hostURI.replace(/\/$/, "") : null;
-        //datatype defaults to xsd:string
-        if (this.input.value) {
-            this.input.value.datatype = this.input.value.datatype ? this.input.value.datatype : 'xsd:string';
-            //PropertyURI can be either prefixed or as a regular URI
-            if (this.input.value.property) {
-                var propertyURI = this.input.value.property;
-                this.input.value.property = _s.startsWith(propertyURI, 'http') ? "<" + propertyURI + ">" : "" + propertyURI;
+        if (this.input) {
+            var prefixes = _.pluck(this.input.prefixes, 'prefix');
+            if (!this.input.prefixes) {
+                this.input.prefixes = [];
             }
-        }
-        //If no resource URI is specified, some pattern must exist
-        if (!this.input.resourceURI) {
-            if (!this.input.pattern && !this.input.propertyURI) {
-                this.err = "When no resourceURI is specified a pattern must exist!";
+            ;
+            if (!_.contains(prefixes, 'rdf')) {
+                this.input.prefixes.push({ prefix: 'rdf', uri: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#' });
+            }
+            if (!_.contains(prefixes, 'xsd')) {
+                this.input.prefixes.push({ prefix: 'xsd', uri: 'http://www.w3.org/2001/XMLSchema#' });
+            }
+            if (!_.contains(prefixes, 'seas')) {
+                this.input.prefixes.push({ prefix: 'seas', uri: 'https://w3id.org/seas/' });
+            }
+            if (!_.contains(prefixes, 'prov')) {
+                this.input.prefixes.push({ prefix: 'prov', uri: 'http://www.w3.org/ns/prov#' });
+            }
+            if (!_.contains(prefixes, 'rdfs')) {
+                this.input.prefixes.push({ prefix: 'rdfs', uri: 'http://www.w3.org/2000/01/rdf-schema#' });
+            }
+            if (!_.contains(prefixes, 'opm')) {
+                this.input.prefixes.push({ prefix: 'opm', uri: 'https://w3id.org/opm#' });
+            }
+            //Remove backslash at end of hostURI
+            this.input.hostURI ? this.input.hostURI.replace(/\/$/, "") : null;
+            //datatype defaults to xsd:string
+            if (this.input.value) {
+                this.input.value.datatype = this.input.value.datatype ? this.input.value.datatype : 'xsd:string';
+                //PropertyURI can be either prefixed or as a regular URI
+                if (this.input.value.property) {
+                    var propertyURI = this.input.value.property;
+                    this.input.value.property = _s.startsWith(propertyURI, 'http') ? "<" + propertyURI + ">" : "" + propertyURI;
+                }
+            }
+            //If no resource URI is specified, some pattern must exist
+            if (!this.input.resourceURI) {
+                if (!this.input.pattern && !this.input.propertyURI) {
+                    this.err = "When no resourceURI is specified a pattern must exist!";
+                }
+                else {
+                    this.input.resourceURI = '?resource';
+                    //Clean pattern
+                    var str = this.input.pattern;
+                    str = _s.clean(str); //Remove unnecessary spaces etc.
+                    str = _s.endsWith(str, ".") ? str + ' ' : str + ' . '; //Make sure it ends with a dot and a space
+                    this.input.pattern = str;
+                }
             }
             else {
-                this.input.resourceURI = '?resource';
-                //Clean pattern
-                var str = this.input.pattern;
-                str = _s.clean(str); //Remove unnecessary spaces etc.
-                str = _s.endsWith(str, ".") ? str + ' ' : str + ' . '; //Make sure it ends with a dot and a space
-                this.input.pattern = str;
+                this.input.resourceURI = "<" + this.input.resourceURI + ">";
             }
-        }
-        else {
-            this.input.resourceURI = "<" + this.input.resourceURI + ">";
-        }
-        //PropertyURI can be either prefixed or as a regular URI
-        if (this.input.propertyURI) {
-            var propertyURI = this.input.propertyURI;
-            this.input.propertyURI = _s.startsWith(propertyURI, 'http') ? "<" + propertyURI + ">" : "" + propertyURI;
+            //PropertyURI can be either prefixed or as a regular URI
+            if (this.input.propertyURI) {
+                var propertyURI = this.input.propertyURI;
+                this.input.propertyURI = _s.startsWith(propertyURI, 'http') ? "<" + propertyURI + ">" : "" + propertyURI;
+            }
         }
     }
     /**
@@ -257,7 +259,7 @@ var OPMProp = (function () {
         q += '\t\t\t^opm:hasState ?propertyURI .\n';
         q += '\t\tOPTIONAL{\n';
         q += '\t\t\t?state opm:deleted ?del\n';
-        q += '\t\t\tFILTER(?del != "true")\n';
+        q += '\t\t\tFILTER(?del != true)\n';
         q += '\t\t}\n';
         q += '\t}\n';
         q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
@@ -288,6 +290,33 @@ var OPMProp = (function () {
         q += "\t\t\t" + propertyURI + " opm:hasState/prov:generatedAtTime ?_tc\n";
         q += '\t\t}\n';
         q += '\t} }\n';
+        q += '}';
+        return q;
+    };
+    /**
+     * OTHER
+     */
+    OPMProp.prototype.listDeleted = function () {
+        var q = '';
+        q += 'PREFIX  opm: <https://w3id.org/opm#>\n';
+        q += 'PREFIX  prov: <http://www.w3.org/ns/prov#>\n';
+        q += 'SELECT ?property (?t as ?timestamp) ?deletedBy\n';
+        q += 'WHERE {\n';
+        q += '\tGRAPH ?g {\n';
+        //Get latest state
+        q += "\t#GET LATEST STATE\n";
+        q += "\t{ SELECT ?property (MAX(?_t) AS ?t) WHERE {\n";
+        q += "\t\tGRAPH ?g {\n";
+        q += "\t\t\t?property opm:hasState/prov:generatedAtTime ?_t .\n";
+        q += '\t\t}\n';
+        q += '\t} GROUP BY ?property }\n';
+        q += '\t#GET DATA\n';
+        q += '\t\t?property opm:hasState ?state .\n';
+        q += '\t\t?state prov:generatedAtTime ?t ;\n';
+        q += '\t\t\topm:deleted ?del .\n';
+        q += '\t\tOPTIONAL{ ?state prov:wasAttributedTo ?deletedBy }\n';
+        q += '\t\tFILTER(?del = true)\n';
+        q += '\t}\n';
         q += '}';
         return q;
     };
