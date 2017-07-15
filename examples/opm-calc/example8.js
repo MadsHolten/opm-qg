@@ -36,7 +36,6 @@ var input = {
         property: 'seas:fluidTemperatureDifference',
         calc: 'abs(?arg1-?arg2)'
     },
-    hostURI: 'https://host/proj',
     prefixes: [
         {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'}
     ]

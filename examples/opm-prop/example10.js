@@ -5,8 +5,7 @@ var qg = require("../../dist/index");
  * Restore deleted property
  */
 var input = {
-    propertyURI: 'https://localhost/opm/Property/bbc02774-a7f0-4011-876a-a879f890404c',
-    hostURI: 'https://localhost/opm'
+    propertyURI: 'https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97'
 };
 var sc = new qg.OPMProp(input);
 var q = sc.restoreProp();

@@ -26,8 +26,6 @@ var OPMCalc = (function () {
             if (!_.contains(prefixes, 'opm')) {
                 this.input.prefixes.push({ prefix: 'opm', uri: 'https://w3id.org/opm#' });
             }
-            //Remove backslash at end of hostURI
-            this.input.hostURI ? this.input.hostURI.replace(/\/$/, "") : null;
             //datatype defaults to xsd:string
             if (this.input.result) {
                 this.input.result.datatype = this.input.result.datatype ? this.input.result.datatype : 'xsd:string';
@@ -37,7 +35,6 @@ var OPMCalc = (function () {
     //Create calculation where it doesn't already exist
     OPMCalc.prototype.postCalc = function () {
         //Define variables
-        var hostURI = this.input.hostURI; //The host URI
         var calc = this.input.result.calc; //The calculation to perform
         var args = this.input.args; //Arguments
         var property = this.input.result.property; //New property
@@ -116,14 +113,16 @@ var OPMCalc = (function () {
             q += "\t\t\topm:valueAtState ?v" + _i + " .\n";
             q += "\t\tBIND(xsd:decimal(strbefore(str(?v" + _i + "), \" \")) AS ?arg" + _i + ")\n"; //NB! might give problems with non-ucum
         }
-        //NB! BIND(URI(CONCAT("${hostURI}", "/Property/", STRUUID())) AS ?propertyURI) should work - bug in Stardog
+        //NB! BIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/Property/", STRUUID())) AS ?propertyURI) should work - bug in Stardog
         q += "\t\t#PERFORM CALCULATION AND SPECIFY UNIT + DATATYPE\n";
         q += "\t\tBIND((" + calc + ") AS ?_res)\n";
         q += "\t\tBIND(strdt(concat(str(?_res), \" " + unit + "\"), " + datatype + ") AS ?res)\n";
         q += "\t\t#GENERATE URIs FOR NEW CLASS INSTANCES\n";
         q += "\t\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n";
-        q += "\t\tBIND(URI(CONCAT(\"" + hostURI + "\", \"/Property/\", ?guid)) AS ?propertyURI)\n";
-        q += "\t\tBIND(URI(CONCAT(\"" + hostURI + "\", \"/State/\", ?guid)) AS ?stateURI)\n";
+        q += this.getHost();
+        q += '\t\t#CREATE STATE AND PROPERTY URI´s\n';
+        q += '\t\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
+        q += '\t\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/Property/", ?guid)) AS ?propertyURI)\n';
         q += "\t\t#GET CURRENT TIME\n";
         q += "\t\tBIND(now() AS ?now)\n";
         q += '\t}\n';
@@ -133,7 +132,6 @@ var OPMCalc = (function () {
     //Update calculation where it already exist but inputs have changed
     OPMCalc.prototype.putCalc = function () {
         //Define variables
-        var hostURI = this.input.hostURI; //The host URI
         var calc = this.input.result.calc; //The calculation to perform
         var args = this.input.args; //Arguments
         var property = this.input.result.property; //New property
@@ -230,7 +228,9 @@ var OPMCalc = (function () {
         q += "\t\tBIND(strdt(concat(str(?_res), \" " + unit + "\"), " + datatype + ") AS ?res)\n";
         q += "\t\t#GENERATE URIs FOR NEW CLASS INSTANCES\n";
         q += "\t\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n";
-        q += "\t\tBIND(URI(CONCAT(\"" + hostURI + "\", \"/State/\", ?guid)) AS ?stateURI)\n";
+        q += this.getHost();
+        q += '\t\t#CREATE STATE URI´s\n';
+        q += '\t\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/Property/", ?guid)) AS ?propertyURI)\n';
         q += "\t\t#GET CURRENT TIME\n";
         q += "\t\tBIND(now() AS ?now)\n";
         q += '\t}\n';
@@ -240,7 +240,6 @@ var OPMCalc = (function () {
     // //Update calculation where an argument has changed
     // putCalc(): string{
     //     //Retrieve and process variables
-    //     var hostURI = this.input.hostURI.replace(/\/$/, ""); //The host URI (remove backslash at end)
     //     var calc = this.input.result.calc; //The calculation to perform
     //     var args = this.input.args; //Arguments
     //     var property = this.input.result.property; //New property
@@ -357,6 +356,16 @@ var OPMCalc = (function () {
         q += "GRAPH ?g\n                {\n                  ?old_arg ^opm:hasState/opm:hasState ?new_arg .\n                  ?new_arg prov:generatedAtTime  ?arg_last_update ;\n                           opm:valueAtState ?new_val .\n                }";
         //Filter to only show outdated calculations
         q += "FILTER(?arg_last_update > ?calc_time) }";
+        return q;
+    };
+    OPMCalc.prototype.getHost = function () {
+        var q = '';
+        q += '\t\t#EXTRACT HOST URI\n';
+        q += '\t\tBIND(IF(CONTAINS(STR(?propertyURI), "https://"), "https://", "http://") AS ?http)\n';
+        q += '\t\tBIND(STRAFTER(STR(?propertyURI), STR(?http)) AS ?substr1)\n';
+        q += '\t\tBIND(STRAFTER(STR(?substr1), "/") AS ?substr2)\n';
+        q += '\t\tBIND(STRBEFORE(STR(?substr1), "/") AS ?host)\n';
+        q += '\t\tBIND(STRBEFORE(STR(?substr2), "/") AS ?db)\n';
         return q;
     };
     return OPMCalc;

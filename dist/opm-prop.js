@@ -29,8 +29,6 @@ var OPMProp = (function () {
             if (!_.contains(prefixes, 'opm')) {
                 this.input.prefixes.push({ prefix: 'opm', uri: 'https://w3id.org/opm#' });
             }
-            //Remove backslash at end of hostURI
-            this.input.hostURI ? this.input.hostURI.replace(/\/$/, "") : null;
             //datatype defaults to xsd:string
             if (this.input.value) {
                 this.input.value.datatype = this.input.value.datatype ? this.input.value.datatype : 'xsd:string';
@@ -76,7 +74,6 @@ var OPMProp = (function () {
         var value = this.input.value.value;
         var unit = this.input.value.unit;
         var datatype = this.input.value.datatype;
-        var hostURI = this.input.hostURI;
         var resourceURI = this.input.resourceURI;
         if (resourceURI == '?resource') {
             var pattern = "{ SELECT * WHERE { GRAPH ?g {" + this.input.pattern + "} }}";
@@ -104,8 +101,10 @@ var OPMProp = (function () {
         q += '\t}\n';
         q += "\tBIND(strdt(concat(str(" + value + "), \" " + unit + "\"), " + datatype + ") AS ?val)\n";
         q += "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n";
-        q += "\tBIND(URI(CONCAT(\"" + hostURI + "\", \"/Property/\", ?guid)) AS ?propertyURI)\n";
-        q += "\tBIND(URI(CONCAT(\"" + hostURI + "\", \"/State/\", ?guid)) AS ?stateURI)\n";
+        q += this.getHost();
+        q += '\t#CREATE STATE AND PROPERTY URI´s\n';
+        q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
+        q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/Property/", ?guid)) AS ?propertyURI)\n';
         q += "\tBIND(now() AS ?now)\n";
         q += '}\n';
         if (this.err) {
@@ -122,18 +121,47 @@ var OPMProp = (function () {
         var value = this.input.value.value;
         var unit = this.input.value.unit;
         var datatype = this.input.value.datatype;
-        var hostURI = this.input.hostURI;
         var pattern = this.input.pattern;
         var resourceURI = this.input.resourceURI;
         var q = '';
         //Define prefixes
         for (var i in prefixes) {
-            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + "> \n";
+            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + ">\n";
         }
         //Only makes an update if the value is different from the last evaluation
-        q += "CONSTRUCT\n              {\n                ?propertyURI opm:hasState ?stateURI .\n                ?stateURI opm:valueAtState ?val ;\n                               prov:generatedAtTime ?now .\n              }\n             WHERE {\n              {SELECT ?propertyURI (MAX(?_t) AS ?t) WHERE { \n                  GRAPH ?g {\n                      " + resourceURI + " " + property + " ?propertyURI . \n                      ?propertyURI opm:hasState ?eval . \n                      ?eval prov:generatedAtTime ?_t . \n";
-        q += pattern ? pattern + '\n' : '\n';
-        q += "} } GROUP BY ?propertyURI }\n              GRAPH ?g { \n                  " + resourceURI + " " + property + " ?propertyURI .\n                  ?propertyURI opm:hasState [ prov:generatedAtTime ?t ;\n                                                 opm:valueAtState ?old_val ] .\n                  FILTER(strbefore(str(?old_val), \" \") != str(" + value + "))\n              }\n              BIND(strdt(concat(str(" + value + "), \" " + unit + "\"), " + datatype + ") AS ?val)\n              BIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n              BIND(URI(CONCAT(\"" + hostURI + "\", \"/State/\", ?guid)) AS ?stateURI)\n              BIND(now() AS ?now)\n             }";
+        q += 'CONSTRUCT {\n';
+        q += '\t?propertyURI opm:hasState ?stateURI .\n';
+        q += '\t?stateURI opm:valueAtState ?val ;\n';
+        q += '\t\tprov:generatedAtTime ?now ;\n';
+        q += '\t\topm:error ?error .\n';
+        q += '}\n';
+        q += 'WHERE {\n';
+        q += '\t#GET LATEST STATE\n';
+        q += '\t{ SELECT ?propertyURI (MAX(?_t) AS ?t) WHERE {\n';
+        q += '\t\tGRAPH ?g {\n';
+        q += "\t\t\t" + resourceURI + " " + property + " ?propertyURI .\n";
+        q += '\t\t\t?propertyURI opm:hasState ?eval .\n';
+        q += '\t\t\t?eval prov:generatedAtTime ?_t .\n';
+        q += pattern ? "\t\t\t" + pattern + "\n" : '';
+        q += '\t\t}\n';
+        q += '\t} GROUP BY ?propertyURI }\n';
+        q += '\t\t#GET DATA - VALUE SHOULD BE DIFFERENT FROM THE PREVIOUS\n';
+        q += '\t\tGRAPH ?g {\n';
+        q += "\t\t\t" + resourceURI + " " + property + " ?propertyURI .\n";
+        q += "\t\t\t?propertyURI opm:hasState [ prov:generatedAtTime ?t ;\n";
+        q += "\t\t\t\topm:valueAtState ?old_val ] .\n";
+        q += "\t\t\tFILTER(strbefore(str(?old_val), \" \") != str(" + value + "))\n";
+        q += '\t\t}\n';
+        q += "\tBIND(strdt(concat(str(" + value + "), \" " + unit + "\"), " + datatype + ") AS ?val)\n";
+        q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
+        q += this.getHost();
+        q += '\t#CREATE STATE AND PROPERTY URI´s\n';
+        q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
+        q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/Property/", ?guid)) AS ?propertyURI)\n';
+        q += '\tBIND(now() AS ?now)\n';
+        //q+= '\t#ERRORS\n';
+        //q+= `\tBIND(IF(strbefore(str(?old_val), " ") = str(70), "The specified value is the same as the previous", "") AS ?error)\n`;
+        q += '}';
         if (this.err) {
             q = 'Error: ' + this.err;
         }
@@ -191,7 +219,7 @@ var OPMProp = (function () {
         for (var i in prefixes) {
             q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + "> \n";
         }
-        q += "SELECT ?resource ?property ?value ?lastUpdated ?g ?uri ?state ?label ?deleted\n";
+        q += "SELECT ?resource ?property ?value ?lastUpdated ?g ?uri ?state ?label ?deleted ";
         q += "WHERE {\n";
         q += "\tGRAPH ?g {\n";
         q += "\t\t{ SELECT ?property (MAX(?timestamp) AS ?lastUpdated) WHERE {\n";
@@ -255,7 +283,6 @@ var OPMProp = (function () {
     //Delete a property
     OPMProp.prototype.deleteProp = function () {
         var propertyURI = this.input.propertyURI;
-        var hostURI = this.input.hostURI;
         var prefixes = this.input.prefixes;
         var q = '';
         //Define prefixes
@@ -286,7 +313,9 @@ var OPMProp = (function () {
         q += '\t\t}\n';
         q += '\t}\n';
         q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
-        q += "\tBIND(URI(CONCAT(\"" + hostURI + "\", \"/State/\", ?guid)) AS ?stateURI)\n";
+        q += this.getHost();
+        q += '\t#CREATE STATE URI\n';
+        q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += '\tBIND(now() AS ?now)\n';
         q += '}';
         return q;
@@ -294,7 +323,6 @@ var OPMProp = (function () {
     //Restore a deleted property
     OPMProp.prototype.restoreProp = function () {
         var propertyURI = this.input.propertyURI;
-        var hostURI = this.input.hostURI;
         var prefixes = this.input.prefixes;
         var q = '';
         //Define prefixes
@@ -336,7 +364,9 @@ var OPMProp = (function () {
         q += '\t\t\tOPTIONAL{?st prov:wasDerivedFrom ?dependencies .}\n';
         q += '\t}\n';
         q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
-        q += "\tBIND(URI(CONCAT(\"" + hostURI + "\", \"/State/\", ?guid)) AS ?stateURI)\n";
+        q += this.getHost();
+        q += '\t#CREATE STATE URI\n';
+        q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += '\tBIND(now() AS ?now)\n';
         q += '}';
         return q;
@@ -366,6 +396,16 @@ var OPMProp = (function () {
         q += '\t\tFILTER(?del = true)\n';
         q += '\t}\n';
         q += '}';
+        return q;
+    };
+    OPMProp.prototype.getHost = function () {
+        var q = '';
+        q += '\t#EXTRACT HOST URI\n';
+        q += '\tBIND(IF(CONTAINS(STR(?propertyURI), "https://"), "https://", "http://") AS ?http)\n';
+        q += '\tBIND(STRAFTER(STR(?propertyURI), STR(?http)) AS ?substr1)\n';
+        q += '\tBIND(STRAFTER(STR(?substr1), "/") AS ?substr2)\n';
+        q += '\tBIND(STRBEFORE(STR(?substr1), "/") AS ?host)\n';
+        q += '\tBIND(STRBEFORE(STR(?substr2), "/") AS ?db)\n';
         return q;
     };
     return OPMProp;

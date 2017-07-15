@@ -23,7 +23,6 @@ var input = {
         property: 'seas:fluidTemperatureDifference',
         calc: 'abs(?arg1-?arg2)'
     },
-    hostURI: 'https://host/proj',
     resourceURI: 'https://localhost/seas/HeatingSystem/6626b0b1-3578-4f1e-a6ec-91c7c59fb143',
     prefixes: [
         {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'}

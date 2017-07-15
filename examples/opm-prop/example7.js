@@ -6,8 +6,7 @@ var qg = require("../../dist/index");
  * the property opm:deleted set to true
  */
 var input = {
-    propertyURI: 'https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97',
-    hostURI: 'https://host/proj'
+    propertyURI: 'https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97'
 };
 var sc = new qg.OPMProp(input);
 var q = sc.deleteProp();

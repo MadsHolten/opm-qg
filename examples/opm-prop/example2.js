@@ -21,7 +21,6 @@ var input = {
         property: 'seas:fluidSupplyTemperature',
         value: '70'
     },
-    hostURI: 'https://host/proj',
     prefixes: [
         {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'}
     ],
