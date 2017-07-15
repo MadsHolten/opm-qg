@@ -7,11 +7,11 @@ var qg = require("../../dist/index");
  * 
  */
 var input = {
-    resourceURI: "https://localhost/seas/HeatingSystem/b5f9e70e-af29-4c28-a2c5-16ff74645a66",
+    resourceURI: "https://localhost/opm/HeatConsumer/1",
     //propertyURI: "seas:fluidTemperatureDifference",
-    propertyURI: "https://w3id.org/seas/fluidReturnTemperature",
-    latest: false
+    propertyURI: "https://w3id.org/seas/heatOutput",
+    latest: true
 };
 var sc = new qg.OPMProp(input);
-var q = sc.getProp();
+var q = sc.getResourceProp();
 console.log(q);

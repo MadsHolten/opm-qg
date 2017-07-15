@@ -18,5 +18,5 @@ var input = {
     resourceURI: 'https://localhost/seas/HeatingSystem/14532928-3bb5-4396-a4a3-aea6aa4fa56c'
 };
 var sc = new qg.OPMProp(input);
-var q = sc.putProp();
+var q = sc.putResourceProp();
 console.log(q);

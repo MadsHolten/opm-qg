@@ -20,5 +20,5 @@ var input = {
 };
 
 var sc = new qg.OPMProp(input);
-var q = sc.postProp();
+var q = sc.postResourceProp();
 console.log(q);

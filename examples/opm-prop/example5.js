@@ -11,5 +11,5 @@ var input = {
     language: "en"
 };
 var sc = new qg.OPMProp(input);
-var q = sc.getProps();
+var q = sc.getResourceProps();
 console.log(q);

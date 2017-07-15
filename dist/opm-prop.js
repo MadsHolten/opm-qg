@@ -62,8 +62,11 @@ var OPMProp = (function () {
             this.input.propertyURI = _s.startsWith(propertyURI, 'http') ? "<" + propertyURI + ">" : "" + propertyURI;
         }
     }
-    //Create property where it doesn't already exist
-    OPMProp.prototype.postProp = function () {
+    /**
+     * BY RESOURCE
+     */
+    //Create property for a resource where it doesn't already exist
+    OPMProp.prototype.postResourceProp = function () {
         //Retrieve and process variables
         var prefixes = this.input.prefixes;
         var resource = this.input.resourceURI;
@@ -108,8 +111,8 @@ var OPMProp = (function () {
         }
         return q;
     };
-    //Update property
-    OPMProp.prototype.putProp = function () {
+    //Update resource property
+    OPMProp.prototype.putResourceProp = function () {
         //Retrieve and process variables
         var prefixes = this.input.prefixes;
         var resource = this.input.resourceURI;
@@ -129,6 +132,96 @@ var OPMProp = (function () {
         q += "CONSTRUCT\n              {\n                ?propertyURI opm:hasState ?stateURI .\n                ?stateURI opm:valueAtState ?val ;\n                               prov:generatedAtTime ?now .\n              }\n             WHERE {\n              {SELECT ?propertyURI (MAX(?_t) AS ?t) WHERE { \n                  GRAPH ?g {\n                      " + resourceURI + " " + property + " ?propertyURI . \n                      ?propertyURI opm:hasState ?eval . \n                      ?eval prov:generatedAtTime ?_t . \n";
         q += pattern ? pattern + '\n' : '\n';
         q += "} } GROUP BY ?propertyURI }\n              GRAPH ?g { \n                  " + resourceURI + " " + property + " ?propertyURI .\n                  ?propertyURI opm:hasState [ prov:generatedAtTime ?t ;\n                                                 opm:valueAtState ?old_val ] .\n                  FILTER(strbefore(str(?old_val), \" \") != str(" + value + "))\n              }\n              BIND(strdt(concat(str(" + value + "), \" " + unit + "\"), " + datatype + ") AS ?val)\n              BIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n              BIND(URI(CONCAT(\"" + hostURI + "\", \"/State/\", ?guid)) AS ?stateURI)\n              BIND(now() AS ?now)\n             }";
+        if (this.err) {
+            q = 'Error: ' + this.err;
+        }
+        return q;
+    };
+    //Get a single property of a resource
+    OPMProp.prototype.getResourceProp = function () {
+        var prefixes = this.input.prefixes;
+        var resource = this.input.resourceURI;
+        var returnResource = this.input.resourceURI == '?resource' ? true : false;
+        var property = this.input.propertyURI;
+        var latest = this.input.latest;
+        if (!property)
+            this.err = "Please specify a propertyURI";
+        var q = '';
+        //Define prefixes
+        for (var i in prefixes) {
+            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + ">\n";
+        }
+        q += "SELECT ?value ";
+        q += latest ? '(?ts AS ?timestamp) ' : '(MAX(?ts) AS ?timestamp) ';
+        q += returnResource ? '?resource\n' : '\n';
+        q += 'WHERE {\n';
+        q += '\tGRAPH ?g {\n';
+        if (latest) {
+            q += "\t\t{ SELECT (MAX(?t) AS ?ts) WHERE {\n";
+            q += "\t\t\t" + resource + " " + property + " ?prop .\n";
+            q += "\t\t\t?prop opm:hasState/prov:generatedAtTime ?t .\n";
+            q += '\t\t} GROUP BY ?prop }\n';
+        }
+        q += "\t\t" + resource + " " + property + " ?prop .\n";
+        q += "\t\t?prop opm:hasState [ prov:generatedAtTime ?ts ;\n";
+        q += "\t\t\topm:valueAtState ?value ] .\n";
+        q += "\t}\n";
+        q += "}";
+        if (!latest) {
+            q += " GROUP BY ?value ";
+            q += returnResource ? '?resource' : '';
+        }
+        if (this.err) {
+            q = 'Error: ' + this.err;
+        }
+        return q;
+    };
+    //Get all resource properties
+    OPMProp.prototype.getResourceProps = function () {
+        var prefixes = this.input.prefixes;
+        var resource = this.input.resourceURI ? "" + this.input.resourceURI : '?resource';
+        var strLang = this.input.language;
+        var evalPath = '';
+        var q = '';
+        //Define prefixes
+        for (var i in prefixes) {
+            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + "> \n";
+        }
+        q += "SELECT ?resource ?property ?value ?lastUpdated ?g ?uri ?evaluation ?label ";
+        q += "WHERE { GRAPH ?g {\n                {\n                  SELECT ?property (MAX(?timestamp) AS ?lastUpdated)\n                  WHERE {\n                    " + resource + " ?property [ opm:hasState [ prov:generatedAtTime ?timestamp ] ] .\n                  }\n                  GROUP BY ?property\n                }\n            OPTIONAL{ GRAPH ?gy {?property rdfs:label ?label}\n                FILTER(lang(?label)=\"" + strLang + "\")\n            }\n            ?resource ?property ?uri .\n            ?uri opm:hasState ?evaluation .\n            ?evaluation prov:generatedAtTime ?lastUpdated ; \n                        opm:valueAtState ?value .\n        }}";
+        return q;
+    };
+    /**
+     * BY PROPERTY
+     */
+    //Get a single property
+    OPMProp.prototype.getProp = function () {
+        var prefixes = this.input.prefixes;
+        var propertyURI = this.input.propertyURI;
+        var latest = this.input.latest;
+        if (!propertyURI)
+            this.err = "Please specify a propertyURI";
+        var q = '';
+        //Define prefixes
+        for (var i in prefixes) {
+            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + ">\n";
+        }
+        q += "SELECT ?value ?timestamp\n";
+        q += 'WHERE {\n';
+        q += '\tGRAPH ?g {\n';
+        if (latest) {
+            q += "\t\t{ SELECT (MAX(?t) AS ?timestamp) WHERE {\n";
+            q += "\t\t\t" + propertyURI + " opm:hasState ?state .\n";
+            q += "\t\t\t?state prov:generatedAtTime ?t ;\n";
+            q += '\t\t\t^opm:hasState ?propertyURI .\n';
+            q += '\t\t} GROUP BY ?propertyURI }\n';
+        }
+        q += "\t\t" + propertyURI + " opm:hasState ?state .\n";
+        q += '\t\t?state prov:generatedAtTime ?timestamp ;\n';
+        q += "\t\t\topm:valueAtState ?value ;\n";
+        q += '\t\t\t^opm:hasState ?propertyURI .\n';
+        q += "\t}\n";
+        q += "}";
         if (this.err) {
             q = 'Error: ' + this.err;
         }
@@ -196,50 +289,6 @@ var OPMProp = (function () {
         q += '\t\t}\n';
         q += '\t} }\n';
         q += '}';
-        return q;
-    };
-    //Get a single property
-    OPMProp.prototype.getProp = function () {
-        var prefixes = this.input.prefixes;
-        var resource = this.input.resourceURI;
-        var returnResource = this.input.resourceURI == '?resource' ? true : false;
-        var property = this.input.propertyURI;
-        var latest = this.input.latest;
-        if (!property)
-            this.err = "Please specify a propertyURI";
-        var q = '';
-        //Define prefixes
-        for (var i in prefixes) {
-            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + "> \n";
-        }
-        q += "SELECT ?value ";
-        q += latest ? '(?ts AS ?timestamp) ' : '(MAX(?ts) AS ?timestamp) ';
-        q += returnResource ? '?resource ' : ' ';
-        q += "WHERE {\n                GRAPH ?g { ";
-        q += latest ? "{ SELECT (MAX(?t) AS ?ts) WHERE {\n                        " + resource + " " + property + " ?prop .\n                        ?prop opm:hasState/prov:generatedAtTime ?t .\n                      } GROUP BY ?prop } \n" : '';
-        q += resource + " " + property + " ?prop .\n             ?prop opm:hasState [ prov:generatedAtTime ?ts ; \n                                     opm:valueAtState ?value ] . } } ";
-        if (!latest) {
-            q += "GROUP BY ?value ";
-            q += returnResource ? '?resource' : '';
-        }
-        if (this.err) {
-            q = 'Error: ' + this.err;
-        }
-        return q;
-    };
-    //Get all properties
-    OPMProp.prototype.getProps = function () {
-        var prefixes = this.input.prefixes;
-        var resource = this.input.resourceURI ? "" + this.input.resourceURI : '?resource';
-        var strLang = this.input.language;
-        var evalPath = '';
-        var q = '';
-        //Define prefixes
-        for (var i in prefixes) {
-            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + "> \n";
-        }
-        q += "SELECT ?resource ?property ?value ?lastUpdated ?g ?uri ?evaluation ?label ";
-        q += "WHERE { GRAPH ?g {\n                {\n                  SELECT ?property (MAX(?timestamp) AS ?lastUpdated)\n                  WHERE {\n                    " + resource + " ?property [ opm:hasState [ prov:generatedAtTime ?timestamp ] ] .\n                  }\n                  GROUP BY ?property\n                }\n            OPTIONAL{ GRAPH ?gy {?property rdfs:label ?label}\n                FILTER(lang(?label)=\"" + strLang + "\")\n            }\n            ?resource ?property ?uri .\n            ?uri opm:hasState ?evaluation .\n            ?evaluation prov:generatedAtTime ?lastUpdated ; \n                        opm:valueAtState ?value .\n        }}";
         return q;
     };
     return OPMProp;
