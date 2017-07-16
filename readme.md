@@ -222,9 +222,30 @@ var input = {
 ```
 
 #### Example 10
+##### State argument as an assumption
+##### makeAssumption()
+State a property as an assumption. A user URI must be assigned.
+```javascript
+var input = {
+    propertyURI: 'https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97',
+    userURI: 'https://niras.dk/employees/mhra'
+};
+```
+
+#### Example 11
 ##### List assumptions
 ##### listAssumptions()
 Function takes no input. It just returns a full list of assumed properties.
+
+#### Example 12
+##### List subscribers
+##### listSubscribers()
+Get a list of subscribers of a property (a derived property that takes the property as an argument)
+```javascript
+var input = {
+    propertyURI: 'https://localhost/opm/Property/6daf0c7a-f1cb-4a14-ac53-4156c2fe4cc1'
+};
+```
 
 # Calling an endpoint
 Example of how a SPARQL endpoint can be called using request-promise

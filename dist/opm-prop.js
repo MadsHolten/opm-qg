@@ -535,6 +535,23 @@ var OPMProp = (function () {
         q += '}';
         return q;
     };
+    OPMProp.prototype.listSubscribers = function () {
+        var propertyURI = this.input.propertyURI;
+        var q = '';
+        q += 'PREFIX  opm: <https://w3id.org/opm#>\n';
+        q += 'PREFIX  prov: <http://www.w3.org/ns/prov#>\n';
+        q += 'SELECT DISTINCT ?propertyURI ?graphURI\n';
+        q += 'WHERE {\n';
+        q += '\tGRAPH ?g {\n';
+        q += "\t\t" + propertyURI + " opm:hasState ?state .\n";
+        q += "\t}\n";
+        q += '\tGRAPH ?graphURI {\n';
+        q += "\t\t[ ^prov:wasDerivedFrom ?depEval ] ?pos ?state .\n";
+        q += "\t\t?depEval ^opm:hasState ?propertyURI .\n";
+        q += "\t}\n";
+        q += "}\n";
+        return q;
+    };
     OPMProp.prototype.getHost = function () {
         var q = '';
         q += '\t#EXTRACT HOST URI\n';
