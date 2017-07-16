@@ -430,6 +430,61 @@ var OPMProp = (function () {
         }
         return q;
     };
+    OPMProp.prototype.makeAssumption = function () {
+        var propertyURI = this.input.propertyURI;
+        var userURI = this.input.userURI;
+        var prefixes = this.input.prefixes;
+        if (!userURI)
+            this.err = "A user must be atrributed to an assumed value. Please specify a userURI";
+        var q = '';
+        //Define prefixes
+        for (var i in prefixes) {
+            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + "> \n";
+        }
+        q += 'CONSTRUCT {\n';
+        q += '\t?propertyURI opm:hasState ?stateURI .\n';
+        q += '\t?stateURI opm:valueAtState ?value ;\n';
+        q += '\t\tprov:generatedAtTime ?now ;\n';
+        q += '\t\topm:assumption "true"^^xsd:boolean ;\n';
+        q += "\t\tprov:wasAttributedTo " + userURI + " .\n";
+        q += '}\n';
+        q += 'WHERE {\n';
+        q += '\tGRAPH ?g {\n';
+        //Get latest state
+        q += "\t\t#GET LATEST STATE\n";
+        q += "\t\t{ SELECT ?propertyURI (MAX(?_t) AS ?t) WHERE {\n";
+        q += "\t\t\t" + propertyURI + " opm:hasState ?state .\n";
+        q += "\t\t\t?state prov:generatedAtTime ?_t ;\n";
+        q += "\t\t\t\t^opm:hasState ?propertyURI .\n";
+        q += '\t\t} GROUP BY ?propertyURI }\n';
+        //Make sure it is not deleted and get data
+        q += "\t\t#A STATE MUST EXIST AND MUST NOT BE DELETED OR CONFIRMED\n";
+        q += "\t\t?propertyURI opm:hasState ?state .\n";
+        q += "\t\t?state prov:generatedAtTime ?t ;\n";
+        q += "\t\t\topm:valueAtState ?value .\n";
+        q += '\t\tOPTIONAL{\n';
+        q += '\t\t\t?state opm:deleted ?del\n';
+        q += '\t\t\tFILTER(?del != true)\n';
+        q += '\t\t}\n';
+        q += '\t\tOPTIONAL{\n';
+        q += '\t\t\t?state opm:confirmed ?conf\n';
+        q += '\t\t\tFILTER(?conf != true)\n';
+        q += '\t\t}\n';
+        //Omit derived values (these are confirmed when all arguments are confirmed)
+        q += "\t\t#A DERIVED PROPERTY CAN'T BE MADE AN ASSUMPTION - ARGUMENTS ARE ASSUMPTIONS\n";
+        q += '\t\tFILTER NOT EXISTS { ?state prov:wasDerivedFrom ?dependencies . }\n';
+        q += '\t}\n';
+        q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
+        q += this.getHost();
+        q += '\t#CREATE STATE URI\n';
+        q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
+        q += '\tBIND(now() AS ?now)\n';
+        q += '}';
+        if (this.err) {
+            q = 'Error: ' + this.err;
+        }
+        return q;
+    };
     /**
      * OTHER
      */
@@ -453,6 +508,34 @@ var OPMProp = (function () {
         q += '\t\t\topm:deleted ?del .\n';
         q += '\t\tOPTIONAL{ ?state prov:wasAttributedTo ?deletedBy }\n';
         q += '\t\tFILTER(?del = true)\n';
+        q += '\t}\n';
+        q += '}';
+        return q;
+    };
+    OPMProp.prototype.listAssumptions = function () {
+        var q = '';
+        q += 'PREFIX  opm: <https://w3id.org/opm#>\n';
+        q += 'PREFIX  prov: <http://www.w3.org/ns/prov#>\n';
+        q += 'SELECT ?property (?t as ?timestamp) ?deletedBy\n';
+        q += 'WHERE {\n';
+        q += '\tGRAPH ?g {\n';
+        //Get latest state
+        q += "\t#GET LATEST STATE\n";
+        q += "\t{ SELECT ?property (MAX(?_t) AS ?t) WHERE {\n";
+        q += "\t\tGRAPH ?g {\n";
+        q += "\t\t\t?property opm:hasState/prov:generatedAtTime ?_t .\n";
+        q += '\t\t}\n';
+        q += '\t} GROUP BY ?property }\n';
+        q += '\t#GET DATA\n';
+        q += '\t\t?property opm:hasState ?state .\n';
+        q += '\t\t?state prov:generatedAtTime ?t ;\n';
+        q += '\t\t\topm:assumption ?assumption .\n';
+        q += '\t\tOPTIONAL{ ?state prov:wasAttributedTo ?assumedBy }\n';
+        q += '\t\tOPTIONAL{\n';
+        q += '\t\t\t?state opm:deleted ?del\n';
+        q += '\t\t\tFILTER(?del != true)\n';
+        q += '\t\t}\n';
+        q += '\t\tFILTER(?assumption = true)\n';
         q += '\t}\n';
         q += '}';
         return q;

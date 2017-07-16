@@ -221,6 +221,11 @@ var input = {
 };
 ```
 
+#### Example 10
+##### List assumptions
+##### listAssumptions()
+Function takes no input. It just returns a full list of assumed properties.
+
 # Calling an endpoint
 Example of how a SPARQL endpoint can be called using request-promise
 ```javascript
