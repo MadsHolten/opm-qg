@@ -31,7 +31,8 @@ $ npm install https://github.com/MadsHolten/opm-qg.git#0.1.9
 
 #### Example 1
 ##### Properties exist directly on the resource
-If the property exists on the resource itself the following input will construct a new "seas:fluidTemperatureDifference"-property for all resources that have a "seas:fluidSupplyTemperature" and a "seas:fluidSupplyTemperature".
+##### postCalc() // putCalc()
+If the property exists on the resource itself the following input will construct a new (or update existing if using put) "seas:fluidTemperatureDifference"-property for all resources that have a "seas:fluidSupplyTemperature" and a "seas:fluidSupplyTemperature".
 
 The calculation is defined with the calc variable, and the arguments are referred to by their location in the args list (?arg1, ?arg2, ... ?arg:n). The result will get a unit Cel and datatype cdt:ucum. This prefix is not defined as default and must be defined under prefixes.
 
@@ -54,11 +55,16 @@ var input = {
 };
 var sqg = new seas_calc.SeasCalc(input);
 var query = sqg.postCalc();
+console.log("Post calculation");
+console.log(query);
+var query = sqg.putCalc();
+console.log("Put calculation");
 console.log(query);
 ```
 
 #### Example 2
 ##### Properties do not exist directly on the resource
+##### postCalc() // putCalc()
 Used if the properties do not exist on the resource itself, but exist on a resource that has a connection to the resource itself.
 
 A target path for the argument is specified. It is given by a triple pattern, and it must start with the resource itself using the "?resource" variable. 
@@ -81,6 +87,7 @@ var input = {
 
 #### Example 3
 ##### Properties of a specific resource
+##### postCalc() // putCalc()
 Sometimes it might be necessary to specify the calculation so that it is only valid for a specific resource. It is possible to do this by explicitly specifying a resource URI.
 
 Properties and paths work the same way as illustrated in examples 1 and 2.
@@ -91,11 +98,17 @@ var input = {
 };
 ```
 
+#### Example 4
+##### List outdated
+##### listOutdated()
+Function takes no input. It just returns a full list of outdated properties.
+
 ### Property examples
 
 #### Example 1
 ##### Add/update property to a specific resource
-Simply use postProp() for attaching a new property (if not already exists) or putProp() to update an existing one.
+##### postResourceProp() // putResourceProp()
+Simply use postResourceProp() for attaching a new property (if not already exists) or putResourceProp() to update an existing one.
 ```javascript
 var input = {
     value: {
@@ -112,8 +125,9 @@ var input = {
 ```
 
 #### Example 2
-##### Add property to all resources matching a pattern
-Simply use postProp() for attaching new properties (if not already exists) or putProp() to update existing ones.
+##### Add/update property to all resources matching a pattern
+##### postResourceProp() // putResourceProp()
+Simply use postResourceProp() for attaching new properties (if not already exists) or putResourceProp() to update existing ones.
 
 A pattern is given as a triple pattern, and it must start with the resource itself using the "?resource" variable.
 
@@ -121,23 +135,78 @@ The following variables are reserved, and cannot be included in the pattern:
 
 *?propertyURI, ?evaluationURI, ?now, ?val, ?guid, ?eval*
 
-In the example a 'seas:fluidSupplyTemperature' is
-added to all resources of type 'seas:HeatingSystem'
+In the example a 'seas:fluidSupplyTemperature' is added to all resources of type 'seas:HeatingSystem'.
+
+Value and prefixes are the same as illustrated in the previous example.
 ```javascript
 var input = {
-    value: {
-        unit: 'Cel',
-        datatype: 'cdt:ucum',
-        property: 'seas:fluidSupplyTemperature',
-        value: '70'
-    },
-    prefixes: [
-        {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'}
-    ],
+    ...
     pattern: '?resource a seas:HeatingSystem'
 };
 ```
 
+#### Example 3
+##### Latest evaluation and value of all properties
+##### getResourceProps()
+Also returns the resource on which they belong.
+
+Optional 'latest: true' returns only the latest state.
+Optional 'language: ISO-CODE' returns only a specific label language.
+```javascript
+var input = {
+    resourceURI: "https://localhost/opm/HeatingSystem/1",
+    language: "en"
+};
+```
+
+#### Example 4
+##### Latest evaluation of a single property of a specific resource
+##### getResourceProp()
+Optional 'latest: true' returns only the latest state.
+Optional 'language: ISO-CODE' returns only a specific label language.
+```javascript
+var input = {
+    resourceURI: "https://localhost/opm/HeatConsumer/1",
+    propertyURI: "https://w3id.org/seas/heatOutput",
+    latest: true
+};
+```
+
+#### Example 5
+##### Delete a property
+##### deleteProp()
+Adds a new state with the property opm:deleted set to true
+```javascript
+var input = {
+    propertyURI: 'https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97'
+};
+```
+
+#### Example 6
+##### Get single property
+##### getProp()
+Optional 'latest: true' returns only the latest state.
+```javascript
+var input = {
+    propertyURI: "https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97",
+    latest: true
+};
+```
+
+#### Example 7
+##### List deleted
+##### listDeleted()
+Function takes no input. It just returns a full list of deleted properties.
+
+#### Example 8
+##### Restore deleted property
+##### restoreProp()
+Restore a deleted property by reinferring the latest state with a value assigned to it.
+```javascript
+var input = {
+    propertyURI: 'https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97'
+};
+```
 
 # Calling an endpoint
 Example of how a SPARQL endpoint can be called using request-promise

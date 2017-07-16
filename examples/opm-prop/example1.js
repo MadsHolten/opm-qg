@@ -2,7 +2,7 @@
 var qg = require("../../dist/index");
 /**
  * EXAMPLE 1
- * add property to a specific resource
+ * add/update property to a specific resource
  */
 var input = {
     value: {
@@ -20,4 +20,5 @@ var input = {
 
 var sc = new qg.OPMProp(input);
 var q = sc.postResourceProp();
+//var q = sc.putResourceProp();
 console.log(q);

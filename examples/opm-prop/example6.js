@@ -1,17 +1,14 @@
 "use strict";
 var qg = require("../../dist/index");
 /**
- * EXAMPLE 6
- * Get latest evaluation of a single property of
- * a specific resource
+ * EXAMPLE 8
+ * Get latest evaluation of a specific property
  * 
  */
 var input = {
-    resourceURI: "https://localhost/opm/HeatConsumer/1",
-    //propertyURI: "seas:fluidTemperatureDifference",
-    propertyURI: "https://w3id.org/seas/heatOutput",
+    propertyURI: "https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97",
     latest: true
 };
 var sc = new qg.OPMProp(input);
-var q = sc.getResourceProp();
+var q = sc.getProp();
 console.log(q);

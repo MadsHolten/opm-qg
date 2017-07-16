@@ -1,8 +1,8 @@
 "use strict";
 var qg = require("../../dist/index");
 /**
- * EXAMPLE 2
- * add property to all resources matching a pattern
+ * EXAMPLE 4
+ * add/update property for all resources matching a pattern
  * 
  * A pattern is given as a triple pattern, and it must
  * start with the resource itself using the "?resource"
@@ -12,7 +12,7 @@ var qg = require("../../dist/index");
  * ?propertyURI, ?evaluationURI, ?now, ?val, ?guid, ?eval
  * 
  * In the example a 'seas:fluidSupplyTemperature' is
- * added to all resources of type 'seas:HeatingSystem'
+ * set to 70 Cel for all resources of type 'seas:HeatingSystem'
  */
 var input = {
     value: {
@@ -27,5 +27,6 @@ var input = {
     pattern: '?resource a seas:HeatingSystem'
 };
 var sc = new qg.OPMProp(input);
-var q = sc.postResourceProp();
+var q = sc.putResourceProp();
+//var q = sc.putResourceProp();
 console.log(q);

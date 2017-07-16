@@ -2,31 +2,18 @@
 var qg = require("../../dist/index");
 /**
  * EXAMPLE 4
- * properties of the resources themself
+ * List outdated calculations
  * 
- * Based on properties that exist on the resource itself
- *
- * Returns the fluid temperature difference of anything
- * that has a fluid supply- and return temperature
+ * Outdated calculations are calculations where one
+ * or more of the arguments have changed since last
+ * time the calculation was performed.
  * 
- * The postClac method only returns a result for resources
- * where the calculated property does not already exist
+ * Either return a full list or a list with properties
+ * of a specific resource (as shown in example)
  */
 var input = {
-    args: [
-        { property: 'seas:fluidSupplyTemperature' },
-        { property: 'seas:fluidReturnTemperature' }
-    ],
-    result: {
-        unit: 'Cel',
-        datatype: 'cdt:ucum',
-        property: 'seas:fluidTemperatureDifference',
-        calc: 'abs(?arg1-?arg2)'
-    },
-    prefixes: [
-        {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'}
-    ]
+    resourceURI: 'https://localhost/seas/HeatingSystem/14532928-3bb5-4396-a4a3-aea6aa4fa56c'
 };
-var sc = new qg.OPMCalc(input);
-var q = sc.putCalc();
+var sc = new qg.OPMCalc();
+var q = sc.listOutdated();
 console.log(q);

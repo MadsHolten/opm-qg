@@ -11,6 +11,9 @@ var qg = require("../../dist/index");
  * 
  * The postCalc method only returns a result for resources
  * where the calculated property does not already exist
+ * 
+ * The putCalc method only returns a result for resources
+ * where the calculated property already exists
  */
 var input = {
     args: [
@@ -29,4 +32,5 @@ var input = {
 };
 var sc = new qg.OPMCalc(input);
 var q = sc.postCalc();
+//var q = sc.putCalc();
 console.log(q);

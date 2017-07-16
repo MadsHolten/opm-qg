@@ -42,4 +42,5 @@ var input = {
 };
 var sc = new qg.OPMCalc(input);
 var q = sc.postCalc();
+//var q = sc.putCalc();
 console.log(q);
