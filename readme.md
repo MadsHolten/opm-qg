@@ -25,13 +25,14 @@ $ npm install https://github.com/MadsHolten/opm-qg.git#0.1.9
 * **deleteProp()** - Delete a specific property by adding a new state with opm:deleted set to true.
 * **restoreProp()** - Restore a deleted property by reinferring the latest state with a value assigned to it.
 * **putProp()** - **WIP**
-* **listDeleted** - Get a full list of properties that have been deleted.
+* **listDeleted()** - Get a full list of properties that have been deleted.
 
 ### Calculation examples
 
 #### Example 1
 ##### Properties exist directly on the resource
 If the property exists on the resource itself the following input will construct a new "seas:fluidTemperatureDifference"-property for all resources that have a "seas:fluidSupplyTemperature" and a "seas:fluidSupplyTemperature".
+
 The calculation is defined with the calc variable, and the arguments are referred to by their location in the args list (?arg1, ?arg2, ... ?arg:n). The result will get a unit Cel and datatype cdt:ucum. This prefix is not defined as default and must be defined under prefixes.
 
 ```javascript
@@ -59,9 +60,13 @@ console.log(query);
 #### Example 2
 ##### Properties do not exist directly on the resource
 Used if the properties do not exist on the resource itself, but exist on a resource that has a connection to the resource itself.
+
 A target path for the argument is specified. It is given by a triple pattern, and it must start with the resource itself using the "?resource" variable. 
+
 The name of the target variable can be anything, but the following variables are reserved, and cannot be used:
-?propertyURI, ?stateURI, *?_res, ?res, ?now, ?eval:n, ?t_:n, ?t:n, ?g, ?gi, ?t_c, ?tc, ?_v:n, ?arg:n, ?guid* where :n is the number of the argument.
+
+*?propertyURI, ?stateURI, ?_res, ?res, ?now, ?eval:n, ?t_:n, ?t:n, ?g, ?gi, ?t_c, ?tc, ?_v:n, ?arg:n, ?guid* where :n is the number of the argument.
+
 In the example, we are looking for a property that exists on the super system of the flow system itself. 
 ```javascript
 var input = {
@@ -77,6 +82,7 @@ var input = {
 #### Example 3
 ##### Properties of a specific resource
 Sometimes it might be necessary to specify the calculation so that it is only valid for a specific resource. It is possible to do this by explicitly specifying a resource URI.
+
 Properties and paths work the same way as illustrated in examples 1 and 2.
 ```javascript
 var input = {
@@ -108,9 +114,12 @@ var input = {
 #### Example 2
 ##### Add property to all resources matching a pattern
 Simply use postProp() for attaching new properties (if not already exists) or putProp() to update existing ones.
+
 A pattern is given as a triple pattern, and it must start with the resource itself using the "?resource" variable.
+
 The following variables are reserved, and cannot be included in the pattern:
-?propertyURI, ?evaluationURI, ?now, ?val, ?guid, ?eval
+
+*?propertyURI, ?evaluationURI, ?now, ?val, ?guid, ?eval*
 
 In the example a 'seas:fluidSupplyTemperature' is
 added to all resources of type 'seas:HeatingSystem'
