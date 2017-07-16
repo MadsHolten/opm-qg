@@ -350,7 +350,7 @@ export class OPMProp {
         q+= '\t?stateURI opm:valueAtState ?value ;\n';
         q+= '\t\tprov:generatedAtTime ?now ;\n';
         q+= '\t\topm:expression ?expression ;\n';
-        q+= '\t\tprov:wasDerivedFrom ?dependencies .\n';
+        q+= '\t\tprov:wasDerivedFrom ?dependencies ;\n';
         q+= '\t\topm:assumption ?ass .\n';
         q+= '}\n'
         q+= 'WHERE {\n';
