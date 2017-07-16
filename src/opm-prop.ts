@@ -426,14 +426,18 @@ export class OPMProp {
         q+= '\t\t} GROUP BY ?propertyURI }\n';
 
         //Make sure it is not deleted and get data
-        q+= `\t\t#A STATE MUST EXIST AND MUST NOT BE DELETED\n`;
+        q+= `\t\t#A STATE MUST EXIST AND MUST NOT BE DELETED OR CONFIRMED\n`;
         q+= `\t\t?propertyURI opm:hasState ?state .\n`;
         q+= `\t\t?state prov:generatedAtTime ?t ;\n`;
-        q+= `\t\t\topm:valueAtState ?value ;\n`;
+        q+= `\t\t\topm:valueAtState ?value .\n`;
         q+= '\t\tOPTIONAL{\n';
-        q+= '\t\t\t?state opm:deleted ?del .\n';
+        q+= '\t\t\t?state opm:deleted ?del\n';
         q+= '\t\t\tFILTER(?del != true)\n';
-        q+= '\t\t}\n';
+        q+= '\t\t}\n'
+        q+= '\t\tOPTIONAL{\n';
+        q+= '\t\t\t?state opm:confirmed ?conf\n';
+        q+= '\t\t\tFILTER(?conf != true)\n';
+        q+= '\t\t}\n'
 
         //Omit derived values (these are confirmed when all arguments are confirmed)
         q+= `\t\t#A DERIVED PROPERTY CAN'T BE CONFIRMED - ARGUMENTS ARE CONFIRMED\n`;
