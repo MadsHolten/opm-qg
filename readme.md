@@ -37,7 +37,7 @@ If the property exists on the resource itself the following input will construct
 The calculation is defined with the calc variable, and the arguments are referred to by their location in the args list (?arg1, ?arg2, ... ?arg:n). The result will get a unit Cel and datatype cdt:ucum. This prefix is not defined as default and must be defined under prefixes.
 
 ```javascript
-var seas_calc = require("seas-query-generator");
+var qg = require("opm-query-generator");
 var input = {
     args: [
         { property: 'seas:fluidSupplyTemperature' },
@@ -53,11 +53,11 @@ var input = {
         {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'}
     ]
 };
-var sqg = new seas_calc.SeasCalc(input);
-var query = sqg.postCalc();
+var pmqg = new qg.OPMCalc(input);
+var query = pmqg.postCalc();
 console.log("Post calculation");
 console.log(query);
-var query = sqg.putCalc();
+var query = pmqg.putCalc();
 console.log("Put calculation");
 console.log(query);
 ```
@@ -212,7 +212,7 @@ var input = {
 Example of how a SPARQL endpoint can be called using request-promise
 ```javascript
 import * as rp from "request-promise";
-var seas_calc = require("seas-query-generator");
+var qg = require("opm-query-generator");
 
 var input = {
     args: [
@@ -230,8 +230,8 @@ var input = {
     ]
 };
 
-var sqg = new seas_calc.SeasCalc(input);
-var query = sqg.postCalc();
+var pmqg = new qg.OPMCalc(input);
+var query = pmqg.postCalc();
 
 var dboptions = {
                     uri: 'http://host/proj/query',
