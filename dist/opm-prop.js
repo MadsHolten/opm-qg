@@ -159,9 +159,8 @@ var OPMProp = (function () {
         q += "\tBIND(strdt(concat(str(" + value + "), \" " + unit + "\"), " + datatype + ") AS ?val)\n";
         q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
         q += this.getHost();
-        q += '\t#CREATE STATE AND PROPERTY URI´s\n';
+        q += '\t#CREATE STATE URI´s\n';
         q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
-        q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/Property/", ?guid)) AS ?propertyURI)\n';
         q += '\tBIND(now() AS ?now)\n';
         //q+= '\t#ERRORS\n';
         //q+= `\tBIND(IF(strbefore(str(?old_val), " ") = str(70), "The specified value is the same as the previous", "") AS ?error)\n`;
