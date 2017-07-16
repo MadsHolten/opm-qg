@@ -324,10 +324,7 @@ export class OPMProp {
         q+= `\t\t${propertyURI} opm:hasState ?state .\n`;
         q+= `\t\t?state prov:generatedAtTime ?t ;\n`;
         q+= '\t\t\t^opm:hasState ?propertyURI .\n';
-        q+= '\t\tOPTIONAL{\n';
-        q+= '\t\t\t?state opm:deleted ?del\n';
-        q+= '\t\t\tFILTER(?del != true)\n';
-        q+= '\t\t}\n'
+        q+= '\t\tMINUS { ?state opm:deleted ?del . FILTER(?del = true) }\n';
         q+= '\t}\n'
         q+= '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
         q+= this.getHost();
@@ -354,6 +351,7 @@ export class OPMProp {
         q+= '\t\tprov:generatedAtTime ?now ;\n';
         q+= '\t\topm:expression ?expression ;\n';
         q+= '\t\tprov:wasDerivedFrom ?dependencies .\n';
+        q+= '\t\topm:assumption ?ass .\n';
         q+= '}\n'
         q+= 'WHERE {\n';
         q+= '\tGRAPH ?g {\n'
@@ -384,6 +382,7 @@ export class OPMProp {
         q+= '\t\t\topm:valueAtState ?value .\n';
         q+= '\t\t\tOPTIONAL{?st opm:expression ?expression .}\n';
         q+= '\t\t\tOPTIONAL{?st prov:wasDerivedFrom ?dependencies .}\n';
+        q+= '\t\t\tOPTIONAL{?st opm:assumption ?ass .}\n';
         q+= '\t}\n'
         q+= '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
         q+= this.getHost();
@@ -430,18 +429,12 @@ export class OPMProp {
         q+= `\t\t?propertyURI opm:hasState ?state .\n`;
         q+= `\t\t?state prov:generatedAtTime ?t ;\n`;
         q+= `\t\t\topm:valueAtState ?value .\n`;
-        q+= '\t\tOPTIONAL{\n';
-        q+= '\t\t\t?state opm:deleted ?del\n';
-        q+= '\t\t\tFILTER(?del != true)\n';
-        q+= '\t\t}\n'
-        q+= '\t\tOPTIONAL{\n';
-        q+= '\t\t\t?state opm:confirmed ?conf\n';
-        q+= '\t\t\tFILTER(?conf != true)\n';
-        q+= '\t\t}\n'
+        q+= '\t\tMINUS { ?state opm:deleted ?del . FILTER(?del = true) }\n';
+        q+= '\t\tMINUS { ?state opm:confirmed ?conf . FILTER(?conf = true) }\n';
 
         //Omit derived values (these are confirmed when all arguments are confirmed)
         q+= `\t\t#A DERIVED PROPERTY CAN'T BE CONFIRMED - ARGUMENTS ARE CONFIRMED\n`;
-        q+= '\t\tFILTER NOT EXISTS { ?state prov:wasDerivedFrom ?dependencies . }\n';
+        q+= '\t\tMINUS { ?state prov:wasDerivedFrom ?dependencies }\n';
         q+= '\t}\n';
         q+= '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
         q+= this.getHost();
@@ -488,22 +481,13 @@ export class OPMProp {
         q+= `\t\t?propertyURI opm:hasState ?state .\n`;
         q+= `\t\t?state prov:generatedAtTime ?t ;\n`;
         q+= `\t\t\topm:valueAtState ?value .\n`;
-        q+= '\t\tOPTIONAL{\n';
-        q+= '\t\t\t?state opm:deleted ?del\n';
-        q+= '\t\t\tFILTER(?del != true)\n';
-        q+= '\t\t}\n'
-        q+= '\t\tOPTIONAL{\n';
-        q+= '\t\t\t?state opm:confirmed ?conf\n';
-        q+= '\t\t\tFILTER(?conf != true)\n';
-        q+= '\t\t}\n'
-        q+= '\t\tOPTIONAL{\n';
-        q+= '\t\t\t?state opm:assumption ?ass\n';
-        q+= '\t\t\tFILTER(?ass != true)\n';
-        q+= '\t\t}\n'
+        q+= '\t\tMINUS { ?state opm:deleted ?del . FILTER(?del = true) }\n';
+        q+= '\t\tMINUS { ?state opm:confirmed ?conf . FILTER(?conf = true) }\n';
+        q+= '\t\tMINUS { ?state opm:assumption ?ass . FILTER(?ass = true) }\n';
 
         //Omit derived values (these are confirmed when all arguments are confirmed)
         q+= `\t\t#A DERIVED PROPERTY CAN'T BE MADE AN ASSUMPTION - ARGUMENTS ARE ASSUMPTIONS\n`;
-        q+= '\t\tFILTER NOT EXISTS { ?state prov:wasDerivedFrom ?dependencies . }\n';
+        q+= '\t\tMINUS { ?state prov:wasDerivedFrom ?dependencies }\n';
         q+= '\t}\n';
         q+= '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
         q+= this.getHost();
