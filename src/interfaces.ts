@@ -3,12 +3,14 @@ export interface ICalc {
     result: IRes;
     hostURI: string;
     resourceURI?: string;
+    userURI?: string;
     prefixes?: IPrefix[];
 }
 
 export interface IProp {
     resourceURI?: string;
     propertyURI?: string;
+    userURI?: string;
     objectProperty?: boolean;
     latest?: boolean;
     pattern: string;

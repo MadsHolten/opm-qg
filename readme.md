@@ -208,6 +208,19 @@ var input = {
 };
 ```
 
+#### Example 9
+##### Confirm property
+##### confirmProp()
+Confirm a property. A user URI must be assigned.
+
+WIP: Optionally it should also be possible to assign documentation.
+```javascript
+var input = {
+    propertyURI: 'https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97',
+    userURI: 'https://niras.dk/employees/mhra'
+};
+```
+
 # Calling an endpoint
 Example of how a SPARQL endpoint can be called using request-promise
 ```javascript

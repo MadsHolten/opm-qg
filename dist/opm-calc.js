@@ -30,6 +30,10 @@ var OPMCalc = (function () {
             if (this.input.result) {
                 this.input.result.datatype = this.input.result.datatype ? this.input.result.datatype : 'xsd:string';
             }
+            if (this.input.userURI) {
+                var userURI = this.input.userURI;
+                this.input.userURI = "<" + userURI + ">";
+            }
         }
     }
     //Create calculation where it doesn't already exist
