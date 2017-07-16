@@ -219,16 +219,24 @@ export class OPMProp {
 
     //Get all resource properties
     getResourceProps(): string {
-        var prefixes = this.input.prefixes;
-        var resource = this.input.resourceURI ? `${this.input.resourceURI}` : '?resource';
-        var strLang = this.input.language;
+        var prefixes = (this.input && this.input.prefixes) ? this.input.prefixes : undefined;
+        var resource = (this.input && this.input.resourceURI) ? `${this.input.resourceURI}` : '?resource';
+        var strLang = (this.input && this.input.language) ? this.input.language : 'en';
         var evalPath: string = '';
 
         var q: string = '';
         //Define prefixes
-        for(var i in prefixes){
-            q+= `PREFIX  ${prefixes[i].prefix}: <${prefixes[i].uri}> \n`;
+        if(prefixes){
+            for(var i in prefixes){
+                q+= `PREFIX  ${prefixes[i].prefix}: <${prefixes[i].uri}> \n`;
+            }
+        }else{
+            q+= 'PREFIX seas: <https://w3id.org/seas/>\n';
+            q+= 'PREFIX opm: <https://w3id.org/opm#>\n';
+            q+= 'PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n';
+            q+= 'PREFIX prov: <http://www.w3.org/ns/prov#>\n';
         }
+        
 
         q+= `SELECT ?resource ?property ?value ?lastUpdated ?g ?uri ?state ?label ?deleted `;
         q+= `WHERE {\n`;
