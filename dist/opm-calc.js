@@ -49,15 +49,15 @@ var OPMCalc = (function () {
         var comment = this.input.comment;
         var args = this.input.args; //Arguments
         var property = this.input.result.property; //New property
-        var resourceURI = this.input.resourceURI; //optional
+        var foiURI = this.input.foiURI; //optional
         var unit = this.input.result.unit;
         var datatype = this.input.result.datatype;
-        var resource = !resourceURI ? '?resource' : '<' + resourceURI + '>';
+        var foi = !foiURI ? '?foi' : '<' + foiURI + '>';
         var prefixes = this.input.prefixes;
         for (var i in args) {
             if (!args[i].targetPath) {
-                //Add '?resource' as target path if none is given
-                args[i].targetPath = '?resource';
+                //Add '?foi' as target path if none is given
+                args[i].targetPath = '?foi';
             }
             else {
                 //Clean target path if given
@@ -67,10 +67,10 @@ var OPMCalc = (function () {
                 str = _s.endsWith(str, ".") ? str + ' ' : str + ' . '; //Make sure it ends with a dot and a space
                 args[i].targetPath = str + "?" + target + " ";
             }
-            if (resourceURI) {
-                //Replace '?resource' with the actual URI if one is defined
-                var newResource = "<" + resourceURI + ">";
-                args[i].targetPath = args[i].targetPath.replace('?resource', newResource);
+            if (foiURI) {
+                //Replace '?foi' with the actual URI if one is defined
+                var newFoI = "<" + foiURI + ">";
+                args[i].targetPath = args[i].targetPath.replace('?foi', newFoI);
             }
         }
         var q = '';
@@ -79,15 +79,19 @@ var OPMCalc = (function () {
             q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + ">\n";
         }
         q += 'CONSTRUCT {\n';
-        q += "\t" + resource + " " + property + " ?propertyURI .\n";
-        q += '\t?propertyURI opm:hasState ?stateURI .\n';
+        q += "\t" + foi + " " + property + " ?propertyURI .\n";
+        q += '\t?propertyURI a opm:Property ;\n';
+        q += '\t\trdfs:label "Derived Property"@en ;\n';
+        q += '\t\topm:hasState ?stateURI .\n';
         if (userURI) {
             q += "\t?stateURI prov:wasAttributedTo " + userURI + " .\n";
         }
         if (comment) {
             q += "\t?stateURI rdfs:comment \"" + comment + "\"^^xsd:string .\n";
         }
-        q += '\t?stateURI opm:valueAtState ?res ;\n';
+        q += '\t?stateURI a opm:State , opm:Derived ;\n';
+        q += '\t\trdfs:label "Derived State"@en ;\n';
+        q += '\t\topm:valueAtState ?res ;\n';
         q += '\t\tprov:generatedAtTime ?now ;\n';
         q += '\t\topm:deleted ?del ;\n';
         q += '\t\topm:assumed ?ass ;\n';
@@ -107,19 +111,19 @@ var OPMCalc = (function () {
             var _i = Number(i) + 1;
             q += "\t#GET LATEST VALUE OF ARGUMENT " + _i + "\n";
             q += "\t{ SELECT ";
-            q += !resourceURI ? '?resource ' : '';
+            q += !foiURI ? '?foi ' : '';
             q += "(MAX(?_t" + _i + ") AS ?t" + _i + ") WHERE {\n";
             q += '\t\tGRAPH ?g {\n';
             q += "\t\t\t" + args[i].targetPath + " " + args[i].property + "/opm:hasState\n";
             q += "\t\t\t\t[ prov:generatedAtTime  ?_t" + _i + " ] .\n";
             q += '\t\t}\n';
-            q += !resourceURI ? '\t} GROUP BY ?resource }\n' : '';
+            q += !foiURI ? '\t} GROUP BY ?foi }\n' : '';
         }
         // No previous calculations must exist
         q += '\t#NO PREVIOUS CALCULATIONS MUST EXIST\n';
         q += '\tMINUS {\n';
         q += '\t\tGRAPH ?g {\n';
-        q += "\t\t\t" + resource + " " + property + "/opm:hasState\n";
+        q += "\t\t\t" + foi + " " + property + "/opm:hasState\n";
         q += '\t\t\t\t[ prov:generatedAtTime  ?_tc ] .\n';
         q += '\t\t}\n';
         q += '\t}\n';
@@ -142,7 +146,7 @@ var OPMCalc = (function () {
         q += "\t\tBIND(strdt(concat(str(?_res), \" " + unit + "\"), " + datatype + ") AS ?res)\n";
         q += "\t\t#GENERATE URIs FOR NEW CLASS INSTANCES\n";
         q += "\t\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n";
-        q += this.getHost(resource);
+        q += this.getHost(foi);
         q += '\t\t#CREATE STATE AND PROPERTY URI´s\n';
         q += '\t\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += '\t\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/Property/", ?guid)) AS ?propertyURI)\n';
@@ -162,15 +166,15 @@ var OPMCalc = (function () {
         var comment = this.input.comment;
         var args = this.input.args; //Arguments
         var property = this.input.result.property; //New property
-        var resourceURI = this.input.resourceURI; //optional
+        var foiURI = this.input.foiURI; //optional
         var unit = this.input.result.unit;
         var datatype = this.input.result.datatype;
-        var resource = !resourceURI ? '?resource' : '<' + resourceURI + '>';
+        var foi = !foiURI ? '?foi' : '<' + foiURI + '>';
         var prefixes = this.input.prefixes;
         for (var i in args) {
             if (!args[i].targetPath) {
-                //Add '?resource' as target path if none is given
-                args[i].targetPath = '?resource';
+                //Add '?foi' as target path if none is given
+                args[i].targetPath = '?foi';
             }
             else {
                 //Clean target path if given
@@ -180,10 +184,10 @@ var OPMCalc = (function () {
                 str = _s.endsWith(str, ".") ? str + ' ' : str + ' . '; //Make sure it ends with a dot and a space
                 args[i].targetPath = str + "?" + target + " ";
             }
-            if (resourceURI) {
-                //Replace '?resource' with the actual URI if one is defined
-                var newResource = "<" + resourceURI + ">";
-                args[i].targetPath = args[i].targetPath.replace('?resource', newResource);
+            if (foiURI) {
+                //Replace '?foi' with the actual URI if one is defined
+                var newFoI = "<" + foiURI + ">";
+                args[i].targetPath = args[i].targetPath.replace('?foi', newFoI);
             }
         }
         var q = '';
@@ -192,7 +196,7 @@ var OPMCalc = (function () {
             q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + ">\n";
         }
         q += 'CONSTRUCT {\n';
-        q += "\t" + resource + " " + property + " ?propertyURI .\n";
+        q += "\t" + foi + " " + property + " ?propertyURI .\n";
         q += '\t?propertyURI opm:hasState ?stateURI .\n';
         if (userURI) {
             q += "\t?stateURI prov:wasAttributedTo " + userURI + " .\n";
@@ -200,7 +204,9 @@ var OPMCalc = (function () {
         if (comment) {
             q += "\t?stateURI rdfs:comment \"" + comment + "\"^^xsd:string .\n";
         }
-        q += '\t?stateURI opm:valueAtState ?res ;\n';
+        q += '\t?stateURI a opm:State , opm:Derived ;\n';
+        q += '\t\trdfs:label "Derived State"@en ;\n';
+        q += '\t\topm:valueAtState ?res ;\n';
         q += '\t\tprov:generatedAtTime ?now ;\n';
         q += '\t\topm:deleted ?del ;\n';
         q += '\t\topm:assumed ?ass ;\n';
@@ -216,25 +222,25 @@ var OPMCalc = (function () {
         //Get latest calculation result
         q += "\t#GET LATEST CALCULATION RESULT\n";
         q += "\t{ SELECT ";
-        q += !resourceURI ? '?resource ' : '';
+        q += !foiURI ? '?foi ' : '';
         q += "(MAX(?_tc) AS ?tc) WHERE {\n";
         q += "\t\tGRAPH ?gi {\n";
-        q += "\t\t\t" + resource + " " + property + "/opm:hasState\n";
+        q += "\t\t\t" + foi + " " + property + "/opm:hasState\n";
         q += "\t\t\t\t[ prov:generatedAtTime  ?_tc ] .\n";
         q += '\t\t}\n';
-        q += !resourceURI ? '\t} GROUP BY ?resource }\n' : '';
+        q += !foiURI ? '\t} GROUP BY ?foi }\n' : '';
         // Get latest evaluation of each argument
         for (var i in args) {
             var _i = Number(i) + 1;
             q += "\t#GET LATEST VALUE OF ARGUMENT " + _i + "\n";
             q += "\t{ SELECT ";
-            q += !resourceURI ? '?resource ' : '';
+            q += !foiURI ? '?foi ' : '';
             q += "(MAX(?_t" + _i + ") AS ?t" + _i + ") WHERE {\n";
             q += '\t\tGRAPH ?g {\n';
             q += "\t\t\t" + args[i].targetPath + " " + args[i].property + "/opm:hasState\n";
             q += "\t\t\t\t[ prov:generatedAtTime  ?_t" + _i + " ] .\n";
             q += '\t\t}\n';
-            q += !resourceURI ? '\t} GROUP BY ?resource }\n' : '';
+            q += !foiURI ? '\t} GROUP BY ?foi }\n' : '';
         }
         //Only return if inputs have changed
         q += "\t#ONLY RETURN IF AN INPUT HAS CHANGED SINCE LAST CALCULATION\n";
@@ -246,7 +252,7 @@ var OPMCalc = (function () {
         }
         //Get propertyURI
         q += "\tGRAPH ?gi {\n";
-        q += "\t\t" + resource + " " + property + " ?propertyURI .\n";
+        q += "\t\t" + foi + " " + property + " ?propertyURI .\n";
         q += '\t}\n';
         //Get argument values
         q += "\tGRAPH ?g {\n";
@@ -267,7 +273,7 @@ var OPMCalc = (function () {
         q += "\t\tBIND(strdt(concat(str(?_res), \" " + unit + "\"), " + datatype + ") AS ?res)\n";
         q += "\t\t#GENERATE URIs FOR NEW CLASS INSTANCES\n";
         q += "\t\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n";
-        q += this.getHost(resource);
+        q += this.getHost(foi);
         q += '\t\t#CREATE STATE URI´s\n';
         q += '\t\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += "\t\t#GET CURRENT TIME\n";
@@ -285,15 +291,15 @@ var OPMCalc = (function () {
         var calc = this.input.result.calc; //The calculation to perform
         var args = this.input.args; //Arguments
         var property = this.input.result.property; //New property
-        var resourceURI = this.input.resourceURI; //optional
+        var foiURI = this.input.foiURI; //optional
         var unit = this.input.result.unit;
         var datatype = this.input.result.datatype;
-        var resource = !resourceURI ? '?resource' : '<' + resourceURI + '>';
+        var foi = !foiURI ? '?foi' : '<' + foiURI + '>';
         var prefixes = this.input.prefixes;
         for (var i in args) {
             if (!args[i].targetPath) {
-                //Add '?resource' as target path if none is given
-                args[i].targetPath = '?resource';
+                //Add '?foi' as target path if none is given
+                args[i].targetPath = '?foi';
             }
             else {
                 //Clean target path if given
@@ -303,10 +309,10 @@ var OPMCalc = (function () {
                 str = _s.endsWith(str, ".") ? str + ' ' : str + ' . '; //Make sure it ends with a dot and a space
                 args[i].targetPath = str + "?" + target + " ";
             }
-            if (resourceURI) {
-                //Replace '?resource' with the actual URI if one is defined
-                var newResource = "<" + resourceURI + ">";
-                args[i].targetPath = args[i].targetPath.replace('?resource', newResource);
+            if (foiURI) {
+                //Replace '?foi' with the actual URI if one is defined
+                var newFoI = "<" + foiURI + ">";
+                args[i].targetPath = args[i].targetPath.replace('?foi', newFoI);
             }
         }
         var q = '';
@@ -355,13 +361,13 @@ var OPMCalc = (function () {
         return q;
     };
     //List outdated calculations
-    //Checks either generally or for a specific resource
+    //Checks either generally or for a specific FoI
     //Returns the following:
     OPMCalc.prototype.listOutdated = function () {
-        var resourceURI = this.input ? this.input.resourceURI : undefined;
+        var foiURI = this.input ? this.input.foiURI : undefined;
         var evalPath = '';
-        if (resourceURI) {
-            evalPath = "<" + resourceURI + "> ?hasProp ?propertyURI . ";
+        if (foiURI) {
+            evalPath = "<" + foiURI + "> ?hasProp ?propertyURI . ";
         }
         var q = '';
         //Define prefixes
