@@ -5,6 +5,8 @@ var OPMProp = (function () {
     function OPMProp(input) {
         this.input = input;
         if (input) {
+            //Default query type is construct
+            this.queryType = this.input.queryType ? this.input.queryType : 'construct';
             //Add predefined prefixes
             var prefixes = _.pluck(this.input.prefixes, 'prefix');
             if (!this.input.prefixes) {
@@ -65,6 +67,9 @@ var OPMProp = (function () {
                 this.input.userURI = "<" + userURI + ">";
             }
         }
+        else {
+            this.queryType = 'construct';
+        }
     }
     /**
      * BY RESOURCE
@@ -105,7 +110,7 @@ var OPMProp = (function () {
         q += '\t}\n';
         q += "\tBIND(strdt(concat(str(" + value + "), \" " + unit + "\"), " + datatype + ") AS ?val)\n";
         q += "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n";
-        q += this.getHost();
+        q += this.getHost(resourceURI);
         q += '\t#CREATE STATE AND PROPERTY URI´s\n';
         q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/Property/", ?guid)) AS ?propertyURI)\n';
@@ -158,7 +163,7 @@ var OPMProp = (function () {
         q += '\t\t}\n';
         q += "\tBIND(strdt(concat(str(" + value + "), \" " + unit + "\"), " + datatype + ") AS ?val)\n";
         q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
-        q += this.getHost();
+        q += this.getHost(resourceURI);
         q += '\t#CREATE STATE URI´s\n';
         q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += '\tBIND(now() AS ?now)\n';
@@ -321,7 +326,7 @@ var OPMProp = (function () {
         q += '\t\tMINUS { ?state opm:deleted ?del . FILTER(?del = true) }\n';
         q += '\t}\n';
         q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
-        q += this.getHost();
+        q += this.getHost(propertyURI);
         q += '\t#CREATE STATE URI\n';
         q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += '\tBIND(now() AS ?now)\n';
@@ -374,7 +379,7 @@ var OPMProp = (function () {
         q += '\t\t\tOPTIONAL{?st opm:assumption ?ass .}\n';
         q += '\t}\n';
         q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
-        q += this.getHost();
+        q += this.getHost(propertyURI);
         q += '\t#CREATE STATE URI\n';
         q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += '\tBIND(now() AS ?now)\n';
@@ -420,7 +425,7 @@ var OPMProp = (function () {
         q += '\t\tMINUS { ?state prov:wasDerivedFrom ?dependencies }\n';
         q += '\t}\n';
         q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
-        q += this.getHost();
+        q += this.getHost(propertyURI);
         q += '\t#CREATE STATE URI\n';
         q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += '\tBIND(now() AS ?now)\n';
@@ -470,7 +475,7 @@ var OPMProp = (function () {
         q += '\t\tMINUS { ?state prov:wasDerivedFrom ?dependencies }\n';
         q += '\t}\n';
         q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
-        q += this.getHost();
+        q += this.getHost(propertyURI);
         q += '\t#CREATE STATE URI\n';
         q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += '\tBIND(now() AS ?now)\n';
@@ -487,7 +492,20 @@ var OPMProp = (function () {
         var q = '';
         q += 'PREFIX  opm: <https://w3id.org/opm#>\n';
         q += 'PREFIX  prov: <http://www.w3.org/ns/prov#>\n';
-        q += 'SELECT ?property (?t as ?timestamp) ?deletedBy\n';
+        q += 'PREFIX  seas: <https://w3id.org/seas/>\n';
+        q += 'PREFIX  sd: <http://www.w3.org/ns/sparql-service-description#>\n';
+        if (this.queryType == 'construct') {
+            q += 'CONSTRUCT {\n';
+            q += '\t?property opm:hasState ?state ;\n';
+            q += '\t\tseas:isPropertyOf ?resourceURI ;\n';
+            q += '\t\tsd:namedGraph ?g .\n';
+            q += '\t?state prov:generatedAtTime ?t ;\n';
+            q += '\t\tprov:wasAttributedTo ?deletedBy .\n';
+            q += '}\n';
+        }
+        else {
+            q += 'SELECT (?property as ?propertyURI) (?t as ?timestamp) ?deletedBy (?g as ?graphURI) ?resourceURI\n';
+        }
         q += 'WHERE {\n';
         q += '\tGRAPH ?g {\n';
         //Get latest state
@@ -502,6 +520,8 @@ var OPMProp = (function () {
         q += '\t\t?state prov:generatedAtTime ?t ;\n';
         q += '\t\t\topm:deleted ?del .\n';
         q += '\t\tOPTIONAL{ ?state prov:wasAttributedTo ?deletedBy }\n';
+        q += "\t\t#FINDING THE RESOURCE IS ONLY POSSIBLE WITH REASONING\n";
+        q += "\t\tOPTIONAL { ?property seas:isPropertyOf ?resourceURI . }\n";
         q += '\t\tFILTER(?del = true)\n';
         q += '\t}\n';
         q += '}';
@@ -511,25 +531,38 @@ var OPMProp = (function () {
         var q = '';
         q += 'PREFIX  opm: <https://w3id.org/opm#>\n';
         q += 'PREFIX  prov: <http://www.w3.org/ns/prov#>\n';
-        q += 'SELECT ?property (?t as ?timestamp) ?deletedBy\n';
+        q += 'PREFIX  seas: <https://w3id.org/seas/>\n';
+        q += 'PREFIX  sd: <http://www.w3.org/ns/sparql-service-description#>\n';
+        if (this.queryType == 'construct') {
+            q += 'CONSTRUCT {\n';
+            q += '\t?propertyURI opm:hasState ?state ;\n';
+            q += '\t\tseas:isPropertyOf ?resourceURI ;\n';
+            q += '\t\tsd:namedGraph ?g .\n';
+            q += '\t?state prov:generatedAtTime ?t ;\n';
+            q += '\t\tprov:wasAttributedTo ?assumedBy .\n';
+            q += '}\n';
+        }
+        else {
+            q += 'SELECT ?propertyURI (?t as ?timestamp) ?assumedBy (?g as ?graphURI) ?resourceURI\n';
+        }
         q += 'WHERE {\n';
         q += '\tGRAPH ?g {\n';
         //Get latest state
         q += "\t#GET LATEST STATE\n";
-        q += "\t{ SELECT ?property (MAX(?_t) AS ?t) WHERE {\n";
+        q += "\t{ SELECT ?propertyURI (MAX(?_t) AS ?t) WHERE {\n";
         q += "\t\tGRAPH ?g {\n";
-        q += "\t\t\t?property opm:hasState/prov:generatedAtTime ?_t .\n";
+        q += "\t\t\t?propertyURI opm:hasState/prov:generatedAtTime ?_t .\n";
         q += '\t\t}\n';
-        q += '\t} GROUP BY ?property }\n';
+        q += '\t} GROUP BY ?propertyURI }\n';
         q += '\t#GET DATA\n';
-        q += '\t\t?property opm:hasState ?state .\n';
+        q += '\t\t?propertyURI opm:hasState ?state .\n';
         q += '\t\t?state prov:generatedAtTime ?t ;\n';
         q += '\t\t\topm:assumption ?assumption .\n';
         q += '\t\tOPTIONAL{ ?state prov:wasAttributedTo ?assumedBy }\n';
-        q += '\t\tOPTIONAL{\n';
-        q += '\t\t\t?state opm:deleted ?del\n';
-        q += '\t\t\tFILTER(?del != true)\n';
-        q += '\t\t}\n';
+        q += "\t\t#FINDING THE RESOURCE IS ONLY POSSIBLE WITH REASONING\n";
+        q += "\t\tOPTIONAL { ?propertyURI seas:isPropertyOf ?resourceURI . }\n";
+        q += '\t\t#EXCLUDE DELETED\n';
+        q += '\t\tMINUS { ?state opm:deleted ?del . FILTER(?del = true) }\n';
         q += '\t\tFILTER(?assumption = true)\n';
         q += '\t}\n';
         q += '}';
@@ -540,23 +573,37 @@ var OPMProp = (function () {
         var q = '';
         q += 'PREFIX  opm: <https://w3id.org/opm#>\n';
         q += 'PREFIX  prov: <http://www.w3.org/ns/prov#>\n';
-        q += 'SELECT DISTINCT ?propertyURI ?graphURI\n';
+        q += 'PREFIX  seas: <https://w3id.org/seas/>\n';
+        q += 'PREFIX  sd: <http://www.w3.org/ns/sparql-service-description#>\n';
+        if (this.queryType == 'construct') {
+            q += 'CONSTRUCT {\n';
+            q += '\t?origin opm:hasSubscriber ?propertyURI .\n';
+            q += '\t?propertyURI sd:namedGraph ?g2 ;\n';
+            q += '\t\tseas:isPropertyOf ?resourceURI .\n';
+            q += '}\n';
+        }
+        else {
+            q += 'SELECT DISTINCT ?propertyURI (?g2 as ?graphURI) ?resourceURI\n';
+        }
         q += 'WHERE {\n';
         q += '\tGRAPH ?g {\n';
         q += "\t\t" + propertyURI + " opm:hasState ?state .\n";
+        q += "\t\t?state ^opm:hasState ?origin .\n";
         q += "\t}\n";
-        q += '\tGRAPH ?graphURI {\n';
-        q += "\t\t[ ^prov:wasDerivedFrom ?depEval ] ?pos ?state .\n";
-        q += "\t\t?depEval ^opm:hasState ?propertyURI .\n";
+        q += '\tGRAPH ?g2 {\n';
+        q += "\t\t[ ^prov:wasDerivedFrom ?depState ] ?pos ?state .\n";
+        q += "\t\t?depState ^opm:hasState ?propertyURI .\n";
+        q += "\t\t#FINDING THE RESOURCE IS ONLY POSSIBLE WITH REASONING\n";
+        q += "\t\tOPTIONAL { ?propertyURI seas:isPropertyOf ?resourceURI . }\n";
         q += "\t}\n";
         q += "}\n";
         return q;
     };
-    OPMProp.prototype.getHost = function () {
+    OPMProp.prototype.getHost = function (someURI) {
         var q = '';
         q += '\t#EXTRACT HOST URI\n';
-        q += '\tBIND(IF(CONTAINS(STR(?propertyURI), "https://"), "https://", "http://") AS ?http)\n';
-        q += '\tBIND(STRAFTER(STR(?propertyURI), STR(?http)) AS ?substr1)\n';
+        q += "\tBIND(IF(CONTAINS(STR(" + someURI + "), \"https://\"), \"https://\", \"http://\") AS ?http)\n";
+        q += "\tBIND(STRAFTER(STR(" + someURI + "), STR(?http)) AS ?substr1)\n";
         q += '\tBIND(STRAFTER(STR(?substr1), "/") AS ?substr2)\n';
         q += '\tBIND(STRBEFORE(STR(?substr1), "/") AS ?host)\n';
         q += '\tBIND(STRBEFORE(STR(?substr2), "/") AS ?db)\n';

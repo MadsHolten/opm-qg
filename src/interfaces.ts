@@ -1,13 +1,17 @@
 export interface ICalc {
     args: IArgs[];
+    label?: string;
+    comment?: string;
     result: IRes;
     hostURI: string;
     resourceURI?: string;
     userURI?: string;
     prefixes?: IPrefix[];
+    queryType: string;
 }
 
 export interface IProp {
+    comment: string;
     resourceURI?: string;
     propertyURI?: string;
     userURI?: string;
@@ -18,6 +22,7 @@ export interface IProp {
     hostURI: string;
     prefixes?: IPrefix[];
     language: string;
+    queryType: string;
 }
 
 export interface IArgs {

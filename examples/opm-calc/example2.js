@@ -31,8 +31,8 @@ var input = {
           targetPath: '?resource seas:subFlowSystemOf ?target' }
     ],
     result: {
-        unit: 'Cel',
-        datatype: 'cdt:ucum',
+        unit: '°C',
+        datatype: 'cdt:temperature',
         property: 'seas:fluidTemperatureDifference',
         calc: 'abs(?arg1-?arg2)'
     },

@@ -273,17 +273,17 @@ var pmqg = new qg.OPMCalc(input);
 var query = pmqg.postCalc();
 
 var dboptions = {
-                    uri: 'http://host/proj/query',
-                    auth: {
-                        username: 'user',
-                        password: 'pw'
-                    },
-                    method: 'GET',
-                    qs: {query: query},
-                    headers: { 
-                        'Accept': 'application/n-triples' 
-                    }
-                }
+    uri: 'http://host/proj/query',
+    auth: {
+        username: 'user',
+        password: 'pw'
+    },
+    method: 'GET',
+    qs: {query: query},
+    headers: { 
+        'Accept': 'application/n-triples' 
+    }
+}
 return rp(dboptions)
         .then(d => {
             if(!d){

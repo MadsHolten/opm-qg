@@ -1,10 +1,9 @@
 "use strict";
-var qgen = require("../../dist/index");
-
-// var input = { 
-//     resourceURI: 'https://localhost/opm/HeatConsumer/1',
-//     language: 'en'
-// };
+var qg = require("../../dist/index");
+/**
+ * EXAMPLE 5
+ * storing calculation data
+ */
 var input = {
     args: [
         { property: 'seas:fluidSupplyTemperature' },
@@ -23,6 +22,6 @@ var input = {
     ],
     hostURI: "https://localhost/opm"
 };
-var sp = new qgen.OPMCalc(input);
-var q = sp.postCalcData();
+var sc = new qg.OPMCalc(input);
+var q = sc.postCalcData();
 console.log(q);

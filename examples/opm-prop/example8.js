@@ -1,7 +1,7 @@
 "use strict";
 var qg = require("../../dist/index");
 /**
- * EXAMPLE 10
+ * EXAMPLE 8
  * Restore deleted property
  */
 var input = {
