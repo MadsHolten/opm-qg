@@ -7,7 +7,7 @@ OPM query generator requires [Node.js](https://nodejs.org/) v4+ to run.
 Install it to your project
 
 ```sh
-$ npm install https://github.com/MadsHolten/opm-qg.git#0.1.11
+$ npm install https://github.com/MadsHolten/opm-qg.git
 ```
 
 ### Methods
