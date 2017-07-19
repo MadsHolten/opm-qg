@@ -333,6 +333,9 @@ export class OPMProp {
     }
 
     //Delete a property
+    //Maybe make two - a force one that doesn't take dependencies and 
+    //confirmed properties into account and a regular one that will not
+    //delete properties other depend on or that are confirmed
     deleteProp(): string {
         var userURI = this.input.userURI;
         var comment = this.input.comment;
@@ -373,7 +376,7 @@ export class OPMProp {
         q+= '\t\tMINUS { ?state a opm:Deleted }\n';
         //A confirmed property should not be deletable, right?
         //Especially not if people use it - so maybe make this restriction
-        //q+= '\t\tMINUS { ?state a opm:Deleted , opm:Confirmed }\n';
+        //q+= '\t\tMINUS { ?state a opm:Confirmed }\n';
         q+= '\t}\n'
         q+= '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
         q+= this.getHost(propertyURI);
@@ -470,6 +473,8 @@ export class OPMProp {
         }
         q+= 'CONSTRUCT {\n';
         q+= '\t?propertyURI opm:hasState ?stateURI .\n';
+        //Assign value directly to property when confirmed?
+        //Mark property as confirmed?
         if(comment){
             q+= `\t?stateURI rdfs:comment "${comment}"^^xsd:string .\n`;
         }
@@ -500,6 +505,7 @@ export class OPMProp {
 
         //Omit derived values (these are confirmed when all arguments are confirmed)
         q+= `\t\t#A DERIVED PROPERTY CAN'T BE CONFIRMED - ARGUMENTS ARE CONFIRMED\n`;
+        q+= '\t\tMINUS { ?state a opm:Derived }\n';
         q+= '\t\tMINUS { ?state prov:wasDerivedFrom ?dependencies }\n';
         q+= '\t}\n';
         q+= '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
@@ -514,6 +520,7 @@ export class OPMProp {
 
     makeAssumption(): string{
         var propertyURI = this.input.propertyURI;
+        var comment = this.input.comment;
         var userURI = this.input.userURI;
         var prefixes = this.input.prefixes;
 
@@ -526,10 +533,16 @@ export class OPMProp {
         }
         q+= 'CONSTRUCT {\n';
         q+= '\t?propertyURI opm:hasState ?stateURI .\n';
-        q+= '\t?stateURI opm:valueAtState ?value ;\n';
-        q+= '\t\tprov:generatedAtTime ?now ;\n';
-        q+= '\t\topm:assumption "true"^^xsd:boolean ;\n';
-        q+= `\t\tprov:wasAttributedTo ${userURI} .\n`;
+        if(userURI){
+            q+= `\t?stateURI prov:wasAttributedTo ${userURI} .\n`;
+        }
+        if(comment){
+            q+= `\t?stateURI rdfs:comment "${comment}"^^xsd:string .\n`;
+        }
+        q+= '\t?stateURI a opm:State , opm:Assumption ;\n';
+        q+= '\t\trdfs:label "Assumption State"@en ;\n';
+        q+= '\t\topm:valueAtState ?value ;\n';
+        q+= '\t\tprov:generatedAtTime ?now .\n';
         q+= '}\n'
         q+= 'WHERE {\n';
         q+= '\tGRAPH ?g {\n'
@@ -547,12 +560,13 @@ export class OPMProp {
         q+= `\t\t?propertyURI opm:hasState ?state .\n`;
         q+= `\t\t?state prov:generatedAtTime ?t ;\n`;
         q+= `\t\t\topm:valueAtState ?value .\n`;
-        q+= '\t\tMINUS { ?state opm:deleted ?del . FILTER(?del = true) }\n';
-        q+= '\t\tMINUS { ?state opm:confirmed ?conf . FILTER(?conf = true) }\n';
-        q+= '\t\tMINUS { ?state opm:assumption ?ass . FILTER(?ass = true) }\n';
+        q+= '\t\tMINUS { ?state a opm:Deleted }\n';
+        q+= '\t\tMINUS { ?state a opm:Confirmed }\n';
+        q+= '\t\tMINUS { ?state a opm:Assumption }\n';
 
         //Omit derived values (these are confirmed when all arguments are confirmed)
         q+= `\t\t#A DERIVED PROPERTY CAN'T BE MADE AN ASSUMPTION - ARGUMENTS ARE ASSUMPTIONS\n`;
+        q+= '\t\tMINUS { ?state a opm:Derived }\n';
         q+= '\t\tMINUS { ?state prov:wasDerivedFrom ?dependencies }\n';
         q+= '\t}\n';
         q+= '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
@@ -581,7 +595,8 @@ export class OPMProp {
             q+= '\t\tseas:isPropertyOf ?resourceURI ;\n';
             q+= '\t\tsd:namedGraph ?g .\n';
             q+= '\t?state prov:generatedAtTime ?t ;\n';
-            q+= '\t\tprov:wasAttributedTo ?deletedBy .\n';
+            q+= '\t\tprov:wasAttributedTo ?deletedBy ;\n';
+            q+= '\t\trdfs:comment ?comment .\n';
             q+= '}\n';
         }else{
             q+= 'SELECT (?property as ?propertyURI) (?t as ?timestamp) ?deletedBy (?g as ?graphURI) ?resourceURI\n';
@@ -600,12 +615,12 @@ export class OPMProp {
 
         q+= '\t#GET DATA\n'
         q+= '\t\t?property opm:hasState ?state .\n';
-        q+= '\t\t?state prov:generatedAtTime ?t ;\n';
-        q+= '\t\t\topm:deleted ?del .\n';
+        q+= '\t\t?state a opm:Deleted ;\n';
+        q+= '\t\t\tprov:generatedAtTime ?t .\n';
         q+= '\t\tOPTIONAL{ ?state prov:wasAttributedTo ?deletedBy }\n';
+        q+= '\t\tOPTIONAL{ ?state rdfs:comment ?comment }\n';
         q+= `\t\t#FINDING THE RESOURCE IS ONLY POSSIBLE WITH REASONING\n`;
         q+= `\t\tOPTIONAL { ?property seas:isPropertyOf ?resourceURI . }\n`;
-        q+= '\t\tFILTER(?del = true)\n';
         q+= '\t}\n';
         q+= '}';
         return q;
@@ -624,7 +639,8 @@ export class OPMProp {
             q+= '\t\tseas:isPropertyOf ?resourceURI ;\n';
             q+= '\t\tsd:namedGraph ?g .\n';
             q+= '\t?state prov:generatedAtTime ?t ;\n';
-            q+= '\t\tprov:wasAttributedTo ?assumedBy .\n';
+            q+= '\t\tprov:wasAttributedTo ?assumedBy ;\n';
+            q+= '\t\trdfs:comment ?comment .\n';
             q+= '}\n';
         }else{
             q+= 'SELECT ?propertyURI (?t as ?timestamp) ?assumedBy (?g as ?graphURI) ?resourceURI\n';
@@ -643,14 +659,14 @@ export class OPMProp {
 
         q+= '\t#GET DATA\n';
         q+= '\t\t?propertyURI opm:hasState ?state .\n';
-        q+= '\t\t?state prov:generatedAtTime ?t ;\n';
-        q+= '\t\t\topm:assumption ?assumption .\n';
+        q+= '\t\t?state a opm:Assumption ;\n';
+        q+= '\t\t\tprov:generatedAtTime ?t .\n';
         q+= '\t\tOPTIONAL{ ?state prov:wasAttributedTo ?assumedBy }\n';
+        q+= '\t\tOPTIONAL{ ?state rdfs:comment ?comment }\n';
         q+= `\t\t#FINDING THE RESOURCE IS ONLY POSSIBLE WITH REASONING\n`;
         q+= `\t\tOPTIONAL { ?propertyURI seas:isPropertyOf ?resourceURI . }\n`;
         q+= '\t\t#EXCLUDE DELETED\n';
-        q+= '\t\tMINUS { ?state opm:deleted ?del . FILTER(?del = true) }\n';
-        q+= '\t\tFILTER(?assumption = true)\n';
+        q+= '\t\tMINUS { ?state a opm:Deleted }\n';
         q+= '\t}\n';
         q+= '}';
         return q;
@@ -684,6 +700,8 @@ export class OPMProp {
         q+= `\t\t?depState ^opm:hasState ?propertyURI .\n`;
         q+= `\t\t#FINDING THE RESOURCE IS ONLY POSSIBLE WITH REASONING\n`;
         q+= `\t\tOPTIONAL { ?propertyURI seas:isPropertyOf ?resourceURI . }\n`;
+        q+= '\t\t#EXCLUDE DELETED\n';
+        q+= '\t\tMINUS { ?depState a opm:Deleted }\n';
         q+= `\t}\n`;
         q+= `}\n`;
         return q;
