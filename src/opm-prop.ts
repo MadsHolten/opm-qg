@@ -82,7 +82,7 @@ export class OPMProp {
         var userURI = this.input.userURI;
         var comment = this.input.comment;
         var prefixes = this.input.prefixes;
-        var foi = this.input.foiURI;
+        var foiURI = this.input.foiURI;
         var property = this.input.value.property;
         var value = this.input.value.value;
         var unit = this.input.value.unit;
@@ -142,7 +142,7 @@ export class OPMProp {
         var userURI = this.input.userURI;
         var comment = this.input.comment;
         var prefixes = this.input.prefixes;
-        var foi = this.input.foiURI;
+        var foiURI = this.input.foiURI;
         var property = this.input.value.property;
         var value = this.input.value.value;
         var unit = this.input.value.unit;

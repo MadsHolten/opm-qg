@@ -467,6 +467,16 @@ export class OPMCalc {
         return q;
     }
 
+    checkCircularDependency(): string{
+        
+        var q = '';
+        q+= 'ASK\n';
+        q+= 'WHERE {\n'
+        
+        q+= '}\n'
+        return q;
+    }
+
     getHost(someURI): string {
         var q = '';
         q+='\t\t#EXTRACT HOST URI\n';

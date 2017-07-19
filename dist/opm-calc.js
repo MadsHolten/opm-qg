@@ -436,6 +436,13 @@ var OPMCalc = (function () {
         q += "}";
         return q;
     };
+    OPMCalc.prototype.checkCircularDependency = function () {
+        var q = '';
+        q += 'ASK\n';
+        q += 'WHERE {\n';
+        q += '}\n';
+        return q;
+    };
     OPMCalc.prototype.getHost = function (someURI) {
         var q = '';
         q += '\t\t#EXTRACT HOST URI\n';
