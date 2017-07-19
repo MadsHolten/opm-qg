@@ -1,4 +1,5 @@
 # OPM query generator: Query generator for Property Management
+Manage interdependent and typed properties as well as their interdependencies, history and validity for properties assigned to any Feature of Interest (FoI).
 
 ### Installation
 
@@ -12,15 +13,15 @@ $ npm install https://github.com/MadsHolten/opm-qg.git
 
 ### Methods
 **Calculations**
-* **postCalc()** - Checks for resources that match the pattern, that do not have the inferred property. Creates a property with a new URI and a first state containing calculation data + result.
-* **putCalc()** - Checks for resources that match the pattern, that already have the inferred property, but where one or more of the arguments of the latest state have changed since last calculation. Creates a new state and attaches it to the inferred property.
+* **postCalc()** - Checks for FoIs that match the pattern, that do not have the inferred property. Creates a property with a new URI and a first state containing calculation data + result.
+* **putCalc()** - Checks for FoIs that match the pattern, that already have the inferred property, but where one or more of the arguments of the latest state have changed since last calculation. Creates a new state and attaches it to the inferred property.
 * **listOutdated()** - Returns a full list of calculated properties where one or more of the arguments of the expression have changed since last time the calculation was updated.
 
 **Properties**
-* **postResourceProp()** - Attach a new property to either a specific resource or to all resources matching a specified pattern.
-* **putResourceProp()** - Update a property of either a specific resource or of all resources matching a specified pattern.
-* **getResourceProp()** - Get a specific property of a resource. Use URL Parameter latest=true to return only the latest state.
-* **getResourceProps()** - Get all properties of a resource. Use URL Parameter latest=true to return only the latest states.
+* **postFoIProp()** - Attach a new property to either a specific FoI or to all FoIs matching a specified pattern.
+* **putFoIProp()** - Update a property of either a specific FoI or of all FoIs matching a specified pattern.
+* **getFoIProp()** - Get a specific property of a FoI. Use URL Parameter latest=true to return only the latest state.
+* **getFoIProps()** - Get all properties of a FoI. Use URL Parameter latest=true to return only the latest states.
 * **getProp()** - Get data about a specific property. Use URL Parameter latest=true to return only the latest states.
 * **deleteProp()** - Delete a specific property by adding a new state with opm:deleted set to true.
 * **restoreProp()** - Restore a deleted property by reinferring the latest state with a value assigned to it.
@@ -30,9 +31,9 @@ $ npm install https://github.com/MadsHolten/opm-qg.git
 ### Calculation examples
 
 #### Example 1
-##### Properties exist directly on the resource
+##### Properties exist directly on the FoI
 ##### postCalc() // putCalc()
-If the property exists on the resource itself the following input will construct a new (or update existing if using put) "seas:fluidTemperatureDifference"-property for all resources that have a "seas:fluidSupplyTemperature" and a "seas:fluidSupplyTemperature".
+If the property exists on the FoI itself the following input will construct a new (or update existing if using put) "seas:fluidTemperatureDifference"-property for all FoIs that have a "seas:fluidSupplyTemperature" and a "seas:fluidSupplyTemperature".
 
 The calculation is defined with the calc variable, and the arguments are referred to by their location in the args list (?arg1, ?arg2, ... ?arg:n). The result will get a unit Cel and datatype cdt:ucum. This prefix is not defined as default and must be defined under prefixes.
 
@@ -63,11 +64,11 @@ console.log(query);
 ```
 
 #### Example 2
-##### Properties do not exist directly on the resource
+##### Properties do not exist directly on the FoI
 ##### postCalc() // putCalc()
-Used if the properties do not exist on the resource itself, but exist on a resource that has a connection to the resource itself.
+Used if the properties do not exist on the FoI itself, but exist on a FoI that has a connection to the FoI.
 
-A target path for the argument is specified. It is given by a triple pattern, and it must start with the resource itself using the "?resource" variable. 
+A target path for the argument is specified. It is given by a triple pattern, and it must start with the FoI itself using the "?foi" variable. 
 
 The name of the target variable can be anything, but the following variables are reserved, and cannot be used:
 
@@ -78,23 +79,23 @@ In the example, we are looking for a property that exists on the super system of
 var input = {
     args: [
         { property: 'seas:fluidSupplyTemperature',
-          targetPath: '?resource seas:subFlowSystemOf ?target' },
+          targetPath: '?foi seas:subFlowSystemOf ?targetFoI' },
         { property: 'seas:fluidReturnTemperature',
-          targetPath: '?resource seas:subFlowSystemOf ?target' }
+          targetPath: '?foi seas:subFlowSystemOf ?targetFoI' }
     ], ...
 };
 ```
 
 #### Example 3
-##### Properties of a specific resource
+##### Properties of a specific FoI
 ##### postCalc() // putCalc()
-Sometimes it might be necessary to specify the calculation so that it is only valid for a specific resource. It is possible to do this by explicitly specifying a resource URI.
+Sometimes it might be necessary to specify the calculation so that it is only valid for a specific FoI. It is possible to do this by explicitly specifying a FoI URI.
 
 Properties and paths work the same way as illustrated in examples 1 and 2.
 ```javascript
 var input = {
     ...
-    resourceURI: 'https://localhost/seas/HeatingSystem/6626b0b1-3578-4f1e-a6ec-91c7c59fb143', ...
+    foiURI: 'https://localhost/seas/HeatingSystem/6626b0b1-3578-4f1e-a6ec-91c7c59fb143', ...
 };
 ```
 
@@ -106,9 +107,9 @@ Function takes no input. It just returns a full list of outdated properties.
 ### Property examples
 
 #### Example 1
-##### Add/update property to a specific resource
-##### postResourceProp() // putResourceProp()
-Simply use postResourceProp() for attaching a new property (if not already exists) or putResourceProp() to update an existing one.
+##### Add/update property to a specific FoI
+##### postFoIProp() // putFoIProp()
+Simply use postFoIProp() for attaching a new property (if not already exists) or putFoIProp() to update an existing one.
 ```javascript
 var input = {
     value: {
@@ -120,53 +121,53 @@ var input = {
     prefixes: [
         { prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#' }
     ],
-    resourceURI: 'https://localhost/seas/HeatingSystem/1'
+    foiURI: 'https://localhost/seas/HeatingSystem/1'
 };
 ```
 
 #### Example 2
-##### Add/update property to all resources matching a pattern
-##### postResourceProp() // putResourceProp()
-Simply use postResourceProp() for attaching new properties (if not already exists) or putResourceProp() to update existing ones.
+##### Add/update property to all FoIs matching a pattern
+##### postFoIProp() // putFoIProp()
+Simply use postFoIProp() for attaching new properties (if not already exists) or putFoIProp() to update existing ones.
 
-A pattern is given as a triple pattern, and it must start with the resource itself using the "?resource" variable.
+A pattern is given as a triple pattern, and it must start with the FoI itself using the "?foi" variable.
 
 The following variables are reserved, and cannot be included in the pattern:
 
 *?propertyURI, ?evaluationURI, ?now, ?val, ?guid, ?eval*
 
-In the example a 'seas:fluidSupplyTemperature' is added to all resources of type 'seas:HeatingSystem'.
+In the example a 'seas:fluidSupplyTemperature' is added to all FoIs of type 'seas:HeatingSystem'.
 
 Value and prefixes are the same as illustrated in the previous example.
 ```javascript
 var input = {
     ...
-    pattern: '?resource a seas:HeatingSystem'
+    pattern: '?foi a seas:HeatingSystem'
 };
 ```
 
 #### Example 3
 ##### Latest evaluation and value of all properties
-##### getResourceProps()
-Also returns the resource on which they belong.
+##### getFoIProps()
+Also returns the FoI on which they belong.
 
 Optional 'latest: true' returns only the latest state.
 Optional 'language: ISO-CODE' returns only a specific label language.
 ```javascript
 var input = {
-    resourceURI: "https://localhost/opm/HeatingSystem/1",
+    foiURI: "https://localhost/opm/HeatingSystem/1",
     language: "en"
 };
 ```
 
 #### Example 4
-##### Latest evaluation of a single property of a specific resource
-##### getResourceProp()
+##### Latest evaluation of a single property of a specific FoI
+##### getFoIProp()
 Optional 'latest: true' returns only the latest state.
 Optional 'language: ISO-CODE' returns only a specific label language.
 ```javascript
 var input = {
-    resourceURI: "https://localhost/opm/HeatConsumer/1",
+    foiURI: "https://localhost/opm/HeatConsumer/1",
     propertyURI: "https://w3id.org/seas/heatOutput",
     latest: true
 };

@@ -2,7 +2,7 @@
 var qgen = require("../../dist/index");
 
 // var input = { 
-//     resourceURI: 'https://localhost/opm/HeatConsumer/1',
+//     foiURI: 'https://localhost/opm/HeatConsumer/1',
 //     language: 'en'
 // };
 var input = {

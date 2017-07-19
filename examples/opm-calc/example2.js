@@ -2,14 +2,14 @@
 var qg = require("../../dist/index");
 /**
  * EXAMPLE 2
- * target paths for multiple resources
+ * target paths for multiple FoIs
  * 
- * Based on properties that exist on another resource that
- * has a connection to the resource itself
+ * Based on properties that exist on another FoI that
+ * has a connection to the FoI itself
  * 
  * A target path for the argument is specified. It is
  * given by a triple pattern, and it must start with the
- * resource itself using the "?resource" variable.
+ * FoI itself using the "?foi" variable.
  * The name of the target variable can be anything, but
  * the following variables are reserved, and cannot be used:
  * ?propertyURI, ?evaluationURI, ?_res, ?res, ?now, ?eval:n,
@@ -26,9 +26,9 @@ var qg = require("../../dist/index");
 var input = {
     args: [
         { property: 'seas:fluidSupplyTemperature',
-          targetPath: '?resource seas:subFlowSystemOf ?target' },
+          targetPath: '?foi seas:subFlowSystemOf ?targetFoI' },
         { property: 'seas:fluidReturnTemperature',
-          targetPath: '?resource seas:subFlowSystemOf ?target' }
+          targetPath: '?foi seas:subFlowSystemOf ?targetFoI' }
     ],
     result: {
         unit: '°C',

@@ -9,10 +9,10 @@ var qg = require("../../dist/index");
  * time the calculation was performed.
  * 
  * Either return a full list or a list with properties
- * of a specific resource (as shown in example)
+ * of a specific FoI (as shown in example)
  */
 var input = {
-    resourceURI: 'https://localhost/seas/HeatingSystem/14532928-3bb5-4396-a4a3-aea6aa4fa56c'
+    foiURI: 'https://localhost/seas/HeatingSystem/14532928-3bb5-4396-a4a3-aea6aa4fa56c'
 };
 var sc = new qg.OPMCalc();
 var q = sc.listOutdated();

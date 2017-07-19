@@ -4,7 +4,7 @@ export interface ICalc {
     comment?: string;
     result: IRes;
     hostURI: string;
-    resourceURI?: string;
+    foiURI?: string;
     userURI?: string;
     prefixes?: IPrefix[];
     queryType: string;
@@ -12,7 +12,7 @@ export interface ICalc {
 
 export interface IProp {
     comment: string;
-    resourceURI?: string;
+    foiURI?: string;
     propertyURI?: string;
     userURI?: string;
     objectProperty?: boolean;

@@ -2,7 +2,7 @@
 var qg = require("../../dist/index");
 /**
  * EXAMPLE 1
- * add/update property to a specific resource
+ * add/update property to a specific FoI
  */
 var input = {
     value: {
@@ -15,10 +15,10 @@ var input = {
     prefixes: [
         {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'}
     ],
-    resourceURI: 'https://localhost/seas/HeatingSystem/1'
+    foiURI: 'https://localhost/seas/HeatingSystem/1'
 };
 
 var sc = new qg.OPMProp(input);
-var q = sc.postResourceProp();
-//var q = sc.putResourceProp();
+var q = sc.postFoIProp();
+//var q = sc.putFoIProp();
 console.log(q);

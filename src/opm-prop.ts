@@ -43,12 +43,12 @@ export class OPMProp {
                     this.input.value.property = _s.startsWith(propertyURI, 'http') ? `<${propertyURI}>` : `${propertyURI}`;
                 }
             }
-            //If no resource URI is specified, some pattern must exist
-            if(!this.input.resourceURI){
+            //If no FoI URI is specified, some pattern must exist
+            if(!this.input.foiURI){
                 if(!this.input.pattern && !this.input.propertyURI){
-                    this.err = "When no resourceURI is specified a pattern must exist!";
+                    this.err = "When no foiURI is specified a pattern must exist!";
                 }else{
-                    this.input.resourceURI = '?resource';
+                    this.input.foiURI = '?foi';
                     //Clean pattern
                     var str: string = this.input.pattern;
                     str = _s.clean(str); //Remove unnecessary spaces etc.
@@ -56,7 +56,7 @@ export class OPMProp {
                     this.input.pattern = str;
                 }
             }else{
-                this.input.resourceURI = `<${this.input.resourceURI}>`;
+                this.input.foiURI = `<${this.input.foiURI}>`;
             }
             //PropertyURI can be either prefixed or as a regular URI
             if(this.input.propertyURI){
@@ -73,25 +73,25 @@ export class OPMProp {
     }
 
     /**
-     * BY RESOURCE
+     * BY FoI
      */
 
-    //Create property for a resource where it doesn't already exist
-    postResourceProp(): string{
+    //Create property for a FoI where it doesn't already exist
+    postFoIProp(): string{
         //Retrieve and process variables
         var userURI = this.input.userURI;
         var comment = this.input.comment;
         var prefixes = this.input.prefixes;
-        var resource = this.input.resourceURI;
+        var foi = this.input.foiURI;
         var property = this.input.value.property;
         var value = this.input.value.value;
         var unit = this.input.value.unit;
         var datatype = this.input.value.datatype;
-        var resourceURI = this.input.resourceURI;
-        if(resourceURI == '?resource'){
+        var foiURI = this.input.foiURI;
+        if(foiURI == '?foi'){
             var pattern = `{ SELECT * WHERE { GRAPH ?g {${this.input.pattern}} }}`;
         }else{
-            var pattern = `{ SELECT * WHERE { GRAPH ?g {${resourceURI} ?p ?o} } LIMIT 1}`;
+            var pattern = `{ SELECT * WHERE { GRAPH ?g {${foiURI} ?p ?o} } LIMIT 1}`;
         }
 
         var q: string = '';
@@ -101,7 +101,7 @@ export class OPMProp {
         }
 
         q+= 'CONSTRUCT {\n';
-        q+= `\t${resourceURI} ${property} ?propertyURI .\n`;
+        q+= `\t${foiURI} ${property} ?propertyURI .\n`;
         q+= '\t?propertyURI a opm:Property ;\n';
         q+= '\t\trdfs:label "Typed Property"@en ;\n';
         q+= '\t\topm:hasState ?stateURI .\n';
@@ -121,12 +121,12 @@ export class OPMProp {
         q+= `\t${pattern}\n`;
         q+= '\tMINUS {\n';
         q+= '\t\tGRAPH ?g {\n';
-        q+= `\t\t\t${resourceURI} ${property}/opm:hasState ?eval .\n`;
+        q+= `\t\t\t${foiURI} ${property}/opm:hasState ?eval .\n`;
         q+= '\t\t}\n'
         q+= '\t}\n'
         q+= `\tBIND(strdt(concat(str(${value}), " ${unit}"), ${datatype}) AS ?val)\n`;
         q+= `\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n`;
-        q+= this.getHost(resourceURI);
+        q+= this.getHost(foiURI);
         q+= '\t#CREATE STATE AND PROPERTY URI´s\n';
         q+= '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q+= '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/Property/", ?guid)) AS ?propertyURI)\n';
@@ -136,19 +136,19 @@ export class OPMProp {
         return q;
     }
 
-    //Update resource property
-    putResourceProp(): string{
+    //Update FoI property
+    putFoIProp(): string{
         //Retrieve and process variables
         var userURI = this.input.userURI;
         var comment = this.input.comment;
         var prefixes = this.input.prefixes;
-        var resource = this.input.resourceURI;
+        var foi = this.input.foiURI;
         var property = this.input.value.property;
         var value = this.input.value.value;
         var unit = this.input.value.unit;
         var datatype = this.input.value.datatype;
         var pattern = this.input.pattern;
-        var resourceURI = this.input.resourceURI;
+        var foiURI = this.input.foiURI;
 
         var q: string = '';
         //Define prefixes
@@ -177,7 +177,7 @@ export class OPMProp {
         q+= '\t#GET LATEST STATE\n';
         q+= '\t{ SELECT ?propertyURI (MAX(?_t) AS ?t) WHERE {\n';
         q+= '\t\tGRAPH ?g {\n'
-        q+= `\t\t\t${resourceURI} ${property} ?propertyURI .\n`;
+        q+= `\t\t\t${foiURI} ${property} ?propertyURI .\n`;
         q+= '\t\t\t?propertyURI opm:hasState ?eval .\n';
         q+= '\t\t\t?eval prov:generatedAtTime ?_t .\n';
         q+= pattern ? `\t\t\t${pattern}\n` : '';
@@ -186,7 +186,7 @@ export class OPMProp {
 
         q+= '\t\t#GET DATA - VALUE SHOULD BE DIFFERENT FROM THE PREVIOUS\n';
         q+= '\t\tGRAPH ?g {\n';
-        q+= `\t\t\t${resourceURI} ${property} ?propertyURI .\n`;
+        q+= `\t\t\t${foiURI} ${property} ?propertyURI .\n`;
         q+= `\t\t\t?propertyURI opm:hasState [ prov:generatedAtTime ?t ;\n`;
         q+= `\t\t\t\topm:valueAtState ?old_val ] .\n`;
         q+= `\t\t\tFILTER(strbefore(str(?old_val), " ") != str(${value}))\n`;
@@ -194,7 +194,7 @@ export class OPMProp {
               
         q+= `\tBIND(strdt(concat(str(${value}), " ${unit}"), ${datatype}) AS ?val)\n`;
         q+= '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n'
-        q+= this.getHost(resourceURI);
+        q+= this.getHost(foiURI);
         q+= '\t#CREATE STATE URI´s\n';
         q+= '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q+= '\tBIND(now() AS ?now)\n';
@@ -205,11 +205,11 @@ export class OPMProp {
         return q;
     }
 
-    //Get a single property of a resource
-    getResourceProp(): string {
+    //Get a single property of a foi
+    getFoIProp(): string {
         var prefixes = this.input.prefixes;
-        var resource = this.input.resourceURI;
-        var returnResource = this.input.resourceURI == '?resource' ? true : false;
+        var foi = this.input.foiURI;
+        var returnFoI = this.input.foiURI == '?foi' ? true : false;
         var property = this.input.propertyURI;
         var latest = this.input.latest;
         
@@ -222,16 +222,16 @@ export class OPMProp {
         }
         q+= `SELECT ?value ?deleted `;
         q+= latest ? '(?ts AS ?timestamp) ' : '(MAX(?ts) AS ?timestamp) ';
-        q+= returnResource ? '?resource\n' : '\n';
+        q+= returnFoI ? '?foi\n' : '\n';
         q+= 'WHERE {\n';
         q+= '\tGRAPH ?g {\n';
         if(latest){
             q+= `\t\t{ SELECT (MAX(?t) AS ?ts) WHERE {\n`;
-            q+= `\t\t\t${resource} ${property} ?prop .\n`;
+            q+= `\t\t\t${foi} ${property} ?prop .\n`;
             q+= `\t\t\t?prop opm:hasState/prov:generatedAtTime ?t .\n`;
             q+= '\t\t} GROUP BY ?prop }\n'
         }
-        q+= `\t\t${resource} ${property} ?prop .\n`;
+        q+= `\t\t${foi} ${property} ?prop .\n`;
         q+= `\t\t?prop opm:hasState ?state .\n`;
         q+= `\t\t?state prov:generatedAtTime ?ts ;\n`
         q+= '\t\tOPTIONAL{?state opm:valueAtState ?value .}\n';
@@ -240,16 +240,16 @@ export class OPMProp {
         q+= `}`; 
         if(!latest){
             q+=` GROUP BY ?value ?deleted`
-            q+= returnResource ? '?resource' : '';
+            q+= returnFoI ? '?foi' : '';
         }
         if(this.err){q = 'Error: '+this.err;}
         return q;
     }
 
-    //Get all resource properties
-    getResourceProps(): string {
+    //Get all FoI properties
+    getFoIProps(): string {
         var prefixes = (this.input && this.input.prefixes) ? this.input.prefixes : undefined;
-        var resource = (this.input && this.input.resourceURI) ? `${this.input.resourceURI}` : '?resource';
+        var foi = (this.input && this.input.foiURI) ? `${this.input.foiURI}` : '?foi';
         var strLang = (this.input && this.input.language) ? this.input.language : 'en';
         var evalPath: string = '';
 
@@ -267,11 +267,11 @@ export class OPMProp {
         }
         
 
-        q+= `SELECT ?resource ?property ?value ?lastUpdated ?g ?uri ?state ?label ?deleted `;
+        q+= `SELECT ?foi ?property ?value ?lastUpdated ?g ?uri ?state ?label ?deleted `;
         q+= `WHERE {\n`;
         q+= `\tGRAPH ?g {\n`;
         q+= `\t\t{ SELECT ?property (MAX(?timestamp) AS ?lastUpdated) WHERE {\n`;
-        q+= `\t\t\t${resource} ?property ?propertyURI .\n`;
+        q+= `\t\t\t${foi} ?property ?propertyURI .\n`;
         q+= `\t\t\t?propertyURI opm:hasState ?state .\n`;
         q+= `\t\t\t?state prov:generatedAtTime ?timestamp .\n`;
         q+= `\t\t} GROUP BY ?property }\n`;
@@ -281,12 +281,12 @@ export class OPMProp {
         q+= `\t\t}\t\n`;
         q+= `\t\t\tFILTER(lang(?label)="${strLang}")\n`;
         q+= '\t\t}\n';
-        q+= '\t\t?resource ?property ?uri .\n';
+        q+= '\t\t?foi ?property ?uri .\n';
         q+= '\t\t?uri opm:hasState ?state .\n';
         q+= '\t\t?state prov:generatedAtTime ?lastUpdated .\n';
         q+= '\t\tOPTIONAL{?state opm:valueAtState ?value .}\n';
         q+= '\t\tOPTIONAL{?state opm:deleted ?deleted .}\n';
-        q+= `\t\tFILTER(?resource = ${resource})\n`;
+        q+= `\t\tFILTER(?foi = ${foi})\n`;
         q+= '\t}\n';
         q+= '}';
 
@@ -592,14 +592,14 @@ export class OPMProp {
         if(this.queryType == 'construct'){
             q+= 'CONSTRUCT {\n';
             q+= '\t?property opm:hasState ?state ;\n';
-            q+= '\t\tseas:isPropertyOf ?resourceURI ;\n';
+            q+= '\t\tseas:isPropertyOf ?foiURI ;\n';
             q+= '\t\tsd:namedGraph ?g .\n';
             q+= '\t?state prov:generatedAtTime ?t ;\n';
             q+= '\t\tprov:wasAttributedTo ?deletedBy ;\n';
             q+= '\t\trdfs:comment ?comment .\n';
             q+= '}\n';
         }else{
-            q+= 'SELECT (?property as ?propertyURI) (?t as ?timestamp) ?deletedBy (?g as ?graphURI) ?resourceURI\n';
+            q+= 'SELECT (?property as ?propertyURI) (?t as ?timestamp) ?deletedBy (?g as ?graphURI) ?foiURI\n';
         }
         
         q+= 'WHERE {\n';
@@ -619,8 +619,8 @@ export class OPMProp {
         q+= '\t\t\tprov:generatedAtTime ?t .\n';
         q+= '\t\tOPTIONAL{ ?state prov:wasAttributedTo ?deletedBy }\n';
         q+= '\t\tOPTIONAL{ ?state rdfs:comment ?comment }\n';
-        q+= `\t\t#FINDING THE RESOURCE IS ONLY POSSIBLE WITH REASONING\n`;
-        q+= `\t\tOPTIONAL { ?property seas:isPropertyOf ?resourceURI . }\n`;
+        q+= `\t\t#FINDING THE FoI IS ONLY POSSIBLE WITH REASONING\n`;
+        q+= `\t\tOPTIONAL { ?property seas:isPropertyOf ?foiURI . }\n`;
         q+= '\t}\n';
         q+= '}';
         return q;
@@ -636,14 +636,14 @@ export class OPMProp {
         if(this.queryType == 'construct'){
             q+= 'CONSTRUCT {\n';
             q+= '\t?propertyURI opm:hasState ?state ;\n';
-            q+= '\t\tseas:isPropertyOf ?resourceURI ;\n';
+            q+= '\t\tseas:isPropertyOf ?foiURI ;\n';
             q+= '\t\tsd:namedGraph ?g .\n';
             q+= '\t?state prov:generatedAtTime ?t ;\n';
             q+= '\t\tprov:wasAttributedTo ?assumedBy ;\n';
             q+= '\t\trdfs:comment ?comment .\n';
             q+= '}\n';
         }else{
-            q+= 'SELECT ?propertyURI (?t as ?timestamp) ?assumedBy (?g as ?graphURI) ?resourceURI\n';
+            q+= 'SELECT ?propertyURI (?t as ?timestamp) ?assumedBy (?g as ?graphURI) ?foiURI\n';
         }
 
         q+= 'WHERE {\n';
@@ -663,8 +663,8 @@ export class OPMProp {
         q+= '\t\t\tprov:generatedAtTime ?t .\n';
         q+= '\t\tOPTIONAL{ ?state prov:wasAttributedTo ?assumedBy }\n';
         q+= '\t\tOPTIONAL{ ?state rdfs:comment ?comment }\n';
-        q+= `\t\t#FINDING THE RESOURCE IS ONLY POSSIBLE WITH REASONING\n`;
-        q+= `\t\tOPTIONAL { ?propertyURI seas:isPropertyOf ?resourceURI . }\n`;
+        q+= `\t\t#FINDING THE FoI IS ONLY POSSIBLE WITH REASONING\n`;
+        q+= `\t\tOPTIONAL { ?propertyURI seas:isPropertyOf ?foiURI . }\n`;
         q+= '\t\t#EXCLUDE DELETED\n';
         q+= '\t\tMINUS { ?state a opm:Deleted }\n';
         q+= '\t}\n';
@@ -684,10 +684,10 @@ export class OPMProp {
             q+= 'CONSTRUCT {\n';
             q+= '\t?origin opm:hasSubscriber ?propertyURI .\n';
             q+= '\t?propertyURI sd:namedGraph ?g2 ;\n';
-            q+= '\t\tseas:isPropertyOf ?resourceURI .\n';
+            q+= '\t\tseas:isPropertyOf ?foiURI .\n';
             q+= '}\n';
         }else{
-            q+= 'SELECT DISTINCT ?propertyURI (?g2 as ?graphURI) ?resourceURI\n';
+            q+= 'SELECT DISTINCT ?propertyURI (?g2 as ?graphURI) ?foiURI\n';
         }
 
         q+= 'WHERE {\n';
@@ -698,8 +698,8 @@ export class OPMProp {
         q+= '\tGRAPH ?g2 {\n';
         q+= `\t\t[ ^prov:wasDerivedFrom ?depState ] ?pos ?state .\n`;
         q+= `\t\t?depState ^opm:hasState ?propertyURI .\n`;
-        q+= `\t\t#FINDING THE RESOURCE IS ONLY POSSIBLE WITH REASONING\n`;
-        q+= `\t\tOPTIONAL { ?propertyURI seas:isPropertyOf ?resourceURI . }\n`;
+        q+= `\t\t#FINDING THE FoI IS ONLY POSSIBLE WITH REASONING\n`;
+        q+= `\t\tOPTIONAL { ?propertyURI seas:isPropertyOf ?foiURI . }\n`;
         q+= '\t\t#EXCLUDE DELETED\n';
         q+= '\t\tMINUS { ?depState a opm:Deleted }\n';
         q+= `\t}\n`;
