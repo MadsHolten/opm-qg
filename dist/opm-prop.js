@@ -125,8 +125,8 @@ var OPMProp = (function () {
         q += "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n";
         q += this.getHost(foiURI);
         q += '\t#CREATE STATE AND PROPERTY URI´s\n';
-        q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
-        q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/Property/", ?guid)) AS ?propertyURI)\n';
+        q += '\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
+        q += '\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/Property/", ?guid)) AS ?propertyURI)\n';
         q += "\tBIND(now() AS ?now)\n";
         q += '}\n';
         if (this.err) {
@@ -189,7 +189,7 @@ var OPMProp = (function () {
         q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
         q += this.getHost(foiURI);
         q += '\t#CREATE STATE URI´s\n';
-        q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
+        q += '\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += '\tBIND(now() AS ?now)\n';
         //q+= '\t#ERRORS\n';
         //q+= `\tBIND(IF(strbefore(str(?old_val), " ") = str(70), "The specified value is the same as the previous", "") AS ?error)\n`;
@@ -367,7 +367,7 @@ var OPMProp = (function () {
         q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
         q += this.getHost(propertyURI);
         q += '\t#CREATE STATE URI\n';
-        q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
+        q += '\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += '\tBIND(now() AS ?now)\n';
         q += '}';
         return q;
@@ -432,7 +432,7 @@ var OPMProp = (function () {
         q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
         q += this.getHost(propertyURI);
         q += '\t#CREATE STATE URI\n';
-        q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
+        q += '\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += '\tBIND(now() AS ?now)\n';
         q += '}';
         return q;
@@ -486,7 +486,7 @@ var OPMProp = (function () {
         q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
         q += this.getHost(propertyURI);
         q += '\t#CREATE STATE URI\n';
-        q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
+        q += '\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += '\tBIND(now() AS ?now)\n';
         q += '}';
         if (this.err) {
@@ -544,7 +544,7 @@ var OPMProp = (function () {
         q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
         q += this.getHost(propertyURI);
         q += '\t#CREATE STATE URI\n';
-        q += '\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
+        q += '\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += '\tBIND(now() AS ?now)\n';
         q += '}';
         if (this.err) {
