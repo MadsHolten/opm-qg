@@ -150,7 +150,7 @@ export class OPMCalc {
             q+= `\t\tBIND(xsd:decimal(strbefore(str(?v${_i}), " ")) AS ?arg${_i})\n`; //NB! might give problems with non-ucum
         }
 
-        //NB! BIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/Property/", STRUUID())) AS ?propertyURI) should work - bug in Stardog
+        //NB! BIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/Property/", STRUUID())) AS ?propertyURI) should work - bug in Stardog
         q+= `\t\t#PERFORM CALCULATION AND SPECIFY UNIT + DATATYPE\n`;
         q+= `\t\tBIND((${calc}) AS ?_res)\n`;
         q+= `\t\tBIND(strdt(concat(str(?_res), " ${unit}"), ${datatype}) AS ?res)\n`;
@@ -158,8 +158,8 @@ export class OPMCalc {
         q+= `\t\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n`;
         q+= this.getHost(foi);
         q+= '\t\t#CREATE STATE AND PROPERTY URI´s\n';
-        q+= '\t\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
-        q+= '\t\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/Property/", ?guid)) AS ?propertyURI)\n';
+        q+= '\t\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
+        q+= '\t\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/Property/", ?guid)) AS ?propertyURI)\n';
         q+= `\t\t#HOW TO HANDLE VALIDITY?\n`;
         q+= '\t\tBIND(IF(?del, true, false) AS ?del)\n'
         q+= `\t\t#GET CURRENT TIME\n`;
@@ -296,7 +296,7 @@ export class OPMCalc {
         q+= `\t\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n`;
         q+= this.getHost(foi);
         q+= '\t\t#CREATE STATE URI´s\n';
-        q+= '\t\tBIND(URI(CONCAT(STR(?http), "/", STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
+        q+= '\t\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q+= `\t\t#GET CURRENT TIME\n`;
         q+= `\t\tBIND(now() AS ?now)\n`;
         q+= '\t}\n';
