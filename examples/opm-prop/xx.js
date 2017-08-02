@@ -2,7 +2,7 @@
 var qgen = require("../../dist/index");
 
 var input = {  
-   "foiURI":"https://localhost/opm/HeatingSystem/1",
+   "propertyURI":"https://localhost/opm/Property/91614476-83f6-4f3b-b911-51504ae5b03d",
    "prefixes":[  
       {  
          "prefix":"cdt",
@@ -12,10 +12,9 @@ var input = {
    "value":{  
       "value":"40",
       "datatype":"cdt:ucum",
-      "property":"seas:fluidReturnTemperature",
       "unit":"Cel"
    }
 }
 var sp = new qgen.OPMProp(input);
-var q = sp.postFoIProp();
+var q = sp.putProp();
 console.log(q);

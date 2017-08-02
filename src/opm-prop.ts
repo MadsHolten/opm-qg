@@ -121,7 +121,7 @@ export class OPMProp {
         q+= `\t${pattern}\n`;
         q+= '\tMINUS {\n';
         q+= '\t\tGRAPH ?g {\n';
-        q+= `\t\t\t${foiURI} ${property}/opm:hasState ?eval .\n`;
+        q+= `\t\t\t${foiURI} ${property}/opm:hasState ?state .\n`;
         q+= '\t\t}\n'
         q+= '\t}\n'
         q+= `\tBIND(strdt(concat(str(${value}), " ${unit}"), ${datatype}) AS ?val)\n`;
@@ -178,8 +178,8 @@ export class OPMProp {
         q+= '\t{ SELECT ?propertyURI (MAX(?_t) AS ?t) WHERE {\n';
         q+= '\t\tGRAPH ?g {\n'
         q+= `\t\t\t${foiURI} ${property} ?propertyURI .\n`;
-        q+= '\t\t\t?propertyURI opm:hasState ?eval .\n';
-        q+= '\t\t\t?eval prov:generatedAtTime ?_t .\n';
+        q+= '\t\t\t?propertyURI opm:hasState ?state .\n';
+        q+= '\t\t\t?state prov:generatedAtTime ?_t .\n';
         q+= pattern ? `\t\t\t${pattern}\n` : '';
         q+= '\t\t}\n';
         q+= '\t} GROUP BY ?propertyURI }\n';
@@ -329,6 +329,70 @@ export class OPMProp {
         q+= `\t}\n`;
         q+= `}`;
         if(this.err){q = 'Error: '+this.err;}
+        return q;
+    }
+
+    //Update a property
+    putProp(): string {
+        //Retrieve and process variables
+        var userURI = this.input.userURI;
+        var comment = this.input.comment;
+        var prefixes = this.input.prefixes;
+        var propertyURI = this.input.propertyURI;
+        var value = this.input.value.value;
+        var unit = this.input.value.unit;
+        var datatype = this.input.value.datatype;
+
+        var q: string = '';
+        //Define prefixes
+        for(var i in prefixes){
+            q+= `PREFIX  ${prefixes[i].prefix}: <${prefixes[i].uri}>\n`;
+        }
+
+        //Only makes an update if the value is different from the last evaluation
+        q+= 'CONSTRUCT {\n';
+        q+= `\t${propertyURI} opm:hasState ?stateURI .\n`;
+        if(userURI){
+            q+= `\t?stateURI prov:wasAttributedTo ${userURI} .\n`;
+        }
+        if(comment){
+            q+= `\t?stateURI rdfs:comment "${comment}"^^xsd:string .\n`;
+        }
+        q+= '\t?stateURI a opm:State ;\n';
+        // a opm:Assumption? opm:Confirmed?
+        q+= '\t\trdfs:label "Typed State"@en ;\n';
+        q+= '\t\topm:valueAtState ?val ;\n';
+        q+= '\t\tprov:generatedAtTime ?now ;\n';
+        q+= '\t\topm:error ?error .\n';
+        q+= '}\n';
+        q+= 'WHERE {\n';
+
+        q+= '\t#GET LATEST STATE\n';
+        q+= '\t{ SELECT ?state (MAX(?_t) AS ?t) WHERE {\n';
+        q+= '\t\tGRAPH ?g {\n'
+        q+= `\t\t\t${propertyURI} opm:hasState ?state .\n`;
+        q+= '\t\t\t?state prov:generatedAtTime ?_t .\n';
+        q+= '\t\t}\n';
+        q+= '\t} GROUP BY ?state }\n';
+
+        q+= '\t\t#GET DATA - VALUE SHOULD BE DIFFERENT FROM THE PREVIOUS\n';
+        q+= '\t\tGRAPH ?g {\n';
+        q+= `\t\t\t?state prov:generatedAtTime ?t ;\n`;
+        q+= `\t\t\t\topm:valueAtState ?old_val.\n`;
+        q+= `\t\t\tFILTER(strbefore(str(?old_val), " ") != str(${value}))\n`;
+        q+= '\t\t}\n';
+              
+        q+= `\tBIND(strdt(concat(str(${value}), " ${unit}"), ${datatype}) AS ?val)\n`;
+        q+= '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n'
+        q+= this.getHost(propertyURI);
+        q+= '\t#CREATE STATE URI´s\n';
+        q+= '\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
+        q+= '\tBIND(now() AS ?now)\n';
+        //q+= '\t#ERRORS\n';
+        //q+= `\tBIND(IF(strbefore(str(?old_val), " ") = str(70), "The specified value is the same as the previous", "") AS ?error)\n`;
+        q+= '}';
+        if(this.err){q = 'Error: '+this.err;}
+
         return q;
     }
 
