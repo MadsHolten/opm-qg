@@ -93,9 +93,6 @@ var OPMCalc = (function () {
         q += '\t\trdfs:label "Derived State"@en ;\n';
         q += '\t\topm:valueAtState ?res ;\n';
         q += '\t\tprov:generatedAtTime ?now ;\n';
-        q += '\t\topm:deleted ?del ;\n';
-        q += '\t\topm:assumed ?ass ;\n';
-        q += '\t\topm:confirmed ?conf ;\n';
         q += "\t\topm:expression \"" + calc + "\"^^xsd:string ;\n";
         q += '\t\tprov:wasDerivedFrom _:c0 .\n';
         q += '\t_:c0 a rdf:Seq .\n';
@@ -133,9 +130,6 @@ var OPMCalc = (function () {
             var _i = Number(i) + 1;
             q += "\t\t#GET ARGUMENT " + _i + " DATA\n";
             q += "\t\t" + args[i].targetPath + " " + args[i].property + "/opm:hasState ?state" + _i + " .\n";
-            q += "\t\tOPTIONAL{ ?state" + _i + " opm:deleted ?del . }\n";
-            q += "\t\tOPTIONAL{ ?state" + _i + " opm:assumed ?ass . }\n";
-            q += "\t\tOPTIONAL{ ?state" + _i + " opm:confirmed ?conf . }\n";
             q += "\t\t?state" + _i + " prov:generatedAtTime ?t" + _i + " ;\n";
             q += "\t\t\topm:valueAtState ?v" + _i + " .\n";
             q += "\t\tBIND(xsd:decimal(strbefore(str(?v" + _i + "), \" \")) AS ?arg" + _i + ")\n"; //NB! might give problems with non-ucum
@@ -208,9 +202,6 @@ var OPMCalc = (function () {
         q += '\t\trdfs:label "Derived State"@en ;\n';
         q += '\t\topm:valueAtState ?res ;\n';
         q += '\t\tprov:generatedAtTime ?now ;\n';
-        q += '\t\topm:deleted ?del ;\n';
-        q += '\t\topm:assumed ?ass ;\n';
-        q += '\t\topm:confirmed ?conf ;\n';
         q += "\t\topm:expression \"" + calc + "\"^^xsd:string ;\n";
         q += '\t\tprov:wasDerivedFrom _:c0 .\n';
         q += '\t_:c0 a rdf:Seq .\n';
@@ -260,9 +251,6 @@ var OPMCalc = (function () {
             var _i = Number(i) + 1;
             q += "\t\t#GET ARGUMENT " + _i + " DATA\n";
             q += "\t\t" + args[i].targetPath + " " + args[i].property + "/opm:hasState ?state" + _i + " .\n";
-            q += "\t\tOPTIONAL{ ?state" + _i + " opm:deleted ?del . }\n";
-            q += "\t\tOPTIONAL{ ?state" + _i + " opm:assumed ?ass . }\n";
-            q += "\t\tOPTIONAL{ ?state" + _i + " opm:confirmed ?conf . }\n";
             q += "\t\t?state" + _i + " prov:generatedAtTime ?t" + _i + " ;\n";
             q += "\t\t\topm:valueAtState ?v" + _i + " .\n";
             q += "\t\tBIND(xsd:decimal(strbefore(str(?v" + _i + "), \" \")) AS ?arg" + _i + ")\n"; //NB! might give problems with non-ucum
@@ -282,6 +270,9 @@ var OPMCalc = (function () {
         q += '}';
         return q;
     };
+    /**
+     * MIGHT BE BETTER TO JUST STORE THIS AS JSON
+     */
     OPMCalc.prototype.postCalcData = function () {
         //Define variables
         var label = this.input.label;
@@ -384,8 +375,6 @@ var OPMCalc = (function () {
             q += '\t_:oldArgs ?position ?old_arg .\n';
             q += '\t?old_arg opm:valueAtState ?old_val .\n';
             q += '\t?new_arg opm:valueAtState ?new_val .\n';
-            q += '\t?new_arg opm:deleted ?del .\n';
-            q += '\t?new_arg opm:confirmed ?conf .\n';
             q += '}\n';
         }
         else {
@@ -427,8 +416,6 @@ var OPMCalc = (function () {
         q += "\t\t\topm:valueAtState ?old_val .\n";
         q += "\t\t?new_arg prov:generatedAtTime  ?arg_last_update ;\n";
         q += "\t\t\topm:valueAtState ?new_val .\n";
-        q += '\t\tOPTIONAL{ ?new_arg opm:deleted ?del . }\n';
-        q += '\t\tOPTIONAL{ ?new_arg opm:confirmed ?conf . }\n';
         q += "\t}\n";
         //Filter to only show outdated calculations
         q += "\t#ONLY SHOW OUTDATED\n";
