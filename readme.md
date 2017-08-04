@@ -20,10 +20,9 @@ $ npm install https://github.com/MadsHolten/opm-qg.git
 **Properties**
 * **postFoIProp()** - Attach a new property to either a specific FoI or to all FoIs matching a specified pattern.
 * **putFoIProp()** - Update a property of either a specific FoI or of all FoIs matching a specified pattern.
-* **getFoIProp()** - Get a specific property of a FoI. Use URL Parameter latest=true to return only the latest state.
-* **getFoIProps()** - Get all properties of a FoI. Use URL Parameter latest=true to return only the latest states.
+* **getFoIProps()** - Get properties and state values of FoI(s). Constrain to specific FoI and/or property type. Return full property history or only latest state.
 * **getProp()** - Get data about a specific property. Use URL Parameter latest=true to return only the latest states.
-* **deleteProp()** - Delete a specific property by adding a new state with opm:deleted set to true.
+* **deleteProp()** - Delete a specific property by adding a new state as an instance of opm:Deleted.
 * **restoreProp()** - Restore a deleted property by reinferring the latest state with a value assigned to it.
 * **putProp()** - **WIP**
 * **listDeleted()** - Get a full list of properties that have been deleted.
@@ -149,41 +148,34 @@ var input = {
 #### Example 3
 ##### Latest evaluation and value of all properties
 ##### getFoIProps()
-Also returns the FoI on which they belong.
+Returns properties, metadata about their states and the FoI to which they are assigned.
 
 Optional 'latest: true' returns only the latest state.
-Optional 'language: ISO-CODE' returns only a specific label language.
+Optional 'language: ISO-CODE' returns only a specific label language. Defaults to 'en'.
+Optional 'queryType: select/construct' returns either a set of variables (select) or a subset of the graph (construct).
+Optional 'foiURI: https://:host/:db/:foi/:guid' returns only properties of a specific FoI.
+Optional 'propertyURI: seas:propertyType' returns only a specific property. Given either by prefix or full URI.
 ```javascript
 var input = {
     foiURI: "https://localhost/opm/HeatingSystem/1",
-    language: "en"
+    propertyURI: "https://w3id.org/seas/fluidSupplyTemperature",
+    language: "en",
+    latest: "true",
+    queryType: "construct"
 };
 ```
 
 #### Example 4
-##### Latest evaluation of a single property of a specific FoI
-##### getFoIProp()
-Optional 'latest: true' returns only the latest state.
-Optional 'language: ISO-CODE' returns only a specific label language.
-```javascript
-var input = {
-    foiURI: "https://localhost/opm/HeatConsumer/1",
-    propertyURI: "https://w3id.org/seas/heatOutput",
-    latest: true
-};
-```
-
-#### Example 5
 ##### Delete a property
 ##### deleteProp()
-Adds a new state with the property opm:deleted set to true
+Adds a new state with the property as an instance of opm:Deleted.
 ```javascript
 var input = {
     propertyURI: 'https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97'
 };
 ```
 
-#### Example 6
+#### Example 5
 ##### Get single property
 ##### getProp()
 Optional 'latest: true' returns only the latest state.
@@ -194,12 +186,12 @@ var input = {
 };
 ```
 
-#### Example 7
+#### Example 6
 ##### List deleted
 ##### listDeleted()
 Function takes no input. It just returns a full list of deleted properties.
 
-#### Example 8
+#### Example 7
 ##### Restore deleted property
 ##### restoreProp()
 Restore a deleted property by reinferring the latest state with a value assigned to it.
@@ -209,7 +201,7 @@ var input = {
 };
 ```
 
-#### Example 9
+#### Example 8
 ##### Confirm property
 ##### confirmProp()
 Confirm a property. A user URI must be assigned.
@@ -222,7 +214,7 @@ var input = {
 };
 ```
 
-#### Example 10
+#### Example 9
 ##### State argument as an assumption
 ##### makeAssumption()
 State a property as an assumption. A user URI must be assigned.
@@ -233,12 +225,12 @@ var input = {
 };
 ```
 
-#### Example 11
+#### Example 10
 ##### List assumptions
 ##### listAssumptions()
 Function takes no input. It just returns a full list of assumed properties.
 
-#### Example 12
+#### Example 11
 ##### List subscribers
 ##### listSubscribers()
 Get a list of subscribers of a property (a derived property that takes the property as an argument)

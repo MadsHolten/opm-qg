@@ -2,16 +2,12 @@
 var qg = require("../../dist/index");
 /**
  * EXAMPLE 4
- * Get latest evaluation of a single property of
- * a specific FoI
- * 
+ * delete a property by adding a new state with
+ * as an instance of opm:Deleted
  */
 var input = {
-    foiURI: "https://localhost/opm/HeatConsumer/1",
-    //propertyURI: "seas:fluidTemperatureDifference",
-    propertyURI: "https://w3id.org/seas/heatOutput",
-    latest: true
+    propertyURI: 'https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97'
 };
 var sc = new qg.OPMProp(input);
-var q = sc.getFoIProp();
+var q = sc.deleteProp();
 console.log(q);

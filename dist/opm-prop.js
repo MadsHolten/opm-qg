@@ -199,67 +199,20 @@ var OPMProp = (function () {
         }
         return q;
     };
-    //Get a single property of a foi
-    OPMProp.prototype.getFoIProp = function () {
-        var prefixes = this.input.prefixes;
-        var foi = this.input.foiURI;
-        var property = this.input.propertyURI;
-        var latest = this.input.latest;
-        if (!property)
-            this.err = "Please specify a propertyURI";
-        var q = '';
-        //Define prefixes
-        for (var i in prefixes) {
-            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + ">\n";
-        }
-        if (this.queryType == 'construct') {
-            q += 'CONSTRUCT {\n';
-            q += "\t?foiURI ?property ?propertyURI .\n";
-            q += '\t?propertyURI opm:hasState ?state ;\n';
-            q += '\t\tsd:namedGraph ?g .\n';
-            q += '\t?state prov:generatedAtTime ?ts ;\n';
-            q += '\t\ta ?stateClasses ;\n';
-            q += '\t\topm:valueAtState ?value ;\n';
-            q += '\t\tprov:wasDerivedFrom ?derivedFrom ;\n';
-            q += '\t\topm:expression ?expression ;\n';
-            q += '\t\tprov:wasAttributedTo ?user .\n';
-            q += '}\n';
-        }
-        else {
-            q += "SELECT ?foiURI ?property ?propertyURI ?value (?ts AS ?timestamp) (?g AS ?graphURI)\n";
-        }
-        q += 'WHERE {\n';
-        q += '\tGRAPH ?g {\n';
-        if (latest) {
-            q += "\t\t{ SELECT (MAX(?t) AS ?ts) WHERE {\n";
-            q += "\t\t\t" + foi + " " + property + " ?propertyURI .\n";
-            q += "\t\t\t?propertyURI opm:hasState/prov:generatedAtTime ?t .\n";
-            q += '\t\t} GROUP BY ?propertyURI }\n';
-        }
-        q += "\t\t" + foi + " " + property + " ?propertyURI .\n";
-        q += "\t\t?propertyURI ^" + property + " ?foiURI ;\n";
-        q += "\t\t\topm:hasState ?state .\n";
-        q += "\t\t\t?foiURI ?property ?propertyURI .\n";
-        q += "\t\t?state prov:generatedAtTime ?ts ;\n";
-        q += '\t\tOPTIONAL{?state opm:valueAtState ?value .}\n';
-        q += '\t\tOPTIONAL{?state prov:wasAttributedTo ?user .}\n';
-        q += '\t\tOPTIONAL{?state prov:wasDerivedFrom ?derivedFrom .}\n';
-        q += '\t\tOPTIONAL{?state opm:expression ?expression .}\n';
-        q += '\t\t#FILTER OUT DELETED PROPERTIES\n';
-        q += '\t\tMINUS{?state a opm:Deleted}\n';
-        q += "\t}\n";
-        q += "}";
-        if (this.err) {
-            q = 'Error: ' + this.err;
-        }
-        return q;
-    };
-    //Get all FoI properties
+    //Get FoI properties
+    //Return either for a specific FoI or for all FoIs
+    //Return a specific property by defining the propertyURI argument
+    //Return only the latest state(s) by setting argument latest = true
+    //Return select variables by setting argument queryType = 'select'
+    //Return graph subset (xonstruct query) by setting argument queryType = 'construct'
     OPMProp.prototype.getFoIProps = function () {
         var prefixes = (this.input && this.input.prefixes) ? this.input.prefixes : undefined;
-        var foi = (this.input && this.input.foiURI) ? "" + this.input.foiURI : '?foi';
+        var foiURI = (this.input && this.input.foiURI) ? this.input.foiURI : '?foiURI';
+        //Queries all properties as default - else queries a specific property
+        var property = (this.input && this.input.propertyURI) ? this.input.propertyURI : '?property';
         var strLang = (this.input && this.input.language) ? this.input.language : 'en';
         var evalPath = '';
+        var latest = this.input.latest;
         var q = '';
         //Define prefixes
         if (prefixes) {
@@ -277,6 +230,7 @@ var OPMProp = (function () {
         if (this.queryType == 'construct') {
             q += 'CONSTRUCT {\n';
             q += '\t?foiURI ?property ?propertyURI .\n';
+            q += '\t?property rdfs:label ?propertyLabel .\n';
             q += '\t?propertyURI opm:hasState ?state ;\n';
             q += '\t\tsd:namedGraph ?g .\n';
             q += '\t?state prov:generatedAtTime ?ts ;\n';
@@ -292,30 +246,100 @@ var OPMProp = (function () {
         }
         q += "WHERE {\n";
         q += "\tGRAPH ?g {\n";
-        q += "\t\t{ SELECT ?property (MAX(?t) AS ?ts) WHERE {\n";
-        q += "\t\t\t" + foi + " ?property ?propertyURI .\n";
-        q += "\t\t\t?propertyURI opm:hasState ?state .\n";
-        q += "\t\t\t?state prov:generatedAtTime ?t .\n";
-        q += "\t\t} GROUP BY ?property }\n";
-        q += "\t\tOPTIONAL{\n";
-        q += "\t\t\tGRAPH ?gy {\n";
-        q += "\t\t\t\t?property rdfs:label ?label\n";
-        q += "\t\t}\t\n";
-        q += "\t\t\tFILTER(lang(?label)=\"" + strLang + "\")\n";
-        q += '\t\t}\n';
+        if (latest) {
+            q += "\t\t#GET LATEST STATE\n";
+            q += "\t\t{ SELECT (MAX(?t) AS ?ts) WHERE {\n";
+            q += "\t\t\t" + foiURI + " " + property + " ?propertyURI .\n";
+            q += "\t\t\t?propertyURI opm:hasState ?state .\n";
+            q += "\t\t\t?state prov:generatedAtTime ?t .\n";
+            q += '\t\t} GROUP BY ?propertyURI }\n';
+        }
+        else {
+            q += "\t\t" + foiURI + " " + property + " ?propertyURI .\n";
+        }
         q += '\t\t?foiURI ?property ?propertyURI .\n';
         q += '\t\t?propertyURI opm:hasState ?state .\n';
-        q += '\t\t?state prov:generatedAtTime ?ts .\n';
-        q += '\t\tOPTIONAL{?state opm:valueAtState ?value .}\n';
-        q += '\t\tOPTIONAL{?state prov:wasAttributedTo ?user .}\n';
-        q += '\t\tOPTIONAL{?state prov:wasDerivedFrom ?derivedFrom .}\n';
-        q += '\t\tOPTIONAL{?state opm:expression ?expression .}\n';
+        q += '\t\t?state prov:generatedAtTime ?ts ;\n';
+        q += '\t\t\ta ?stateClasses .\n';
+        q += '\t\tOPTIONAL{ ?state opm:valueAtState ?value . }\n';
+        q += '\t\tOPTIONAL{ ?state prov:wasAttributedTo ?user . }\n';
+        q += '\t\tOPTIONAL{ ?state prov:wasDerivedFrom [ ?pos ?derivedFrom ] .\n';
+        q += '\t\t\t  FILTER(?derivedFrom != rdf:Seq) }\n';
+        q += '\t\tOPTIONAL{ ?state opm:expression ?expression . }\n';
         q += '\t\t#FILTER OUT DELETED PROPERTIES\n';
         q += '\t\tMINUS{?state a opm:Deleted}\n';
+        q += '\t}\n';
+        q += "\t#RETRIEVE LABEL FROM ONTOLOGY IF AVAILABLE\n";
+        q += "\tOPTIONAL{\n";
+        q += "\t\tGRAPH ?gy {\n";
+        q += "\t\t\t?property rdfs:label ?propertyLabel\n";
+        q += "\t\t\tFILTER(lang(?propertyLabel)=\"" + strLang + "\")\n";
+        q += '\t\t}\n';
         q += '\t}\n';
         q += '}';
         return q;
     };
+    //Get all FoI properties
+    // getFoIProps(): string {
+    //     var prefixes = (this.input && this.input.prefixes) ? this.input.prefixes : undefined;
+    //     var foi = (this.input && this.input.foiURI) ? `${this.input.foiURI}` : '?foi';
+    //     var strLang = (this.input && this.input.language) ? this.input.language : 'en';
+    //     var evalPath: string = '';
+    //     var q: string = '';
+    //     //Define prefixes
+    //     if(prefixes){
+    //         for(var i in prefixes){
+    //             q+= `PREFIX  ${prefixes[i].prefix}: <${prefixes[i].uri}> \n`;
+    //         }
+    //     }else{
+    //         q+= 'PREFIX seas: <https://w3id.org/seas/>\n';
+    //         q+= 'PREFIX opm: <https://w3id.org/opm#>\n';
+    //         q+= 'PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n';
+    //         q+= 'PREFIX prov: <http://www.w3.org/ns/prov#>\n';
+    //     }
+    //     q+= 'PREFIX  sd: <http://www.w3.org/ns/sparql-service-description#>\n';
+    //     if(this.queryType == 'construct'){
+    //         q+= 'CONSTRUCT {\n';
+    //         q+= '\t?foiURI ?property ?propertyURI .\n';
+    //         q+= '\t?propertyURI opm:hasState ?state ;\n';
+    //         q+= '\t\tsd:namedGraph ?g .\n';
+    //         q+= '\t?state prov:generatedAtTime ?ts ;\n';
+    //         q+= '\t\ta ?stateClasses ;\n';
+    //         q+= '\t\topm:valueAtState ?value ;\n';
+    //         q+= '\t\tprov:wasDerivedFrom ?derivedFrom ;\n';
+    //         q+= '\t\topm:expression ?expression ;\n';
+    //         q+= '\t\tprov:wasAttributedTo ?user .\n';
+    //         q+= '}\n';
+    //     }else{
+    //         q+= `SELECT ?foiURI ?property ?propertyURI ?value (?ts AS ?timestamp) (?state AS ?stateURI) ?label (?g AS ?graphURI)\n`;
+    //     }
+    //     q+= `WHERE {\n`;
+    //     q+= `\tGRAPH ?g {\n`;
+    //     q+= `\t\t{ SELECT ?property (MAX(?t) AS ?ts) WHERE {\n`;
+    //     q+= `\t\t\t${foi} ?property ?propertyURI .\n`;
+    //     q+= `\t\t\t?propertyURI opm:hasState ?state .\n`;
+    //     q+= `\t\t\t?state prov:generatedAtTime ?t .\n`;
+    //     q+= `\t\t} GROUP BY ?property }\n`;
+    //     q+= `\t\tOPTIONAL{\n`
+    //     q+= `\t\t\tGRAPH ?gy {\n`
+    //     q+= `\t\t\t\t?property rdfs:label ?label\n`
+    //     q+= `\t\t}\t\n`;
+    //     q+= `\t\t\tFILTER(lang(?label)="${strLang}")\n`;
+    //     q+= '\t\t}\n';
+    //     q+= '\t\t?foiURI ?property ?propertyURI .\n';
+    //     q+= '\t\t?propertyURI opm:hasState ?state .\n';
+    //     q+= '\t\t?state prov:generatedAtTime ?ts ;\n';
+    //     q+= '\t\t\ta ?stateClasses .\n';
+    //     q+= '\t\tOPTIONAL{?state opm:valueAtState ?value .}\n';
+    //     q+= '\t\tOPTIONAL{?state prov:wasAttributedTo ?user .}\n';
+    //     q+= '\t\tOPTIONAL{?state prov:wasDerivedFrom [ ?pos ?derivedFrom ] .}\n';
+    //     q+= '\t\tOPTIONAL{?state opm:expression ?expression .}\n';
+    //     q+= '\t\t#FILTER OUT DELETED PROPERTIES\n';
+    //     q+= '\t\tMINUS{?state a opm:Deleted}\n';
+    //     q+= '\t}\n';
+    //     q+= '}';
+    //     return q;
+    // }
     /**
      * BY PROPERTY
      */
@@ -366,7 +390,7 @@ var OPMProp = (function () {
         q += '\t\t\ta ?stateClasses .\n';
         q += '\t\tOPTIONAL{?state opm:valueAtState ?value .}\n';
         q += '\t\tOPTIONAL{?state prov:wasAttributedTo ?user .}\n';
-        q += '\t\tOPTIONAL{?state prov:wasDerivedFrom ?derivedFrom .}\n';
+        q += '\t\tOPTIONAL{?state prov:wasDerivedFrom [ ?pos ?derivedFrom ] .}\n';
         q += '\t\tOPTIONAL{?state opm:expression ?expression .}\n';
         q += '\t\t#FILTER OUT DELETED PROPERTIES\n';
         q += '\t\tMINUS{?state a opm:Deleted}\n';

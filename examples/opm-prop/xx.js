@@ -6,8 +6,9 @@ var qg = require("../../dist/index");
  * 
  */
 var input = {
-    foiURI: "https://localhost/opm/HeatingSystem/1",
-    queryType: 'select'
+    queryType: 'select',
+    latest: true,
+    queryType: 'construct'
 };
 var sc = new qg.OPMProp(input);
 var q = sc.getFoIProps();
