@@ -2,12 +2,12 @@
 var qg = require("../../dist/index");
 /**
  * EXAMPLE 9
- * State a property as an assumption
+ * Get a list of subscribers of a property 
+ * (a derived property that takes the property as an argument)
  */
 var input = {
-    propertyURI: 'https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97',
-    userURI: 'https://niras.dk/employees/mhra'
+    propertyURI: 'https://localhost/opm/Property/6daf0c7a-f1cb-4a14-ac53-4156c2fe4cc1'
 };
 var sc = new qg.OPMProp(input);
-var q = sc.makeAssumption();
+var q = sc.listSubscribers();
 console.log(q);

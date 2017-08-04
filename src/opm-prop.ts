@@ -211,6 +211,7 @@ export class OPMProp {
     //Return only the latest state(s) by setting argument latest = true
     //Return select variables by setting argument queryType = 'select'
     //Return graph subset (xonstruct query) by setting argument queryType = 'construct'
+    //Restrict to either 'deleted', 'assumptions', 'derived' or 'confirmed'
     getFoIProps(): string {
         var prefixes = (this.input && this.input.prefixes) ? this.input.prefixes : undefined;
         var foiURI = (this.input && this.input.foiURI) ? this.input.foiURI : '?foiURI';
@@ -219,6 +220,16 @@ export class OPMProp {
         var strLang = (this.input && this.input.language) ? this.input.language : 'en';
         var evalPath: string = '';
         var latest = this.input.latest;
+        var restriction = this.input.restriction;
+        if(restriction){
+            var restrictions = [
+                {'key': 'deleted', 'class': 'opm:Deleted'},
+                {'key': 'assumptions', 'class': 'opm:Assumption'},
+                {'key': 'derived', 'class': 'opm:Derived'},
+                {'key': 'confirmed', 'class': 'opm:Confirmed'}
+            ];
+            var restrictionClass =   _.chain(restrictions).filter(obj => (obj.key == restriction) ).map(obj => obj.class).first().value();
+        }
 
         var q: string = '';
         //Define prefixes
@@ -247,7 +258,7 @@ export class OPMProp {
             q+= '\t\tprov:wasAttributedTo ?user .\n';
             q+= '}\n';
         }else{
-            q+= `SELECT ?foiURI ?property ?propertyURI ?value (?ts AS ?timestamp) (?state AS ?stateURI) ?label (?g AS ?graphURI)\n`;
+            q+= `SELECT DISTINCT ?foiURI ?property ?propertyURI ?value (?ts AS ?timestamp) (?state AS ?stateURI) ?label (?g AS ?graphURI)\n`;
         }
         q+= `WHERE {\n`;
         q+= `\tGRAPH ?g {\n`;
@@ -271,9 +282,14 @@ export class OPMProp {
         q+= '\t\tOPTIONAL{ ?state prov:wasDerivedFrom [ ?pos ?derivedFrom ] .\n'; 
         q+= '\t\t\t  FILTER(?derivedFrom != rdf:Seq) }\n';
         q+= '\t\tOPTIONAL{ ?state opm:expression ?expression . }\n';
-        
-        q+= '\t\t#FILTER OUT DELETED PROPERTIES\n';
-        q+= '\t\tMINUS{?state a opm:Deleted}\n';
+        if(restriction != 'deleted'){
+            q+= '\t\t#FILTER OUT DELETED PROPERTIES\n';
+            q+= '\t\tMINUS{?state a opm:Deleted}\n';
+        }
+        if(restriction){
+            q+= '\t\t#RESTRICT VALUES\n';
+            q+= `\t\t?state a ${restrictionClass} .\n`;
+        }
         q+= '\t}\n';
 
         q+= `\t#RETRIEVE LABEL FROM ONTOLOGY IF AVAILABLE\n`;
@@ -287,73 +303,6 @@ export class OPMProp {
 
         return q;
     }
-
-
-
-
-    //Get all FoI properties
-    // getFoIProps(): string {
-    //     var prefixes = (this.input && this.input.prefixes) ? this.input.prefixes : undefined;
-    //     var foi = (this.input && this.input.foiURI) ? `${this.input.foiURI}` : '?foi';
-    //     var strLang = (this.input && this.input.language) ? this.input.language : 'en';
-    //     var evalPath: string = '';
-
-    //     var q: string = '';
-    //     //Define prefixes
-    //     if(prefixes){
-    //         for(var i in prefixes){
-    //             q+= `PREFIX  ${prefixes[i].prefix}: <${prefixes[i].uri}> \n`;
-    //         }
-    //     }else{
-    //         q+= 'PREFIX seas: <https://w3id.org/seas/>\n';
-    //         q+= 'PREFIX opm: <https://w3id.org/opm#>\n';
-    //         q+= 'PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n';
-    //         q+= 'PREFIX prov: <http://www.w3.org/ns/prov#>\n';
-    //     }
-    //     q+= 'PREFIX  sd: <http://www.w3.org/ns/sparql-service-description#>\n';
-    //     if(this.queryType == 'construct'){
-    //         q+= 'CONSTRUCT {\n';
-    //         q+= '\t?foiURI ?property ?propertyURI .\n';
-    //         q+= '\t?propertyURI opm:hasState ?state ;\n';
-    //         q+= '\t\tsd:namedGraph ?g .\n';
-    //         q+= '\t?state prov:generatedAtTime ?ts ;\n';
-    //         q+= '\t\ta ?stateClasses ;\n';
-    //         q+= '\t\topm:valueAtState ?value ;\n';
-    //         q+= '\t\tprov:wasDerivedFrom ?derivedFrom ;\n';
-    //         q+= '\t\topm:expression ?expression ;\n';
-    //         q+= '\t\tprov:wasAttributedTo ?user .\n';
-    //         q+= '}\n';
-    //     }else{
-    //         q+= `SELECT ?foiURI ?property ?propertyURI ?value (?ts AS ?timestamp) (?state AS ?stateURI) ?label (?g AS ?graphURI)\n`;
-    //     }
-    //     q+= `WHERE {\n`;
-    //     q+= `\tGRAPH ?g {\n`;
-    //     q+= `\t\t{ SELECT ?property (MAX(?t) AS ?ts) WHERE {\n`;
-    //     q+= `\t\t\t${foi} ?property ?propertyURI .\n`;
-    //     q+= `\t\t\t?propertyURI opm:hasState ?state .\n`;
-    //     q+= `\t\t\t?state prov:generatedAtTime ?t .\n`;
-    //     q+= `\t\t} GROUP BY ?property }\n`;
-    //     q+= `\t\tOPTIONAL{\n`
-    //     q+= `\t\t\tGRAPH ?gy {\n`
-    //     q+= `\t\t\t\t?property rdfs:label ?label\n`
-    //     q+= `\t\t}\t\n`;
-    //     q+= `\t\t\tFILTER(lang(?label)="${strLang}")\n`;
-    //     q+= '\t\t}\n';
-    //     q+= '\t\t?foiURI ?property ?propertyURI .\n';
-    //     q+= '\t\t?propertyURI opm:hasState ?state .\n';
-    //     q+= '\t\t?state prov:generatedAtTime ?ts ;\n';
-    //     q+= '\t\t\ta ?stateClasses .\n';
-    //     q+= '\t\tOPTIONAL{?state opm:valueAtState ?value .}\n';
-    //     q+= '\t\tOPTIONAL{?state prov:wasAttributedTo ?user .}\n';
-    //     q+= '\t\tOPTIONAL{?state prov:wasDerivedFrom [ ?pos ?derivedFrom ] .}\n';
-    //     q+= '\t\tOPTIONAL{?state opm:expression ?expression .}\n';
-    //     q+= '\t\t#FILTER OUT DELETED PROPERTIES\n';
-    //     q+= '\t\tMINUS{?state a opm:Deleted}\n';
-    //     q+= '\t}\n';
-    //     q+= '}';
-
-    //     return q;
-    // }
 
     /**
      * BY PROPERTY
@@ -730,96 +679,6 @@ export class OPMProp {
     /**
      * OTHER
      */
-    listDeleted(): string {
-        var q = '';
-        q+= 'PREFIX  opm: <https://w3id.org/opm#>\n';
-        q+= 'PREFIX  prov: <http://www.w3.org/ns/prov#>\n';
-        q+= 'PREFIX  seas: <https://w3id.org/seas/>\n';
-        q+= 'PREFIX  sd: <http://www.w3.org/ns/sparql-service-description#>\n';
-
-        if(this.queryType == 'construct'){
-            q+= 'CONSTRUCT {\n';
-            q+= '\t?property opm:hasState ?state ;\n';
-            q+= '\t\tseas:isPropertyOf ?foiURI ;\n';
-            q+= '\t\tsd:namedGraph ?g .\n';
-            q+= '\t?state prov:generatedAtTime ?t ;\n';
-            q+= '\t\tprov:wasAttributedTo ?deletedBy ;\n';
-            q+= '\t\trdfs:comment ?comment .\n';
-            q+= '}\n';
-        }else{
-            q+= 'SELECT (?property as ?propertyURI) (?t as ?timestamp) ?deletedBy (?g as ?graphURI) ?foiURI\n';
-        }
-        
-        q+= 'WHERE {\n';
-        q+= '\tGRAPH ?g {\n';
-        
-        //Get latest state
-        q+= `\t#GET LATEST STATE\n`;
-        q+= `\t{ SELECT ?property (MAX(?_t) AS ?t) WHERE {\n`;
-        q+= `\t\tGRAPH ?g {\n`;
-        q+= `\t\t\t?property opm:hasState/prov:generatedAtTime ?_t .\n`;
-        q+= '\t\t}\n';
-        q+= '\t} GROUP BY ?property }\n';
-
-        q+= '\t#GET DATA\n'
-        q+= '\t\t?property opm:hasState ?state .\n';
-        q+= '\t\t?state a opm:Deleted ;\n';
-        q+= '\t\t\tprov:generatedAtTime ?t .\n';
-        q+= '\t\tOPTIONAL{ ?state prov:wasAttributedTo ?deletedBy }\n';
-        q+= '\t\tOPTIONAL{ ?state rdfs:comment ?comment }\n';
-        q+= `\t\t#FINDING THE FoI IS ONLY POSSIBLE WITH REASONING\n`;
-        q+= `\t\tOPTIONAL { ?property seas:isPropertyOf ?foiURI . }\n`;
-        q+= '\t}\n';
-        q+= '}';
-        return q;
-    }
-
-    listAssumptions(): string {
-        var q = '';
-        q+= 'PREFIX  opm: <https://w3id.org/opm#>\n';
-        q+= 'PREFIX  prov: <http://www.w3.org/ns/prov#>\n';
-        q+= 'PREFIX  seas: <https://w3id.org/seas/>\n';
-        q+= 'PREFIX  sd: <http://www.w3.org/ns/sparql-service-description#>\n';
-
-        if(this.queryType == 'construct'){
-            q+= 'CONSTRUCT {\n';
-            q+= '\t?propertyURI opm:hasState ?state ;\n';
-            q+= '\t\tseas:isPropertyOf ?foiURI ;\n';
-            q+= '\t\tsd:namedGraph ?g .\n';
-            q+= '\t?state prov:generatedAtTime ?t ;\n';
-            q+= '\t\tprov:wasAttributedTo ?assumedBy ;\n';
-            q+= '\t\trdfs:comment ?comment .\n';
-            q+= '}\n';
-        }else{
-            q+= 'SELECT ?propertyURI (?t as ?timestamp) ?assumedBy (?g as ?graphURI) ?foiURI\n';
-        }
-
-        q+= 'WHERE {\n';
-        q+= '\tGRAPH ?g {\n';
-
-        //Get latest state
-        q+= `\t#GET LATEST STATE\n`;
-        q+= `\t{ SELECT ?propertyURI (MAX(?_t) AS ?t) WHERE {\n`;
-        q+= `\t\tGRAPH ?g {\n`;
-        q+= `\t\t\t?propertyURI opm:hasState/prov:generatedAtTime ?_t .\n`;
-        q+= '\t\t}\n';
-        q+= '\t} GROUP BY ?propertyURI }\n';
-
-        q+= '\t#GET DATA\n';
-        q+= '\t\t?propertyURI opm:hasState ?state .\n';
-        q+= '\t\t?state a opm:Assumption ;\n';
-        q+= '\t\t\tprov:generatedAtTime ?t .\n';
-        q+= '\t\tOPTIONAL{ ?state prov:wasAttributedTo ?assumedBy }\n';
-        q+= '\t\tOPTIONAL{ ?state rdfs:comment ?comment }\n';
-        q+= `\t\t#FINDING THE FoI IS ONLY POSSIBLE WITH REASONING\n`;
-        q+= `\t\tOPTIONAL { ?propertyURI seas:isPropertyOf ?foiURI . }\n`;
-        q+= '\t\t#EXCLUDE DELETED\n';
-        q+= '\t\tMINUS { ?state a opm:Deleted }\n';
-        q+= '\t}\n';
-        q+= '}';
-        return q;
-    }
-
     listSubscribers(): string {
         var propertyURI = this.input.propertyURI;
         var q = '';

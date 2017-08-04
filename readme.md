@@ -20,12 +20,11 @@ $ npm install https://github.com/MadsHolten/opm-qg.git
 **Properties**
 * **postFoIProp()** - Attach a new property to either a specific FoI or to all FoIs matching a specified pattern.
 * **putFoIProp()** - Update a property of either a specific FoI or of all FoIs matching a specified pattern.
-* **getFoIProps()** - Get properties and state values of FoI(s). Constrain to specific FoI and/or property type. Return full property history or only latest state.
+* **getFoIProps()** - Get properties and state values of FoI(s). Constrain to specific FoI and/or property type. Return full property history or only latest state. List only deleted, assumed or derived properties.
 * **getProp()** - Get data about a specific property. Use URL Parameter latest=true to return only the latest states.
 * **deleteProp()** - Delete a specific property by adding a new state as an instance of opm:Deleted.
 * **restoreProp()** - Restore a deleted property by reinferring the latest state with a value assigned to it.
 * **putProp()** - **WIP**
-* **listDeleted()** - Get a full list of properties that have been deleted.
 
 ### Calculation examples
 
@@ -153,6 +152,7 @@ Returns properties, metadata about their states and the FoI to which they are as
 Optional 'latest: true' returns only the latest state.
 Optional 'language: ISO-CODE' returns only a specific label language. Defaults to 'en'.
 Optional 'queryType: select/construct' returns either a set of variables (select) or a subset of the graph (construct).
+Optional 'restriction: deleted/assumptions/derived/confirmed' returns only properties that are deleted, assumed, derived or confirmed.
 Optional 'foiURI: https://:host/:db/:foi/:guid' returns only properties of a specific FoI.
 Optional 'propertyURI: seas:propertyType' returns only a specific property. Given either by prefix or full URI.
 ```javascript
@@ -161,7 +161,8 @@ var input = {
     propertyURI: "https://w3id.org/seas/fluidSupplyTemperature",
     language: "en",
     latest: "true",
-    queryType: "construct"
+    queryType: "construct",
+    restriction: "derived"
 };
 ```
 
@@ -187,11 +188,6 @@ var input = {
 ```
 
 #### Example 6
-##### List deleted
-##### listDeleted()
-Function takes no input. It just returns a full list of deleted properties.
-
-#### Example 7
 ##### Restore deleted property
 ##### restoreProp()
 Restore a deleted property by reinferring the latest state with a value assigned to it.
@@ -201,7 +197,7 @@ var input = {
 };
 ```
 
-#### Example 8
+#### Example 7
 ##### Confirm property
 ##### confirmProp()
 Confirm a property. A user URI must be assigned.
@@ -214,7 +210,7 @@ var input = {
 };
 ```
 
-#### Example 9
+#### Example 8
 ##### State argument as an assumption
 ##### makeAssumption()
 State a property as an assumption. A user URI must be assigned.
@@ -225,12 +221,7 @@ var input = {
 };
 ```
 
-#### Example 10
-##### List assumptions
-##### listAssumptions()
-Function takes no input. It just returns a full list of assumed properties.
-
-#### Example 11
+#### Example 9
 ##### List subscribers
 ##### listSubscribers()
 Get a list of subscribers of a property (a derived property that takes the property as an argument)
