@@ -267,7 +267,6 @@ var OPMProp = (function () {
             q += 'PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n';
             q += 'PREFIX prov: <http://www.w3.org/ns/prov#>\n';
         }
-        q += 'PREFIX  sd: <http://www.w3.org/ns/sparql-service-description#>\n';
         if (this.queryType == 'construct') {
             q += 'CONSTRUCT {\n';
             q += '\t?foiURI ?property ?propertyURI .\n';
