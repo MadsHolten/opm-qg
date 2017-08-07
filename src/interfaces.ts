@@ -7,7 +7,7 @@ export interface ICalc {
     foiURI?: string;
     userURI?: string;
     prefixes?: IPrefix[];
-    queryType: queryType;
+    queryType: string;
 }
 
 export interface IProp {
@@ -22,8 +22,9 @@ export interface IProp {
     hostURI?: string;
     prefixes?: IPrefix[];
     language?: string;
-    queryType?: QueryType;
+    queryType?: string;
     restriction?: string;
+    reliability?: string;
 }
 
 interface IArgs {
@@ -45,9 +46,4 @@ interface IRes extends IVal {
 interface IPrefix {
     prefix: string,
     uri: string
-}
-
-export enum QueryType {
-    Construct = 'construct',
-    Select = 'select'
 }

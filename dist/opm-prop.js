@@ -533,13 +533,21 @@ var OPMProp = (function () {
         q += '}';
         return q;
     };
-    OPMProp.prototype.confirmProp = function () {
+    OPMProp.prototype.setReliability = function () {
         var comment = this.input.comment;
         var propertyURI = this.input.propertyURI;
+        var reliability = this.input.reliability;
         var userURI = this.input.userURI;
         var prefixes = this.input.prefixes;
-        if (!userURI)
+        if (!userURI && reliability == 'confirmed')
             this.err = "A user must be atrributed to a confirmed value. Please specify a userURI";
+        if (!reliability)
+            this.err = "Reliability specification missing.";
+        var reliabilityOptions = ['confirmed', 'deleted', 'assumption'];
+        if (reliabilityOptions.indexOf(reliability) == -1) {
+            this.err = "Error: Unknown restriction. Use either " + _s.toSentence(reliabilityOptions, ', ', ' or ');
+        }
+        ;
         var q = '';
         //Define prefixes
         for (var i in prefixes) {
@@ -555,8 +563,10 @@ var OPMProp = (function () {
         q += '\t?stateURI a opm:State , opm:Confirmed ;\n';
         q += '\t\trdfs:label "Confirmed State"@en ;\n';
         q += '\t\topm:valueAtState ?value ;\n';
-        q += '\t\tprov:generatedAtTime ?now ;\n';
-        q += "\t\tprov:wasAttributedTo " + userURI + " .\n";
+        q += '\t\tprov:generatedAtTime ?now .\n';
+        if (userURI) {
+            q += "\t?stateURI prov:wasAttributedTo " + userURI + " .\n";
+        }
         q += '}\n';
         q += 'WHERE {\n';
         q += '\tGRAPH ?g {\n';
@@ -574,66 +584,12 @@ var OPMProp = (function () {
         q += "\t\t\topm:valueAtState ?value .\n";
         q += '\t\tMINUS { ?state a opm:Deleted }\n';
         q += '\t\tMINUS { ?state a opm:Confirmed }\n';
+        if (reliability == 'assumption') {
+            q += "\t\t#MUST NOT BE AN ASSUMPTION ALREADY\n";
+            q += '\t\tMINUS { ?state a opm:Assumption }\n';
+        }
         //Omit derived values (these are confirmed when all arguments are confirmed)
         q += "\t\t#A DERIVED PROPERTY CAN'T BE CONFIRMED - ARGUMENTS ARE CONFIRMED\n";
-        q += '\t\tMINUS { ?state a opm:Derived }\n';
-        q += '\t\tMINUS { ?state prov:wasDerivedFrom ?dependencies }\n';
-        q += '\t}\n';
-        q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
-        q += this.getHost(propertyURI);
-        q += '\t#CREATE STATE URI\n';
-        q += '\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
-        q += '\tBIND(now() AS ?now)\n';
-        q += '}';
-        if (this.err) {
-            q = 'Error: ' + this.err;
-        }
-        return q;
-    };
-    OPMProp.prototype.makeAssumption = function () {
-        var propertyURI = this.input.propertyURI;
-        var comment = this.input.comment;
-        var userURI = this.input.userURI;
-        var prefixes = this.input.prefixes;
-        if (!userURI)
-            this.err = "A user must be atrributed to an assumed value. Please specify a userURI";
-        var q = '';
-        //Define prefixes
-        for (var i in prefixes) {
-            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + "> \n";
-        }
-        q += 'CONSTRUCT {\n';
-        q += '\t?propertyURI opm:hasState ?stateURI .\n';
-        if (userURI) {
-            q += "\t?stateURI prov:wasAttributedTo " + userURI + " .\n";
-        }
-        if (comment) {
-            q += "\t?stateURI rdfs:comment \"" + comment + "\"^^xsd:string .\n";
-        }
-        q += '\t?stateURI a opm:State , opm:Assumption ;\n';
-        q += '\t\trdfs:label "Assumption State"@en ;\n';
-        q += '\t\topm:valueAtState ?value ;\n';
-        q += '\t\tprov:generatedAtTime ?now .\n';
-        q += '}\n';
-        q += 'WHERE {\n';
-        q += '\tGRAPH ?g {\n';
-        //Get latest state
-        q += "\t\t#GET LATEST STATE\n";
-        q += "\t\t{ SELECT ?propertyURI (MAX(?_t) AS ?t) WHERE {\n";
-        q += "\t\t\t" + propertyURI + " opm:hasState ?state .\n";
-        q += "\t\t\t?state prov:generatedAtTime ?_t ;\n";
-        q += "\t\t\t\t^opm:hasState ?propertyURI .\n";
-        q += '\t\t} GROUP BY ?propertyURI }\n';
-        //Make sure it is not deleted and get data
-        q += "\t\t#A STATE MUST EXIST AND MUST NOT BE DELETED, CONFIRMED OR AN ASSUMPTION\n";
-        q += "\t\t?propertyURI opm:hasState ?state .\n";
-        q += "\t\t?state prov:generatedAtTime ?t ;\n";
-        q += "\t\t\topm:valueAtState ?value .\n";
-        q += '\t\tMINUS { ?state a opm:Deleted }\n';
-        q += '\t\tMINUS { ?state a opm:Confirmed }\n';
-        q += '\t\tMINUS { ?state a opm:Assumption }\n';
-        //Omit derived values (these are confirmed when all arguments are confirmed)
-        q += "\t\t#A DERIVED PROPERTY CAN'T BE MADE AN ASSUMPTION - ARGUMENTS ARE ASSUMPTIONS\n";
         q += '\t\tMINUS { ?state a opm:Derived }\n';
         q += '\t\tMINUS { ?state prov:wasDerivedFrom ?dependencies }\n';
         q += '\t}\n';

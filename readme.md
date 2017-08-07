@@ -22,7 +22,7 @@ $ npm install https://github.com/MadsHolten/opm-qg.git
 * **putFoIProp()** - Update a property of either a specific FoI or of all FoIs matching a specified pattern.
 * **getFoIProps()** - Get properties and state values of FoI(s). Constrain to specific FoI and/or property type. Return full property history or only latest state. List only deleted, assumed or derived properties.
 * **getProp()** - Get data about a specific property. Use URL Parameter latest=true to return only the latest states.
-* **deleteProp()** - Delete a specific property by adding a new state as an instance of opm:Deleted.
+* **setReliability()** - Set the reliability of a property as either 'deleted', 'confirmed' or 'assumption'
 * **restoreProp()** - Restore a deleted property by reinferring the latest state with a value assigned to it.
 * **putProp()** - **WIP**
 
@@ -168,11 +168,12 @@ var input = {
 
 #### Example 4
 ##### Delete a property
-##### deleteProp()
+##### setReliability()
 Adds a new state with the property as an instance of opm:Deleted.
 ```javascript
 var input = {
-    propertyURI: 'https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97'
+    propertyURI: 'https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97',
+    reliability: 'deleted'
 };
 ```
 
@@ -199,25 +200,27 @@ var input = {
 
 #### Example 7
 ##### Confirm property
-##### confirmProp()
+##### setReliability()
 Confirm a property. A user URI must be assigned.
 
 WIP: Optionally it should also be possible to assign documentation.
 ```javascript
 var input = {
     propertyURI: 'https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97',
-    userURI: 'https://niras.dk/employees/mhra'
+    userURI: 'https://niras.dk/employees/mhra',
+    reliability: 'confirmed'
 };
 ```
 
 #### Example 8
 ##### State argument as an assumption
-##### makeAssumption()
+##### setReliability()
 State a property as an assumption. A user URI must be assigned.
 ```javascript
 var input = {
     propertyURI: 'https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97',
-    userURI: 'https://niras.dk/employees/mhra'
+    userURI: 'https://niras.dk/employees/mhra',
+    reliability: 'addumption'
 };
 ```
 

@@ -7,8 +7,7 @@ var qg = require("../../dist/index");
  */
 var input = {
     queryType: 'construct',
-    latest: true,
-    restriction: 'derived'
+    latest: true
 };
 var sc = new qg.OPMProp(input);
 var q = sc.getFoIProps();
