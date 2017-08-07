@@ -357,17 +357,17 @@ var OPMProp = (function () {
             q += "SELECT ?value ?timestamp (?g AS ?graphURI)\n";
         }
         q += 'WHERE {\n';
+        q += "\tBIND(" + propertyURI + " AS ?propertyURI)\n";
         q += '\tGRAPH ?g {\n';
         if (latest) {
-            q += "\t\t{ SELECT (MAX(?t) AS ?timestamp) WHERE {\n";
-            q += "\t\t\t" + propertyURI + " opm:hasState ?state .\n";
-            q += "\t\t\t?state prov:generatedAtTime ?t ;\n";
-            q += '\t\t\t^opm:hasState ?propertyURI .\n';
+            q += '\t\t#GET LATEST STATE\n';
+            q += "\t\t{ SELECT ?propertyURI (MAX(?t) AS ?timestamp) WHERE {\n";
+            q += "\t\t\t?propertyURI opm:hasState ?state .\n";
+            q += "\t\t\t?state prov:generatedAtTime ?t .\n";
             q += '\t\t} GROUP BY ?propertyURI }\n';
         }
         else {
-            q += "\t\t" + propertyURI + " opm:hasState ?state .\n";
-            q += '\t\t?state ^opm:hasState ?propertyURI .\n';
+            q += "\t\t?propertyURI opm:hasState ?state .\n";
         }
         q += "\t\t?foiURI ?property ?propertyURI .\n";
         q += "\t\t?propertyURI opm:hasState ?state .\n";

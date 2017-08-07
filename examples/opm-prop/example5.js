@@ -9,6 +9,6 @@ var input = {
     propertyURI: "https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97",
     latest: true
 };
-var sc = new qg.OPMProp(input);
-var q = sc.getProp();
+var sp = new qg.OPMProp(input);
+var q = sp.getProp();
 console.log(q);
