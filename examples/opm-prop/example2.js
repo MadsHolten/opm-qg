@@ -24,7 +24,8 @@ var input = {
     prefixes: [
         {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'}
     ],
-    pattern: '?foi a seas:HeatingSystem'
+    pattern: '?foi a seas:HeatingSystem',
+    reliability: 'assumption'
 };
 var sc = new qg.OPMProp(input);
 var q = sc.putFoIProp();

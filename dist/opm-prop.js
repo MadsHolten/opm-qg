@@ -3,6 +3,12 @@ var _ = require("underscore");
 var _s = require("underscore.string");
 var OPMProp = (function () {
     function OPMProp(input) {
+        this.reliabilityOptions = [
+            { 'key': 'deleted', 'class': 'opm:Deleted' },
+            { 'key': 'assumption', 'class': 'opm:Assumption' },
+            { 'key': 'derived', 'class': 'opm:Derived' },
+            { 'key': 'confirmed', 'class': 'opm:Confirmed' }
+        ];
         this.input = input;
         if (input) {
             //Default query type is construct
@@ -30,6 +36,9 @@ var OPMProp = (function () {
             }
             if (!_.contains(prefixes, 'opm')) {
                 this.input.prefixes.push({ prefix: 'opm', uri: 'https://w3id.org/opm#' });
+            }
+            if (!_.contains(prefixes, 'sd')) {
+                this.input.prefixes.push({ prefix: 'sd', uri: 'http://www.w3.org/ns/sparql-service-description#' });
             }
             //datatype defaults to xsd:string
             if (this.input.value) {
@@ -66,6 +75,16 @@ var OPMProp = (function () {
                 var userURI = this.input.userURI;
                 this.input.userURI = "<" + userURI + ">";
             }
+            //Restriction must be valid
+            if (this.input.reliability) {
+                var reliability = this.input.reliability;
+                var options = _.filter(this.reliabilityOptions, function (obj) { return (obj.key != 'derived'); });
+                if (!_.chain(options).filter(function (obj) { return (obj.key == reliability); }).first().value()) {
+                    this.err = "Unknown restriction. Use either " + _s.toSentence(_.pluck(options, 'key'), ', ', ' or ');
+                }
+                ;
+                this.reliabilityClass = _.chain(options).filter(function (obj) { return (obj.key == reliability); }).map(function (obj) { return obj.class; }).first().value();
+            }
         }
         else {
             this.queryType = 'construct';
@@ -86,11 +105,13 @@ var OPMProp = (function () {
         var unit = this.input.value.unit;
         var datatype = this.input.value.datatype;
         var foiURI = this.input.foiURI;
+        var reliability = this.input.reliability;
+        var reliabilityClass = this.reliabilityClass;
         if (foiURI == '?foi') {
-            var pattern = "{ SELECT * WHERE { GRAPH ?g {" + this.input.pattern + "} }}";
+            var pattern = "{ SELECT DISTINCT ?foi WHERE { " + this.input.pattern + " }}\n";
         }
         else {
-            var pattern = "{ SELECT * WHERE { GRAPH ?g {" + foiURI + " ?p ?o} } LIMIT 1}";
+            var pattern = "{ SELECT DISTINCT ?foi WHERE { ?foi ?p ?o . } }\n";
         }
         var q = '';
         //Define prefixes
@@ -98,10 +119,13 @@ var OPMProp = (function () {
             q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + "> \n";
         }
         q += 'CONSTRUCT {\n';
-        q += "\t" + foiURI + " " + property + " ?propertyURI .\n";
+        q += "\t?foi " + property + " ?propertyURI .\n";
         q += '\t?propertyURI a opm:Property ;\n';
         q += '\t\trdfs:label "Typed Property"@en ;\n';
         q += '\t\topm:hasState ?stateURI .\n';
+        if (reliabilityClass) {
+            q += "\t?stateURI a " + reliabilityClass + " .\n";
+        }
         if (userURI) {
             q += "\t?stateURI prov:wasAttributedTo " + userURI + " .\n";
         }
@@ -110,20 +134,21 @@ var OPMProp = (function () {
         }
         q += '\t?stateURI a opm:State ;\n';
         q += '\t\trdfs:label "Typed State"@en ;\n';
-        // a opm:Assumption? opm:Confirmed?
         q += '\t\topm:valueAtState ?val ;\n';
         q += '\t\tprov:generatedAtTime ?now .\n';
         q += '}\n';
         q += 'WHERE {\n';
-        q += "\t" + pattern + "\n";
-        q += '\tMINUS {\n';
-        q += '\t\tGRAPH ?g {\n';
-        q += "\t\t\t" + foiURI + " " + property + "/opm:hasState ?state .\n";
-        q += '\t\t}\n';
+        q += '\tGRAPH ?g {\n';
+        if (foiURI != '?foi') {
+            q += "\t\tBIND(" + foiURI + " AS ?foi)\n";
+        }
+        q += "\t\t" + pattern;
+        q += '\t\t#THE FoI CANNOT HAVE THE PROPERTY ASSIGNED ALREADY\n';
+        q += "\t\tMINUS { ?foi " + property + " ?prop . }\n";
         q += '\t}\n';
         q += "\tBIND(strdt(concat(str(" + value + "), \" " + unit + "\"), " + datatype + ") AS ?val)\n";
         q += "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n";
-        q += this.getHost(foiURI);
+        q += this.getHost('?foi');
         q += '\t#CREATE STATE AND PROPERTY URI´s\n';
         q += '\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += '\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/Property/", ?guid)) AS ?propertyURI)\n';
@@ -147,6 +172,8 @@ var OPMProp = (function () {
         var datatype = this.input.value.datatype;
         var pattern = this.input.pattern;
         var foiURI = this.input.foiURI;
+        var reliability = this.input.reliability;
+        var reliabilityClass = this.reliabilityClass;
         var q = '';
         //Define prefixes
         for (var i in prefixes) {
@@ -162,7 +189,9 @@ var OPMProp = (function () {
             q += "\t?stateURI rdfs:comment \"" + comment + "\"^^xsd:string .\n";
         }
         q += '\t?stateURI a opm:State ;\n';
-        // a opm:Assumption? opm:Confirmed?
+        if (reliabilityClass) {
+            q += "\t\ta " + reliabilityClass + " ;\n";
+        }
         q += '\t\trdfs:label "Typed State"@en ;\n';
         q += '\t\topm:valueAtState ?val ;\n';
         q += '\t\tprov:generatedAtTime ?now ;\n';
@@ -178,11 +207,20 @@ var OPMProp = (function () {
         q += pattern ? "\t\t\t" + pattern + "\n" : '';
         q += '\t\t}\n';
         q += '\t} GROUP BY ?propertyURI }\n';
-        q += '\t\t#GET DATA - VALUE SHOULD BE DIFFERENT FROM THE PREVIOUS\n';
+        q += '\t\t#GET DATA\n';
         q += '\t\tGRAPH ?g {\n';
         q += "\t\t\t" + foiURI + " " + property + " ?propertyURI .\n";
-        q += "\t\t\t?propertyURI opm:hasState [ prov:generatedAtTime ?t ;\n";
-        q += "\t\t\t\topm:valueAtState ?old_val ] .\n";
+        q += "\t\t\t?propertyURI opm:hasState ?state .\n";
+        q += "\t\t\t?state prov:generatedAtTime ?t ;\n";
+        q += "\t\t\t\topm:valueAtState ?old_val .\n";
+        q += '\t\t\t#FILTER OUT DELETED OR CONFIRMED\n';
+        q += '\t\t\tMINUS{ ?state a opm:Deleted }\n';
+        q += '\t\t\tMINUS{ ?state a opm:Confirmed }\n';
+        if (reliability == 'assumption') {
+            q += "\t\t#MUST NOT BE AN ASSUMPTION ALREADY\n";
+            q += '\t\tMINUS { ?state a opm:Assumption }\n';
+        }
+        q += '\t\t\t#VALUE SHOULD BE DIFFERENT FROM THE PREVIOUS\n';
         q += "\t\t\tFILTER(strbefore(str(?old_val), \" \") != str(" + value + "))\n";
         q += '\t\t}\n';
         q += "\tBIND(strdt(concat(str(" + value + "), \" " + unit + "\"), " + datatype + ") AS ?val)\n";
@@ -191,8 +229,6 @@ var OPMProp = (function () {
         q += '\t#CREATE STATE URI´s\n';
         q += '\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += '\tBIND(now() AS ?now)\n';
-        //q+= '\t#ERRORS\n';
-        //q+= `\tBIND(IF(strbefore(str(?old_val), " ") = str(70), "The specified value is the same as the previous", "") AS ?error)\n`;
         q += '}';
         if (this.err) {
             q = 'Error: ' + this.err;
@@ -216,13 +252,7 @@ var OPMProp = (function () {
         var latest = this.input.latest;
         var restriction = this.input.restriction;
         if (restriction) {
-            var restrictions = [
-                { 'key': 'deleted', 'class': 'opm:Deleted' },
-                { 'key': 'assumptions', 'class': 'opm:Assumption' },
-                { 'key': 'derived', 'class': 'opm:Derived' },
-                { 'key': 'confirmed', 'class': 'opm:Confirmed' }
-            ];
-            var restrictionClass = _.chain(restrictions).filter(function (obj) { return (obj.key == restriction); }).map(function (obj) { return obj.class; }).first().value();
+            var restrictionClass = _.chain(this.reliabilityOptions).filter(function (obj) { return (obj.key == restriction); }).map(function (obj) { return obj.class; }).first().value();
         }
         var q = '';
         //Define prefixes
@@ -367,6 +397,8 @@ var OPMProp = (function () {
         var value = this.input.value.value;
         var unit = this.input.value.unit;
         var datatype = this.input.value.datatype;
+        var reliability = this.input.reliability;
+        var reliabilityClass = this.reliabilityClass;
         var q = '';
         //Define prefixes
         for (var i in prefixes) {
@@ -374,37 +406,47 @@ var OPMProp = (function () {
         }
         //Only makes an update if the value is different from the last evaluation
         q += 'CONSTRUCT {\n';
-        q += "\t" + propertyURI + " opm:hasState ?stateURI .\n";
+        q += "\t?propertyURI opm:hasState ?stateURI .\n";
         if (userURI) {
             q += "\t?stateURI prov:wasAttributedTo " + userURI + " .\n";
         }
         if (comment) {
             q += "\t?stateURI rdfs:comment \"" + comment + "\"^^xsd:string .\n";
         }
+        if (reliabilityClass) {
+            q += "\t?stateURI a " + reliabilityClass + " .\n";
+        }
         q += '\t?stateURI a opm:State ;\n';
-        // a opm:Assumption? opm:Confirmed?
         q += '\t\trdfs:label "Typed State"@en ;\n';
         q += '\t\topm:valueAtState ?val ;\n';
         q += '\t\tprov:generatedAtTime ?now ;\n';
         q += '\t\topm:error ?error .\n';
         q += '}\n';
         q += 'WHERE {\n';
+        q += "\tBIND(" + propertyURI + " AS ?propertyURI)\n";
+        q += '\t\tGRAPH ?g {\n';
         q += '\t#GET LATEST STATE\n';
-        q += '\t{ SELECT ?state (MAX(?_t) AS ?t) WHERE {\n';
-        q += '\t\tGRAPH ?g {\n';
-        q += "\t\t\t" + propertyURI + " opm:hasState ?state .\n";
+        q += '\t{ SELECT ?propertyURI (MAX(?_t) AS ?t) WHERE {\n';
+        q += "\t\t\t?propertyURI opm:hasState ?state .\n";
         q += '\t\t\t?state prov:generatedAtTime ?_t .\n';
-        q += '\t\t}\n';
-        q += '\t} GROUP BY ?state }\n';
-        q += '\t\t#GET DATA - VALUE SHOULD BE DIFFERENT FROM THE PREVIOUS\n';
-        q += '\t\tGRAPH ?g {\n';
+        q += '\t} GROUP BY ?propertyURI }\n';
+        q += '\t\t#GET DATA\n';
+        q += "\t\t\t?propertyURI opm:hasState ?state .\n";
         q += "\t\t\t?state prov:generatedAtTime ?t ;\n";
         q += "\t\t\t\topm:valueAtState ?old_val.\n";
+        q += '\t\t\t#FILTER OUT DELETED OR CONFIRMED\n';
+        q += '\t\t\tMINUS{ ?state a opm:Deleted }\n';
+        q += '\t\t\tMINUS{ ?state a opm:Confirmed }\n';
+        if (reliability == 'assumption') {
+            q += "\t\t\t#MUST NOT BE AN ASSUMPTION ALREADY\n";
+            q += '\t\t\tMINUS { ?state a opm:Assumption }\n';
+        }
+        q += '\t\t\t#VALUE SHOULD BE DIFFERENT FROM THE PREVIOUS\n';
         q += "\t\t\tFILTER(strbefore(str(?old_val), \" \") != str(" + value + "))\n";
         q += '\t\t}\n';
         q += "\tBIND(strdt(concat(str(" + value + "), \" " + unit + "\"), " + datatype + ") AS ?val)\n";
         q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
-        q += this.getHost(propertyURI);
+        q += this.getHost('?propertyURI');
         q += '\t#CREATE STATE URI´s\n';
         q += '\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
         q += '\tBIND(now() AS ?now)\n';
@@ -537,17 +579,13 @@ var OPMProp = (function () {
         var comment = this.input.comment;
         var propertyURI = this.input.propertyURI;
         var reliability = this.input.reliability;
+        var reliabilityClass = this.reliabilityClass;
         var userURI = this.input.userURI;
         var prefixes = this.input.prefixes;
         if (!userURI && reliability == 'confirmed')
             this.err = "A user must be atrributed to a confirmed value. Please specify a userURI";
         if (!reliability)
             this.err = "Reliability specification missing.";
-        var reliabilityOptions = ['confirmed', 'deleted', 'assumption'];
-        if (reliabilityOptions.indexOf(reliability) == -1) {
-            this.err = "Error: Unknown restriction. Use either " + _s.toSentence(reliabilityOptions, ', ', ' or ');
-        }
-        ;
         var q = '';
         //Define prefixes
         for (var i in prefixes) {
@@ -560,7 +598,7 @@ var OPMProp = (function () {
         if (comment) {
             q += "\t?stateURI rdfs:comment \"" + comment + "\"^^xsd:string .\n";
         }
-        q += '\t?stateURI a opm:State , opm:Confirmed ;\n';
+        q += "\t?stateURI a opm:State , " + reliabilityClass + " ;\n";
         q += '\t\trdfs:label "Confirmed State"@en ;\n';
         q += '\t\topm:valueAtState ?value ;\n';
         q += '\t\tprov:generatedAtTime ?now .\n';

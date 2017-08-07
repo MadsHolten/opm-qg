@@ -15,7 +15,8 @@ var input = {
     prefixes: [
         {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'}
     ],
-    foiURI: 'https://localhost/seas/HeatingSystem/1'
+    foiURI: 'https://localhost/seas/HeatingSystem/1',
+    reliability: 'assumption'
 };
 
 var sc = new qg.OPMProp(input);
