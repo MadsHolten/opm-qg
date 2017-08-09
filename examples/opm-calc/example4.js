@@ -12,8 +12,9 @@ var qg = require("../../dist/index");
  * of a specific FoI (as shown in example)
  */
 var input = {
-    foiURI: 'https://localhost/seas/HeatingSystem/14532928-3bb5-4396-a4a3-aea6aa4fa56c'
+    foiURI: 'https://localhost/opm/HeatingSystem/1',
+    queryType: 'construct'
 };
-var sc = new qg.OPMCalc();
-var q = sc.listOutdated();
+var sc = new qg.OPMCalc;
+var q = sc.listOutdated(input);
 console.log(q);

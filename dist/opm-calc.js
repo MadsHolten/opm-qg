@@ -2,370 +2,61 @@
 var _ = require("underscore");
 var _s = require("underscore.string");
 var OPMCalc = (function () {
-    function OPMCalc(input) {
-        this.input = input;
-        if (input) {
-            //Default query type is construct
-            this.queryType = this.input.queryType ? this.input.queryType : 'construct';
-            //Add predefined prefixes
-            var prefixes = _.pluck(this.input.prefixes, 'prefix');
-            if (!this.input.prefixes) {
-                this.input.prefixes = [];
-            }
-            ;
-            if (!_.contains(prefixes, 'rdf')) {
-                this.input.prefixes.push({ prefix: 'rdf', uri: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#' });
-            }
-            if (!_.contains(prefixes, 'xsd')) {
-                this.input.prefixes.push({ prefix: 'xsd', uri: 'http://www.w3.org/2001/XMLSchema#' });
-            }
-            if (!_.contains(prefixes, 'seas')) {
-                this.input.prefixes.push({ prefix: 'seas', uri: 'https://w3id.org/seas/' });
-            }
-            if (!_.contains(prefixes, 'prov')) {
-                this.input.prefixes.push({ prefix: 'prov', uri: 'http://www.w3.org/ns/prov#' });
-            }
-            if (!_.contains(prefixes, 'opm')) {
-                this.input.prefixes.push({ prefix: 'opm', uri: 'https://w3id.org/opm#' });
-            }
-            //datatype defaults to xsd:string
-            if (this.input.result) {
-                this.input.result.datatype = this.input.result.datatype ? this.input.result.datatype : 'xsd:string';
-            }
-            if (this.input.userURI) {
-                var userURI = this.input.userURI;
-                this.input.userURI = "<" + userURI + ">";
-            }
+    function OPMCalc() {
+        //Predefined prefixes
+        this.prefixes = [
+            { prefix: 'rdf', uri: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#' },
+            { prefix: 'xsd', uri: 'http://www.w3.org/2001/XMLSchema#' },
+            { prefix: 'prov', uri: 'http://www.w3.org/ns/prov#' },
+            { prefix: 'opm', uri: 'https://w3id.org/opm#' },
+            { prefix: 'seas', uri: 'https://w3id.org/seas/' },
+            { prefix: 'sd', uri: 'http://www.w3.org/ns/sparql-service-description#' }
+        ];
+    }
+    OPMCalc.prototype.listCalculations = function (input) {
+        var queryType = input.queryType;
+        var prefixes = this.prefixes;
+        var q = '';
+        //Define prefixes
+        for (var i in prefixes) {
+            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + "> \n";
+        }
+        if (queryType == 'construct') {
+            q += 'CONSTRUCT {\n';
+            q += '\t?calculationURI a ?calcClasses ;\n';
+            q += '\t\tsd:namedGraph ?g ;\n';
+            q += '\t\trdfs:label ?label ;\n';
+            q += '\t\trdfs:comment ?comment .\n';
+            q += '}\n';
         }
         else {
-            this.queryType = 'construct';
+            q += 'SELECT ?calculationURI ?label ?comment\n';
         }
-    }
-    //Create calculation where it doesn't already exist
-    OPMCalc.prototype.postCalc = function () {
-        //Define variables
-        var calc = this.input.result.calc; //The calculation to perform
-        var userURI = this.input.userURI;
-        var comment = this.input.comment;
-        var args = this.input.args; //Arguments
-        var property = this.input.result.property; //New property
-        var foiURI = this.input.foiURI; //optional
-        var unit = this.input.result.unit;
-        var datatype = this.input.result.datatype;
-        var foi = !foiURI ? '?foi' : '<' + foiURI + '>';
-        var prefixes = this.input.prefixes;
-        for (var i in args) {
-            if (!args[i].targetPath) {
-                //Add '?foi' as target path if none is given
-                args[i].targetPath = '?foi';
-            }
-            else {
-                //Clean target path if given
-                var str = args[i].targetPath;
-                str = _s.clean(str); //Remove unnecessary spaces etc.
-                var target = _s.strRightBack(str, '?').replace(/ /g, '').replace('.', ''); //Get target variable name
-                str = _s.endsWith(str, ".") ? str + ' ' : str + ' . '; //Make sure it ends with a dot and a space
-                args[i].targetPath = str + "?" + target + " ";
-            }
-            if (foiURI) {
-                //Replace '?foi' with the actual URI if one is defined
-                var newFoI = "<" + foiURI + ">";
-                args[i].targetPath = args[i].targetPath.replace('?foi', newFoI);
-            }
-        }
-        var q = '';
-        //Define prefixes
-        for (var i in prefixes) {
-            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + ">\n";
-        }
-        q += 'CONSTRUCT {\n';
-        q += "\t" + foi + " " + property + " ?propertyURI .\n";
-        q += '\t?propertyURI a opm:Property ;\n';
-        q += '\t\trdfs:label "Derived Property"@en ;\n';
-        q += '\t\topm:hasState ?stateURI .\n';
-        if (userURI) {
-            q += "\t?stateURI prov:wasAttributedTo " + userURI + " .\n";
-        }
-        if (comment) {
-            q += "\t?stateURI rdfs:comment \"" + comment + "\"^^xsd:string .\n";
-        }
-        q += '\t?stateURI a opm:State , opm:Derived ;\n';
-        q += '\t\trdfs:label "Derived State"@en ;\n';
-        q += '\t\topm:valueAtState ?res ;\n';
-        q += '\t\tprov:generatedAtTime ?now ;\n';
-        q += "\t\topm:expression \"" + calc + "\"^^xsd:string ;\n";
-        q += '\t\tprov:wasDerivedFrom _:c0 .\n';
-        q += '\t_:c0 a rdf:Seq .\n';
-        // Add arguments to wasDerivedFrom sequence
-        for (var i in args) {
-            var _i = Number(i) + 1;
-            q += "\t_:c0 rdf:_" + _i + " ?state" + _i + " .\n";
-        }
-        // Get data
-        q += "} WHERE {\n";
-        // Get latest evaluation of each argument
-        for (var i in args) {
-            var _i = Number(i) + 1;
-            q += "\t#GET LATEST VALUE OF ARGUMENT " + _i + "\n";
-            q += "\t{ SELECT ";
-            q += !foiURI ? '?foi ' : '';
-            q += "(MAX(?_t" + _i + ") AS ?t" + _i + ") WHERE {\n";
-            q += '\t\tGRAPH ?g {\n';
-            q += "\t\t\t" + args[i].targetPath + " " + args[i].property + "/opm:hasState\n";
-            q += "\t\t\t\t[ prov:generatedAtTime  ?_t" + _i + " ] .\n";
-            q += '\t\t}\n';
-            q += !foiURI ? '\t} GROUP BY ?foi }\n' : '';
-        }
-        // No previous calculations must exist
-        q += '\t#NO PREVIOUS CALCULATIONS MUST EXIST\n';
-        q += '\tMINUS {\n';
-        q += '\t\tGRAPH ?g {\n';
-        q += "\t\t\t" + foi + " " + property + "/opm:hasState\n";
-        q += '\t\t\t\t[ prov:generatedAtTime  ?_tc ] .\n';
-        q += '\t\t}\n';
+        q += 'WHERE {\n';
+        q += '\tGRAPH ?g {\n';
+        q += '\t\t?calculationURI opm:inferredProperty ?inferredProperty ;\n';
+        q += '\t\t\tprov:generatedAtTime ?timestamp ;\n';
+        q += '\t\tOPTIONAL{ ?arg opm:targetPath ?argTP . }\n';
+        q += '\t\tOPTIONAL{ ?calculationURI a ?calcClasses . }\n';
+        q += '\t\tOPTIONAL{ ?calculationURI rdfs:label ?label . }\n';
+        q += '\t\tOPTIONAL{ ?calculationURI rdfs:comment ?comment . }\n';
         q += '\t}\n';
-        // Retrieve data
-        q += "\tGRAPH ?g {\n";
-        for (var i in args) {
-            var _i = Number(i) + 1;
-            q += "\t\t#GET ARGUMENT " + _i + " DATA\n";
-            q += "\t\t" + args[i].targetPath + " " + args[i].property + "/opm:hasState ?state" + _i + " .\n";
-            q += "\t\t?state" + _i + " prov:generatedAtTime ?t" + _i + " ;\n";
-            q += "\t\t\topm:valueAtState ?v" + _i + " .\n";
-            q += "\t\tBIND(xsd:decimal(strbefore(str(?v" + _i + "), \" \")) AS ?arg" + _i + ")\n"; //NB! might give problems with non-ucum
-        }
-        //NB! BIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/Property/", STRUUID())) AS ?propertyURI) should work - bug in Stardog
-        q += "\t\t#PERFORM CALCULATION AND SPECIFY UNIT + DATATYPE\n";
-        q += "\t\tBIND((" + calc + ") AS ?_res)\n";
-        q += "\t\tBIND(strdt(concat(str(?_res), \" " + unit + "\"), " + datatype + ") AS ?res)\n";
-        q += "\t\t#GENERATE URIs FOR NEW CLASS INSTANCES\n";
-        q += "\t\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n";
-        q += this.getHost(foi);
-        q += '\t\t#CREATE STATE AND PROPERTY URI´s\n';
-        q += '\t\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
-        q += '\t\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/Property/", ?guid)) AS ?propertyURI)\n';
-        q += "\t\t#HOW TO HANDLE VALIDITY?\n";
-        q += '\t\tBIND(IF(?del, true, false) AS ?del)\n';
-        q += "\t\t#GET CURRENT TIME\n";
-        q += "\t\tBIND(now() AS ?now)\n";
-        q += '\t}\n';
-        q += '}';
-        return q;
-    };
-    //Update calculation where it already exist but inputs have changed
-    OPMCalc.prototype.putCalc = function () {
-        //Define variables
-        var calc = this.input.result.calc; //The calculation to perform
-        var userURI = this.input.userURI;
-        var comment = this.input.comment;
-        var args = this.input.args; //Arguments
-        var property = this.input.result.property; //New property
-        var foiURI = this.input.foiURI; //optional
-        var unit = this.input.result.unit;
-        var datatype = this.input.result.datatype;
-        var foi = !foiURI ? '?foi' : '<' + foiURI + '>';
-        var prefixes = this.input.prefixes;
-        for (var i in args) {
-            if (!args[i].targetPath) {
-                //Add '?foi' as target path if none is given
-                args[i].targetPath = '?foi';
-            }
-            else {
-                //Clean target path if given
-                var str = args[i].targetPath;
-                str = _s.clean(str); //Remove unnecessary spaces etc.
-                var target = _s.strRightBack(str, '?').replace(/ /g, '').replace('.', ''); //Get target variable name
-                str = _s.endsWith(str, ".") ? str + ' ' : str + ' . '; //Make sure it ends with a dot and a space
-                args[i].targetPath = str + "?" + target + " ";
-            }
-            if (foiURI) {
-                //Replace '?foi' with the actual URI if one is defined
-                var newFoI = "<" + foiURI + ">";
-                args[i].targetPath = args[i].targetPath.replace('?foi', newFoI);
-            }
-        }
-        var q = '';
-        //Define prefixes
-        for (var i in prefixes) {
-            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + ">\n";
-        }
-        q += 'CONSTRUCT {\n';
-        q += "\t" + foi + " " + property + " ?propertyURI .\n";
-        q += '\t?propertyURI opm:hasState ?stateURI .\n';
-        if (userURI) {
-            q += "\t?stateURI prov:wasAttributedTo " + userURI + " .\n";
-        }
-        if (comment) {
-            q += "\t?stateURI rdfs:comment \"" + comment + "\"^^xsd:string .\n";
-        }
-        q += '\t?stateURI a opm:State , opm:Derived ;\n';
-        q += '\t\trdfs:label "Derived State"@en ;\n';
-        q += '\t\topm:valueAtState ?res ;\n';
-        q += '\t\tprov:generatedAtTime ?now ;\n';
-        q += "\t\topm:expression \"" + calc + "\"^^xsd:string ;\n";
-        q += '\t\tprov:wasDerivedFrom _:c0 .\n';
-        q += '\t_:c0 a rdf:Seq .\n';
-        for (var i in args) {
-            var _i = Number(i) + 1;
-            q += "\t_:c0 rdf:_" + _i + " ?state" + _i + " .\n";
-        }
-        q += "} WHERE {\n";
-        //Get latest calculation result
-        q += "\t#GET LATEST CALCULATION RESULT\n";
-        q += "\t{ SELECT ";
-        q += !foiURI ? '?foi ' : '';
-        q += "(MAX(?_tc) AS ?tc) WHERE {\n";
-        q += "\t\tGRAPH ?gi {\n";
-        q += "\t\t\t" + foi + " " + property + "/opm:hasState\n";
-        q += "\t\t\t\t[ prov:generatedAtTime  ?_tc ] .\n";
-        q += '\t\t}\n';
-        q += !foiURI ? '\t} GROUP BY ?foi }\n' : '';
-        // Get latest evaluation of each argument
-        for (var i in args) {
-            var _i = Number(i) + 1;
-            q += "\t#GET LATEST VALUE OF ARGUMENT " + _i + "\n";
-            q += "\t{ SELECT ";
-            q += !foiURI ? '?foi ' : '';
-            q += "(MAX(?_t" + _i + ") AS ?t" + _i + ") WHERE {\n";
-            q += '\t\tGRAPH ?g {\n';
-            q += "\t\t\t" + args[i].targetPath + " " + args[i].property + "/opm:hasState\n";
-            q += "\t\t\t\t[ prov:generatedAtTime  ?_t" + _i + " ] .\n";
-            q += '\t\t}\n';
-            q += !foiURI ? '\t} GROUP BY ?foi }\n' : '';
-        }
-        //Only return if inputs have changed
-        q += "\t#ONLY RETURN IF AN INPUT HAS CHANGED SINCE LAST CALCULATION\n";
-        q += "\tFILTER(";
-        for (var i in args) {
-            var _i = Number(i) + 1;
-            q += "( ?tc < ?t" + _i + " )";
-            q += (_i != args.length) ? ' || ' : ')\n';
-        }
-        //Get propertyURI
-        q += "\tGRAPH ?gi {\n";
-        q += "\t\t" + foi + " " + property + " ?propertyURI .\n";
-        q += '\t}\n';
-        //Get argument values
-        q += "\tGRAPH ?g {\n";
-        for (var i in args) {
-            var _i = Number(i) + 1;
-            q += "\t\t#GET ARGUMENT " + _i + " DATA\n";
-            q += "\t\t" + args[i].targetPath + " " + args[i].property + "/opm:hasState ?state" + _i + " .\n";
-            q += "\t\t?state" + _i + " prov:generatedAtTime ?t" + _i + " ;\n";
-            q += "\t\t\topm:valueAtState ?v" + _i + " .\n";
-            q += "\t\tBIND(xsd:decimal(strbefore(str(?v" + _i + "), \" \")) AS ?arg" + _i + ")\n"; //NB! might give problems with non-ucum
-        }
-        //NB! BIND(URI(CONCAT("${hostURI}", "/Property/", STRUUID())) AS ?propertyURI) should work - bug in Stardog
-        q += "\t\t#PERFORM CALCULATION AND SPECIFY UNIT + DATATYPE\n";
-        q += "\t\tBIND((" + calc + ") AS ?_res)\n";
-        q += "\t\tBIND(strdt(concat(str(?_res), \" " + unit + "\"), " + datatype + ") AS ?res)\n";
-        q += "\t\t#GENERATE URIs FOR NEW CLASS INSTANCES\n";
-        q += "\t\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n";
-        q += this.getHost(foi);
-        q += '\t\t#CREATE STATE URI´s\n';
-        q += '\t\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
-        q += "\t\t#GET CURRENT TIME\n";
-        q += "\t\tBIND(now() AS ?now)\n";
-        q += '\t}\n';
-        q += '}';
-        return q;
-    };
-    /**
-     * MIGHT BE BETTER TO JUST STORE THIS AS JSON
-     */
-    OPMCalc.prototype.postCalcData = function () {
-        //Define variables
-        var label = this.input.label;
-        var comment = this.input.comment;
-        var userURI = this.input.userURI;
-        var hostURI = this.input.hostURI; //Needed as there is nothing else to extract it from
-        var calc = this.input.result.calc; //The calculation to perform
-        var args = this.input.args; //Arguments
-        var property = this.input.result.property; //New property
-        var foiURI = this.input.foiURI; //optional
-        var unit = this.input.result.unit;
-        var datatype = this.input.result.datatype;
-        var foi = !foiURI ? '?foi' : '<' + foiURI + '>';
-        var prefixes = this.input.prefixes;
-        for (var i in args) {
-            if (!args[i].targetPath) {
-                //Add '?foi' as target path if none is given
-                args[i].targetPath = '?foi';
-            }
-            else {
-                //Clean target path if given
-                var str = args[i].targetPath;
-                str = _s.clean(str); //Remove unnecessary spaces etc.
-                var target = _s.strRightBack(str, '?').replace(/ /g, '').replace('.', ''); //Get target variable name
-                str = _s.endsWith(str, ".") ? str + ' ' : str + ' . '; //Make sure it ends with a dot and a space
-                args[i].targetPath = str + "?" + target + " ";
-            }
-            if (foiURI) {
-                //Replace '?foi' with the actual URI if one is defined
-                var newFoI = "<" + foiURI + ">";
-                args[i].targetPath = args[i].targetPath.replace('?foi', newFoI);
-            }
-        }
-        var q = '';
-        //Define prefixes
-        for (var i in prefixes) {
-            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + ">\n";
-        }
-        q += 'CONSTRUCT {\n';
-        if (label) {
-            q += "\t?calcURI rdfs:label \"" + label + "\"^^xsd:string .\n";
-        }
-        if (comment) {
-            q += "\t?calcURI rdfs:comment \"" + comment + "\"^^xsd:string .\n";
-        }
-        if (userURI) {
-            q += "\t?calcURI prov:wasAttributedTo " + userURI + " .\n";
-        }
-        q += '\t\t?calcURI prov:generatedAtTime ?now ;\n';
-        q += "\t\topm:inferredProperty \"" + property + "\"^^xsd:string ;\n";
-        q += "\t\topm:expression \"" + calc + "\"^^xsd:string ;\n";
-        q += "\t\topm:unit \"" + unit + "\"^^" + datatype + " ;\n";
-        q += '\t\topm:arguments _:c0 .\n';
-        q += '\t_:c0 a rdf:Seq .\n';
-        // Add arguments to arguments sequence
-        for (var i in args) {
-            var _i = Number(i) + 1;
-            q += "\t_:c0 rdf:_" + _i + " ?arg" + _i + " .\n";
-            q += "\t?arg" + _i + " opm:property " + args[i].property + " .\n";
-            if (args[i].targetPath) {
-                q += "\t?arg" + _i + " opm:targetPath " + args[i].targetPath + " .\n";
-            }
-        }
-        q += '} WHERE {\n';
-        q += "\t#GENERATE URIs FOR NEW CLASS INSTANCE\n";
-        q += "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n";
-        q += '\t#CREATE STATE AND PROPERTY URI´s\n';
-        q += "\tBIND(URI(CONCAT(STR(\"" + hostURI + "\"), \"/Calculation/\", ?guid)) AS ?calcURI)\n";
-        for (var i in args) {
-            var _i = Number(i) + 1;
-            q += "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid" + _i + ")\n";
-            q += "\tBIND(URI(CONCAT(STR(\"" + hostURI + "\"), \"/Argument/\", ?guid" + _i + ")) AS ?arg" + _i + ")\n";
-        }
-        q += "\t#GET CURRENT TIME\n";
-        q += "\tBIND(now() AS ?now)\n";
         q += '}';
         return q;
     };
     //List outdated calculations
     //Checks either generally or for a specific FoI
     //Returns the following:
-    OPMCalc.prototype.listOutdated = function () {
-        var foiURI = this.input ? this.input.foiURI : undefined;
-        var evalPath = '';
-        if (foiURI) {
-            evalPath = "<" + foiURI + "> ?hasProp ?propertyURI . ";
-        }
+    OPMCalc.prototype.listOutdated = function (input) {
+        var foiURI = input.foiURI;
+        var queryType = input.queryType;
         var q = '';
         //Define prefixes
         q += 'PREFIX prov: <http://www.w3.org/ns/prov#>\n';
         q += 'PREFIX opm: <https://w3id.org/opm#>\n';
-        if (this.queryType == 'construct') {
+        if (queryType == 'construct') {
             q += 'CONSTRUCT {\n';
+            q += '\t?foi ?hasProp ?propertyURI .\n';
             q += '\t?propertyURI opm:hasState ?calcState .\n';
             q += '\t?calcState opm:newArguments _:newArgs ;\n';
             q += '\t\tprov:wasDerivedFrom _:oldArgs ;\n';
@@ -381,12 +72,15 @@ var OPMCalc = (function () {
             q += 'SELECT ?propertyURI ?calc_time ?arg_last_update ?new_arg ?old_val ?new_val\n';
         }
         q += 'WHERE {\n';
+        if (foiURI) {
+            q += "\tBIND(<" + foiURI + "> AS ?foi)\n";
+        }
         //Get the time of the latest calculation
         //Property has opm:hasState that is derived from something else
         q += "\t#GET TIME OF LATEST CALCULATION\n";
         q += "\t{ SELECT  ?propertyURI (MAX(?tc) AS ?calc_time) WHERE {\n";
         q += "\t\tGRAPH ?gi {\n";
-        q += "\t\t\t" + evalPath + "\n";
+        q += "\t\t\t?foi ?hasProp ?propertyURI .\n";
         q += "\t\t\t?propertyURI opm:hasState _:b0 .\n";
         q += "\t\t\t_:b0 prov:wasDerivedFrom+ [?p ?o] .\n";
         q += "\t\t\t_:b0 prov:generatedAtTime ?tc .\n";
@@ -395,7 +89,7 @@ var OPMCalc = (function () {
         //Get data about calculation
         q += "\t#GET DATA ABOUT CALCULATION\n";
         q += "\tGRAPH ?gi {\n";
-        q += "\t\t" + evalPath + "\n";
+        q += "\t\t?foi ?hasProp ?propertyURI .\n";
         q += "\t\t?propertyURI opm:hasState ?calcState .\n";
         q += "\t\t?calcState prov:wasDerivedFrom+ [?position ?old_arg] .\n";
         q += "\t\t?calcState prov:generatedAtTime ?calc_time .\n";
@@ -421,6 +115,139 @@ var OPMCalc = (function () {
         q += "\t#ONLY SHOW OUTDATED\n";
         q += "\tFILTER(?arg_last_update > ?calc_time)\n";
         q += "}";
+        return q;
+    };
+    OPMCalc.prototype.getCalcData = function (input) {
+        var calculationURI = input.calculationURI;
+        var queryType = input.queryType;
+        var prefixes = this.prefixes;
+        var q = '';
+        //Define prefixes
+        for (var i in prefixes) {
+            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + "> \n";
+        }
+        if (queryType == 'construct') {
+            q += 'CONSTRUCT {\n';
+            q += '\t?calculationURI a ?calcClasses ;\n';
+            q += '\t\tsd:namedGraph ?g ;\n';
+            q += '\t\topm:inferredProperty ?inferredProperty ;\n';
+            q += '\t\tprov:generatedAtTime ?timestamp ;\n';
+            q += '\t\topm:expression ?expression ;\n';
+            q += '\t\topm:unit ?unit ;\n';
+            q += '\t\trdfs:label ?label ;\n';
+            q += '\t\trdfs:comment ?comment ;\n';
+            q += '\t\topm:argumentPaths ?list .\n';
+            q += '\t?listRest rdf:first ?head ;\n';
+            q += '\t\trdf:rest ?tail .\n';
+            q += '}\n';
+        }
+        else {
+            q += 'SELECT ?calculationURI ?label ?comment ?inferredProperty ?timestamp\n';
+        }
+        q += 'WHERE {\n';
+        q += '\tGRAPH ?g {\n';
+        if (calculationURI) {
+            q += "\t\tBIND(<" + calculationURI + "> AS ?calculationURI)\n";
+        }
+        q += '\t\t?calculationURI opm:inferredProperty ?inferredProperty ;\n';
+        q += '\t\t\tprov:generatedAtTime ?timestamp ;\n';
+        q += '\t\t\topm:expression ?expression ;\n';
+        q += '\t\t\topm:argumentPaths ?list .\n';
+        q += '\t\t?list rdf:rest* ?listRest .\n';
+        q += '\t\t?listRest rdf:first ?head ;\n';
+        q += '\t\t\trdf:rest ?tail .\n';
+        q += '\t\tOPTIONAL{ ?arg opm:targetPath ?argTP . }\n';
+        q += '\t\tOPTIONAL{ ?calculationURI a ?calcClasses . }\n';
+        q += '\t\tOPTIONAL{ ?calculationURI rdfs:label ?label . }\n';
+        q += '\t\tOPTIONAL{ ?calculationURI rdfs:comment ?comment . }\n';
+        q += '\t\tOPTIONAL{ ?calculationURI opm:unit ?unit . }\n';
+        q += '\t}\n';
+        q += '}';
+        return q;
+    };
+    OPMCalc.prototype.postCalcData = function (input) {
+        //Define variables
+        var label = input.label;
+        var comment = input.comment;
+        var userURI = input.userURI;
+        var prefixes = this.prefixes;
+        var hostURI = input.hostURI;
+        var expression = input.expression;
+        var argumentPaths = input.argumentPaths;
+        //Inferred property
+        var iProp = input.inferredProperty;
+        var iPropURI = iProp.propertyURI;
+        var iUnit = iProp.unit.value;
+        var iDatatype = iProp.unit.datatype;
+        //Add prefix(es) to the predefined ones
+        if (input.prefixes) {
+            _.each(input.prefixes, function (obj) {
+                return prefixes.push(obj);
+            });
+        }
+        //Clean property (add triangle brackets if not prefixes)
+        iPropURI = _s.startsWith(iPropURI, 'http') ? "<" + iPropURI + ">" : "" + iPropURI;
+        //Make sure that argument paths begin with ?foi
+        argumentPaths = _.map(argumentPaths, function (path) {
+            var firstSubjectVar = _s.strLeft(_s.strRight(path, '?'), ' ');
+            return path.replace('?' + firstSubjectVar, '?foi'); //Replace with ?foi
+        });
+        var q = '';
+        //Define prefixes
+        for (var i in prefixes) {
+            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + ">\n";
+        }
+        q += 'CONSTRUCT {\n';
+        q += "\t?calculationURI a opm:Calculation ;\n";
+        if (label) {
+            q += "\t\trdfs:label \"" + label + "\" ;\n";
+        }
+        if (comment) {
+            q += "\t\trdfs:comment \"" + comment + "\" ;\n";
+        }
+        if (userURI) {
+            q += "\t\tprov:wasAttributedTo <" + userURI + "> ;\n";
+        }
+        q += '\t\tprov:generatedAtTime ?now ;\n';
+        q += "\t\topm:inferredProperty " + iPropURI + " ;\n";
+        q += "\t\topm:expression \"" + expression + "\" ;\n";
+        q += "\t\topm:unit \"" + iUnit + "\"";
+        q += iDatatype ? "^^" + iDatatype + " ;\n" : ' ;\n';
+        /**
+         * THE FOLLOWING DOESN'T WORK WITH STARDOG
+         */
+        // q+= '\t\topm:arguments ( ';
+        // // Add arguments to arguments list
+        // for(var i in argumentPaths){
+        //     q+= `argumentPaths[i]`;
+        //     q+= (Number(i) == args.length-1) ? ' ) .\n' : ' ';
+        // }
+        /**
+         * INSTEAD WE WILL HAVE TO NEST THE ARGUMENT LIST
+         */
+        q += '\t\topm:argumentPaths [\n';
+        _.each(argumentPaths, function (obj, i) {
+            q += '\t\t';
+            q += _s.repeat("  ", i + 1); //two spaces
+            q += "rdf:first \"" + argumentPaths[i] + "\" ; rdf:rest ";
+            q += (argumentPaths.length == i + 1) ? 'rdf:nil\n' : '[\n';
+        });
+        _.each(argumentPaths, function (obj, i) {
+            if (i < argumentPaths.length - 1) {
+                q += '\t\t';
+                q += _s.repeat("  ", argumentPaths.length - (i + 1));
+                q += ']\n';
+            }
+        });
+        q += '\t\t] .\n';
+        q += '} WHERE {\n';
+        q += "\t#GENERATE URIs FOR NEW CLASS INSTANCE\n";
+        q += "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n";
+        q += '\t#CREATE STATE AND PROPERTY URI´s\n';
+        q += "\tBIND(URI(CONCAT(STR(\"" + hostURI + "\"), \"/Calculation/\", ?guid)) AS ?calculationURI)\n";
+        q += "\t#GET CURRENT TIME\n";
+        q += "\tBIND(now() AS ?now)\n";
+        q += '}';
         return q;
     };
     OPMCalc.prototype.checkCircularDependency = function () {

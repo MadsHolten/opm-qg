@@ -8,6 +8,7 @@ export interface ICalc {
     userURI?: string;
     prefixes?: IPrefix[];
     queryType: string;
+    calculationURI?: string;
 }
 
 export interface IProp {
