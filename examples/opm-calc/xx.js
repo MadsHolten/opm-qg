@@ -5,19 +5,44 @@ var qg = require("../../dist/index");
  * retrieving calculation data
  */
 var input = {
-    label: 'Calculation 1',
-    comment: 'A FoI having a seas:fluidSupplyTemperature and a seas:fluidReturnTemperature also has a seas:fluidTemperatureDifference given by the absolute value of the difference between the two.',
+    calculationURI: "https://localhost/opm/Calculation/eb3801a7-f6d2-4262-813e-276a05a95d03",
     expression: "abs(?ts-?tr)",
-    argumentPaths: [ "?origin seas:fluidSupplyTemperature ?ts", "?origin seas:fluidReturnTemperature ?tr" ],
-    inferredProperty: {
-        propertyURI: "seas:fluidTemperatureDifference",
-        unit: {value: "°C", datatype: "cdt:temperature"}
+    inferredProperty: "https://w3id.org/seas/fluidTemperatureDifference",
+    argumentPaths: [
+        "?foi seas:fluidSupplyTemperature ?ts .",
+        "?foi seas:fluidReturnTemperature ?tr"
+    ],
+    unit: {
+        value: "\\u00B0C",
+        datatype: "cdt:temperature"
     },
     prefixes: [
-        {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'}
-    ],
-    hostURI: "https://localhost/opm"
+        {
+            "prefix": "rdfs",
+            "uri": "http://www.w3.org/2000/01/rdf-schema#"
+        },
+        {
+            "prefix": "xsd",
+            "uri": "http://www.w3.org/2001/XMLSchema#"
+        },
+        {
+            "prefix": "prov",
+            "uri": "http://www.w3.org/ns/prov#"
+        },
+        {
+            "prefix": "sd",
+            "uri": "http://www.w3.org/ns/sparql-service-description#"
+        },
+        {
+            "prefix": "opm",
+            "uri": "https://w3id.org/opm#"
+        },
+        {
+            "prefix": "cdt",
+            "uri": "http://w3id.org/lindt/custom_datatypes#"
+        }
+    ]
 };
 var sc = new qg.OPMCalc;
-var q = sc.postCalcData(input);
+var q = sc.postCalc(input);
 console.log(q);

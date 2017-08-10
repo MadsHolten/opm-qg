@@ -181,8 +181,12 @@ var OPMCalc = (function () {
         var iDatatype = iProp.unit.datatype;
         //Add prefix(es) to the predefined ones
         if (input.prefixes) {
-            _.each(input.prefixes, function (obj) {
-                return prefixes.push(obj);
+            prefixes = prefixes.concat(input.prefixes);
+            //Remove duplicates
+            prefixes = _.map(_.groupBy(prefixes, function (obj) {
+                return obj.prefix;
+            }), function (grouped) {
+                return grouped[0];
             });
         }
         //Clean property (add triangle brackets if not prefixes)
@@ -247,6 +251,151 @@ var OPMCalc = (function () {
         q += "\tBIND(URI(CONCAT(STR(\"" + hostURI + "\"), \"/Calculation/\", ?guid)) AS ?calculationURI)\n";
         q += "\t#GET CURRENT TIME\n";
         q += "\tBIND(now() AS ?now)\n";
+        q += '}';
+        return q;
+    };
+    //Create calculation where it doesn't already exist
+    OPMCalc.prototype.postCalc = function (input) {
+        //Define variables
+        var prefixes = this.prefixes;
+        var calculationURI = input.calculationURI;
+        var expression = input.expression;
+        var argumentPaths = input.argumentPaths;
+        var argumentVars = [];
+        var iProp = input.inferredProperty;
+        var iUnit = input.unit.value;
+        var iDatatype = input.unit.datatype;
+        //Optional
+        var foiURI = input.foiURI; //If only for a specific FoI
+        //Add prefix(es) to the predefined ones
+        if (input.prefixes) {
+            prefixes = prefixes.concat(input.prefixes);
+            //Remove duplicates
+            prefixes = _.map(_.groupBy(prefixes, function (obj) {
+                return obj.prefix;
+            }), function (grouped) {
+                return grouped[0];
+            });
+        }
+        //Argument paths should not include space and dot in end
+        argumentPaths = _.map(argumentPaths, function (path) {
+            //Find last variable
+            var lastArg = '?' + _s.strRightBack(path, '?');
+            //remove things after space if any
+            if (_s.contains(lastArg, ' ')) {
+                argumentVars.push(_s.strLeftBack(lastArg, ' '));
+                return _s.strLeftBack(path, ' ');
+            }
+            argumentVars.push(lastArg);
+            return path;
+        });
+        //Clean property (add triangle brackets if not prefixes)
+        iProp = _s.startsWith(iProp, 'http') ? "<" + iProp + ">" : "" + iProp;
+        var q = '';
+        //Define prefixes
+        for (var i in prefixes) {
+            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + ">\n";
+        }
+        q += 'CONSTRUCT {\n';
+        q += "\t?foi " + iProp + " ?propertyURI .\n";
+        q += '\t?propertyURI a opm:Property ;\n';
+        q += '\t\trdfs:label "Derived Property"@en ;\n';
+        q += '\t\topm:hasState ?stateURI .\n';
+        q += '\t?stateURI a opm:State , opm:Derived ;\n';
+        q += '\t\trdfs:label "Derived State"@en ;\n';
+        q += '\t\topm:valueAtState ?res ;\n';
+        q += '\t\tprov:generatedAtTime ?now ;\n';
+        q += "\t\topm:expression \"" + expression + "\" ;\n";
+        q += "\t\tprov:wasAttributedTo <" + calculationURI + "> ;\n";
+        /**
+         * ARGUMENT PATHS
+         */
+        q += '\t\topm:argumentPaths [\n';
+        _.each(argumentPaths, function (obj, i) {
+            q += '\t\t';
+            q += _s.repeat("  ", i + 1); //two spaces
+            q += "rdf:first \"" + argumentPaths[i] + "\" ; rdf:rest ";
+            q += (argumentPaths.length == i + 1) ? 'rdf:nil\n' : '[\n';
+        });
+        _.each(argumentPaths, function (obj, i) {
+            if (i < argumentPaths.length - 1) {
+                q += '\t\t';
+                q += _s.repeat("  ", argumentPaths.length - (i + 1));
+                q += ']\n';
+            }
+        });
+        q += '\t\t] ;\n';
+        // /**
+        //  * DERIVED FROM
+        //  */
+        q += '\t\tprov:wasDerivedFrom [\n';
+        _.each(argumentPaths, function (obj, i) {
+            var _i = Number(i) + 1;
+            q += '\t\t';
+            q += _s.repeat("  ", i + 1); //two spaces
+            q += "rdf:first ?state" + _i + " ; rdf:rest ";
+            q += (argumentPaths.length == i + 1) ? 'rdf:nil\n' : '[\n';
+        });
+        _.each(argumentPaths, function (obj, i) {
+            if (i < argumentPaths.length - 1) {
+                q += '\t\t';
+                q += _s.repeat("  ", argumentPaths.length - (i + 1));
+                q += ']\n';
+            }
+        });
+        q += '\t\t] .\n';
+        // Get data
+        q += "} WHERE {\n";
+        if (foiURI) {
+            q += "BIND(" + foiURI + " AS ?foi)";
+        }
+        // Get latest evaluation of each argument
+        for (var i in argumentPaths) {
+            var _i = Number(i) + 1;
+            q += "\t#GET LATEST VALUE OF ARGUMENT " + _i + " (var " + argumentVars[i] + ")\n";
+            q += "\t{ SELECT ?foi (MAX(?_t" + _i + ") AS ?t" + _i + ") WHERE {\n";
+            q += '\t\tGRAPH ?g {\n';
+            q += "\t\t\t" + argumentPaths[i] + " .\n";
+            q += "\t\t\t" + argumentVars[i] + " opm:hasState ?state .\n";
+            q += "\t\t\t?state prov:generatedAtTime ?_t" + _i + " .\n";
+            q += '\t\t}\n';
+            q += !foiURI ? '\t} GROUP BY ?foi }\n' : '';
+        }
+        // No previous calculations must exist
+        q += '\t#NO PREVIOUS CALCULATIONS MUST EXIST\n';
+        q += '\tMINUS {\n';
+        q += '\t\tGRAPH ?g {\n';
+        q += "\t\t\t?foi " + iProp + "/opm:hasState\n";
+        q += '\t\t\t\t[ prov:generatedAtTime  ?_tc ] .\n';
+        q += '\t\t}\n';
+        q += '\t}\n';
+        // Retrieve data
+        q += '\t#GET DATA\n';
+        q += "\tGRAPH ?g {\n";
+        for (var i in argumentPaths) {
+            var _i = Number(i) + 1;
+            q += "\t\t#GET ARGUMENT " + _i + " DATA\n";
+            q += "\t\t" + argumentPaths[i] + " .\n";
+            q += "\t\t\t" + argumentVars[i] + " opm:hasState ?state" + _i + " .\n";
+            q += "\t\t?state" + _i + " prov:generatedAtTime ?t" + _i + " ;\n";
+            q += "\t\t\topm:valueAtState ?v" + _i + " .\n";
+            q += "\t\tBIND(xsd:decimal(strbefore(str(?v" + _i + "), \" \")) AS ?arg" + _i + ")\n"; //NB! might give problems with non-ucum
+        }
+        //NB! BIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/Property/", STRUUID())) AS ?propertyURI) should work - bug in Stardog
+        q += "\t\t#PERFORM CALCULATION AND SPECIFY UNIT + DATATYPE\n";
+        q += "\t\tBIND((" + expression + ") AS ?_res)\n";
+        q += "\t\tBIND(strdt(concat(str(?_res), \" " + iUnit + "\"), " + iDatatype + ") AS ?res)\n";
+        q += "\t\t#GENERATE URIs FOR NEW CLASS INSTANCES\n";
+        q += "\t\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n";
+        q += this.getHost("<" + calculationURI + ">");
+        q += '\t\t#CREATE STATE AND PROPERTY URI´s\n';
+        q += '\t\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/State/", ?guid)) AS ?stateURI)\n';
+        q += '\t\tBIND(URI(CONCAT(STR(?http), STR(?host), "/", STR(?db), "/Property/", ?guid)) AS ?propertyURI)\n';
+        q += "\t\t#HOW TO HANDLE VALIDITY?\n";
+        q += '\t\tBIND(IF(?del, true, false) AS ?del)\n';
+        q += "\t\t#GET CURRENT TIME\n";
+        q += "\t\tBIND(now() AS ?now)\n";
+        q += '\t}\n';
         q += '}';
         return q;
     };
