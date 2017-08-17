@@ -16,21 +16,19 @@ var qg = require("../../dist/index");
  * where the calculated property already exists
  */
 var input = {
-    args: [
-        { property: 'seas:fluidSupplyTemperature' },
-        { property: 'seas:fluidReturnTemperature' }
-    ],
-    result: {
-        unit: '°C',
-        datatype: 'cdt:temperature',
-        property: 'seas:fluidTemperatureDifference',
-        calc: 'abs(?arg1-?arg2)'
+    calculationURI: 'https://localhost/opm/Calculation/0c69e6a2-5146-45c3-babb-2ecea5f5d2c9',
+    expression: 'abs(?ts-?tr)',
+    inferredProperty: 'seas:fluidTemperatureDifference',
+    argumentPaths: ['?foi seas:fluidSupplyTemperature ?ts', '?foi seas:fluidReturnTemperature ?tr'],
+    unit: {
+        value: '°C',
+        datatype: 'cdt:temperature'
     },
     prefixes: [
         {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'}
     ]
 };
-var sc = new qg.OPMCalc(input);
-var q = sc.postCalc();
+var sc = new qg.OPMCalc();
+var q = sc.postCalc(input);
 //var q = sc.putCalc();
 console.log(q);

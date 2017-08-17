@@ -7,18 +7,17 @@ var qg = require("../../dist/index");
  */
 var input = {
     propertyURI: 'https://localhost/opm/Property/daca99d8-3607-4366-bc15-caca9f688b05',
+    inferredProperty: 'seas:fluidSupplyTemperature',
     userURI: 'https://niras.dk/employees/mhra',
     reliability: 'assumption',
     value: {
-        unit: 'Cel',
-        datatype: 'cdt:ucum',
-        property: 'seas:fluidSupplyTemperature',
-        value: '72'
+        value: '72 Cel',
+        datatype: 'cdt:ucum'
     },
     prefixes: [
         { prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#' }
     ]
 };
-var sc = new qg.OPMProp(input);
-var q = sc.putProp();
+var sc = new qg.OPMProp();
+var q = sc.putProp(input);
 console.log(q);

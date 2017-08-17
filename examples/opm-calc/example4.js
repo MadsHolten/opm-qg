@@ -2,19 +2,26 @@
 var qg = require("../../dist/index");
 /**
  * EXAMPLE 4
- * List outdated calculations
- * 
- * Outdated calculations are calculations where one
- * or more of the arguments have changed since last
- * time the calculation was performed.
- * 
- * Either return a full list or a list with properties
- * of a specific FoI (as shown in example)
+ * storing calculation data
  */
 var input = {
-    foiURI: 'https://localhost/opm/HeatingSystem/1',
-    queryType: 'construct'
+    args: [
+        { property: 'seas:fluidSupplyTemperature' },
+        { property: 'seas:fluidReturnTemperature' }
+    ],
+    comment: 'Just a comment',
+    userURI: 'https://www.niras.dk/employees/mhra',
+    result: {
+        unit: '°C',
+        datatype: 'cdt:temperature',
+        property: 'seas:fluidTemperatureDifference',
+        calc: 'abs(?arg1-?arg2)'
+    },
+    prefixes: [
+        {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'}
+    ],
+    hostURI: "https://localhost/opm"
 };
-var sc = new qg.OPMCalc;
-var q = sc.listOutdated(input);
+var sc = new qg.OPMCalc(input);
+var q = sc.postCalcData();
 console.log(q);

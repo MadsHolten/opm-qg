@@ -5,21 +5,19 @@ var qg = require("../../dist/index");
  * add/update property to a specific FoI
  */
 var input = {
+    foiURI: 'https://localhost/opm/HeatingSystem/908df30e-3678-431a-b60f-8b8bc49d799c',
+    inferredProperty: 'https://w3id.org/seas/fluidReturnTemperature',
     value: {
-        unit: 'Cel',
-        datatype: 'cdt:ucum',
-        //property: 'seas:fluidSupplyTemperature',
-        property: 'https://w3id.org/seas/fluidReturnTemperature',
-        value: '70'
+        value: '70 Cel',
+        datatype: 'cdt:ucum'
     },
     prefixes: [
         {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'}
     ],
-    foiURI: 'https://localhost/seas/HeatingSystem/1',
     reliability: 'assumption'
 };
 
-var sc = new qg.OPMProp(input);
-var q = sc.postFoIProp();
+var sc = new qg.OPMProp();
+var q = sc.postFoIProp(input);
 //var q = sc.putFoIProp();
 console.log(q);

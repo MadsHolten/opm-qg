@@ -2,13 +2,13 @@
 var qg = require("../../dist/index");
 /**
  * EXAMPLE 5
- * Get latest evaluation of a specific property
- * 
+ * delete a property by adding a new state with
+ * as an instance of opm:Deleted
  */
 var input = {
-    propertyURI: "https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97",
-    latest: true
+    propertyURI: 'https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97',
+    reliability: 'deleted'
 };
-var sp = new qg.OPMProp(input);
-var q = sp.getProp();
+var sc = new qg.OPMProp();
+var q = sc.setReliability(input);
 console.log(q);

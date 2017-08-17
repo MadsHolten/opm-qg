@@ -4,3 +4,4 @@ function __export(m) {
 }
 __export(require("./opm-calc"));
 __export(require("./opm-prop"));
+__export(require("./base"));

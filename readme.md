@@ -20,11 +20,10 @@ $ npm install https://github.com/MadsHolten/opm-qg.git
 **Properties**
 * **postFoIProp()** - Attach a new property to either a specific FoI or to all FoIs matching a specified pattern.
 * **putFoIProp()** - Update a property of either a specific FoI or of all FoIs matching a specified pattern.
-* **getFoIProps()** - Get properties and state values of FoI(s). Constrain to specific FoI and/or property type. Return full property history or only latest state. List only deleted, assumed or derived properties.
-* **getProp()** - Get data about a specific property. Use URL Parameter latest=true to return only the latest states.
+* **getProps()** - Get properties and state values of FoI(s). Constrain to specific FoI and/or property type. Return full property history or only latest state. List only deleted, assumed or derived properties.
 * **setReliability()** - Set the reliability of a property as either 'deleted', 'confirmed' or 'assumption'
 * **restoreProp()** - Restore a deleted property by reinferring the latest state with a value assigned to it.
-* **putProp()** - **WIP**
+* **putProp()** - Update a property
 
 ### Calculation examples
 
@@ -33,20 +32,19 @@ $ npm install https://github.com/MadsHolten/opm-qg.git
 ##### postCalc() // putCalc()
 If the property exists on the FoI itself the following input will construct a new (or update existing if using put) "seas:fluidTemperatureDifference"-property for all FoIs that have a "seas:fluidSupplyTemperature" and a "seas:fluidSupplyTemperature".
 
-The calculation is defined with the calc variable, and the arguments are referred to by their location in the args list (?arg1, ?arg2, ... ?arg:n). The result will get a unit Cel and datatype cdt:ucum. This prefix is not defined as default and must be defined under prefixes.
+The calculation is defined with the expression variable, and the arguments are defined in the argument paths as a triple pattern originating from the FoI to which the new property should be infered.
+The result will get a unit °C and datatype cdt:temperature. This prefix cdt is not defined as default and must be defined under prefixes.
 
 ```javascript
 var qg = require("opm-query-generator");
 var input = {
-    args: [
-        { property: 'seas:fluidSupplyTemperature' },
-        { property: 'seas:fluidReturnTemperature' }
-    ],
-    result: {
-        unit: 'Cel',
-        datatype: 'cdt:ucum',
-        property: 'seas:fluidTemperatureDifference',
-        calc: 'abs(?arg1-?arg2)'
+    calculationURI: 'https://localhost/opm/Calculation/0c69e6a2-5146-45c3-babb-2ecea5f5d2c9',
+    expression: 'abs(?ts-?tr)',
+    inferredProperty: 'seas:fluidTemperatureDifference',
+    argumentPaths: ['?foi seas:fluidSupplyTemperature ?ts', '?foi seas:fluidReturnTemperature ?tr'],
+    unit: {
+        value: '°C',
+        datatype: 'cdt:temperature'
     },
     prefixes: [
         {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'}
@@ -66,20 +64,18 @@ console.log(query);
 ##### postCalc() // putCalc()
 Used if the properties do not exist on the FoI itself, but exist on a FoI that has a connection to the FoI.
 
-A target path for the argument is specified. It is given by a triple pattern, and it must start with the FoI itself using the "?foi" variable. 
+An argument path for the argument is specified. It is given by a triple pattern, and it should start with the FoI itself using the "?foi" variable.
 
-The name of the target variable can be anything, but the following variables are reserved, and cannot be used:
+The name of the argument (target) variable can be anything, but the following variables are reserved, and cannot be used:
 
 *?propertyURI, ?stateURI, ?_res, ?res, ?now, ?eval:n, ?t_:n, ?t:n, ?g, ?gi, ?t_c, ?tc, ?_v:n, ?arg:n, ?guid* where :n is the number of the argument.
 
 In the example, we are looking for a property that exists on the super system of the flow system itself. 
 ```javascript
 var input = {
-    args: [
-        { property: 'seas:fluidSupplyTemperature',
-          targetPath: '?foi seas:subFlowSystemOf ?targetFoI' },
-        { property: 'seas:fluidReturnTemperature',
-          targetPath: '?foi seas:subFlowSystemOf ?targetFoI' }
+    argumentPaths: [
+        '?foi seas:subFlowSystemOf/seas:fluidSupplyTemperature ?ts', 
+        '?foi seas:subFlowSystemOf/seas:fluidReturnTemperature ?tr'
     ], ...
 };
 ```
@@ -89,18 +85,13 @@ var input = {
 ##### postCalc() // putCalc()
 Sometimes it might be necessary to specify the calculation so that it is only valid for a specific FoI. It is possible to do this by explicitly specifying a FoI URI.
 
-Properties and paths work the same way as illustrated in examples 1 and 2.
+Argument paths etc. work the same way as illustrated in examples 1 and 2.
 ```javascript
 var input = {
     ...
     foiURI: 'https://localhost/seas/HeatingSystem/6626b0b1-3578-4f1e-a6ec-91c7c59fb143', ...
 };
 ```
-
-#### Example 4
-##### List outdated
-##### listOutdated()
-Function takes no input. It just returns a full list of outdated properties.
 
 ### Property examples
 
@@ -145,8 +136,8 @@ var input = {
 ```
 
 #### Example 3
-##### Latest evaluation and value of all properties
-##### getFoIProps()
+##### Latest evaluation and value of a property of a FoI
+##### getProps()
 Returns properties, metadata about their states and the FoI to which they are assigned.
 
 Optional 'latest: true' returns only the latest state.
@@ -158,7 +149,7 @@ Optional 'propertyURI: seas:propertyType' returns only a specific property. Give
 ```javascript
 var input = {
     foiURI: "https://localhost/opm/HeatingSystem/1",
-    propertyURI: "https://w3id.org/seas/fluidSupplyTemperature",
+    property: "https://w3id.org/seas/fluidSupplyTemperature",
     language: "en",
     latest: "true",
     queryType: "construct",
@@ -167,6 +158,17 @@ var input = {
 ```
 
 #### Example 4
+##### Get single property
+##### getProps()
+Optional 'latest: true' returns only the latest state.
+```javascript
+var input = {
+    propertyURI: "https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97",
+    latest: true
+};
+```
+
+#### Example 5
 ##### Delete a property
 ##### setReliability()
 Adds a new state with the property as an instance of opm:Deleted.
@@ -174,17 +176,6 @@ Adds a new state with the property as an instance of opm:Deleted.
 var input = {
     propertyURI: 'https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97',
     reliability: 'deleted'
-};
-```
-
-#### Example 5
-##### Get single property
-##### getProp()
-Optional 'latest: true' returns only the latest state.
-```javascript
-var input = {
-    propertyURI: "https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97",
-    latest: true
 };
 ```
 
@@ -220,7 +211,7 @@ State a property as an assumption. A user URI must be assigned.
 var input = {
     propertyURI: 'https://localhost/opm/Property/3b5b00d8-9bcc-4a58-aba2-df059b5ded97',
     userURI: 'https://niras.dk/employees/mhra',
-    reliability: 'addumption'
+    reliability: 'assumption'
 };
 ```
 
@@ -233,6 +224,33 @@ var input = {
     propertyURI: 'https://localhost/opm/Property/6daf0c7a-f1cb-4a14-ac53-4156c2fe4cc1'
 };
 ```
+
+#### Example 10
+##### Update a property
+##### putProp()
+Update an existing property.
+Will not update if it is deleted or confirmed.
+```javascript
+var input = {
+    propertyURI: 'https://localhost/opm/Property/6befd4d2-eb2a-4c4d-9597-e4b612d6dfcc',
+    userURI: 'https://niras.dk/employees/mhra',
+    reliability: 'assumption',
+    value: {
+        unit: 'Cel',
+        datatype: 'cdt:ucum',
+        property: 'seas:fluidSupplyTemperature',
+        value: '72'
+    },
+    prefixes: [
+        { prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#' }
+    ]
+};
+```
+
+#### Example 11
+##### List outdated
+##### listOutdated()
+List all updated properties or just the ones related to a specific FoI given by its URI.
 
 # Calling an endpoint
 Example of how a SPARQL endpoint can be called using request-promise

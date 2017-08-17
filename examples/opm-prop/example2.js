@@ -15,11 +15,10 @@ var qg = require("../../dist/index");
  * set to 70 Cel for all FoIs of type 'seas:HeatingSystem'
  */
 var input = {
+    inferredProperty: 'https://w3id.org/seas/fluidReturnTemperature',
     value: {
-        unit: 'Cel',
-        datatype: 'cdt:ucum',
-        property: 'seas:fluidSupplyTemperature',
-        value: '70'
+        value: '70 Cel',
+        datatype: 'cdt:ucum'
     },
     prefixes: [
         {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'}
@@ -27,7 +26,7 @@ var input = {
     pattern: '?foi a seas:HeatingSystem',
     reliability: 'assumption'
 };
-var sc = new qg.OPMProp(input);
-var q = sc.putFoIProp();
+var sc = new qg.OPMProp();
+var q = sc.putFoIProp(input);
 //var q = sc.putFoIProp();
 console.log(q);

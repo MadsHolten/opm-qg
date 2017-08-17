@@ -5,7 +5,7 @@ var qg = require("../../dist/index");
  * retrieving calculation data
  */
 var input = {
-    calculationURI: "https://localhost/opm/Calculation/eb3801a7-f6d2-4262-813e-276a05a95d03",
+    calculationURI: "https://localhost/opm/Calculation/0c69e6a2-5146-45c3-babb-2ecea5f5d2c9",
     expression: "abs(?ts-?tr)",
     inferredProperty: "https://w3id.org/seas/fluidTemperatureDifference",
     argumentPaths: [
@@ -44,5 +44,5 @@ var input = {
     ]
 };
 var sc = new qg.OPMCalc;
-var q = sc.postCalc(input);
+var q = sc.putCalc(input);
 console.log(q);

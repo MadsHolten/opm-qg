@@ -6,9 +6,8 @@ var qg = require("../../dist/index");
  * 
  */
 var input = {
-    queryType: 'construct',
-    latest: true
+    propertyURI: 'https://localhost/opm/Property/52195746-4b64-40fc-99ca-5090ed11af8d'
 };
-var sc = new qg.OPMProp(input);
-var q = sc.getFoIProps();
+var sc = new qg.OPMProp();
+var q = sc.deleteProp(input);
 console.log(q);
