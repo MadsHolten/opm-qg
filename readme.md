@@ -11,6 +11,11 @@ Install it to your project
 $ npm install https://github.com/MadsHolten/opm-qg.git
 ```
 
+### Compile
+```sh
+$ tsc install https://github.com/MadsHolten/opm-qg.git
+```
+
 ### Methods
 **Calculations**
 * **postCalc()** - Checks for FoIs that match the pattern, that do not have the inferred property. Creates a property with a new URI and a first state containing calculation data + result.

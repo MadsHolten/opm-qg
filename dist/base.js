@@ -1,28 +1,38 @@
-"use strict";
 var _ = require("underscore");
+var _s = require("underscore.string");
 var BaseModel = (function () {
-    function BaseModel() {
-        //Predefined prefixes
-        this.prefixes = [
-            { prefix: 'rdf', uri: 'http://www.w3.org/1999/02/22-rdf-syntax-ns#' },
-            { prefix: 'xsd', uri: 'http://www.w3.org/2001/XMLSchema#' },
-            { prefix: 'prov', uri: 'http://www.w3.org/ns/prov#' },
-            { prefix: 'opm', uri: 'https://w3id.org/opm#' },
-            { prefix: 'seas', uri: 'https://w3id.org/seas/' },
-            { prefix: 'sd', uri: 'http://www.w3.org/ns/sparql-service-description#' }
-        ];
-        //Default query type is construct
+    function BaseModel(host, prefixes, mainGraph) {
+        // Get host
+        this.host = host;
+        // Get predefined prefixes
+        this.prefixes = require('../config.json').prefixes;
+        // Append custom prefixes
+        if (prefixes) {
+            this.prefixes = this._concatenatePrefixes(prefixes);
+        }
+        // Default query type is construct
         this.queryType = 'construct';
-        //Reliability options
-        this.reliabilityOptions = [
-            { 'key': 'deleted', 'class': 'opm:Deleted' },
-            { 'key': 'assumption', 'class': 'opm:Assumption' },
-            { 'key': 'derived', 'class': 'opm:Derived' },
-            { 'key': 'confirmed', 'class': 'opm:Confirmed' }
-        ];
+        // Query main graph as default
+        this.mainGraph = mainGraph != undefined ? mainGraph : true;
     }
-    //Concatenate new and predefined prefixes while filtering out duplicates
-    BaseModel.prototype.concatenatePrefixes = function (newPrefixes) {
+    BaseModel.prototype.addPrefix = function (prefix) {
+        this.prefixes = this._concatenatePrefixes([prefix]);
+    };
+    BaseModel.prototype.mapReliability = function (reliability) {
+        // Get reliability mappings
+        var mappings = require('../config.json').reliabilityMappings;
+        // Derived can not be set as it is only inferred for derived properties
+        var options = _.filter(mappings, function (obj) { return (obj.key != 'derived'); });
+        // Return error if 
+        if (!_.chain(options).filter(function (obj) { return (obj.key == reliability); }).first().value()) {
+            var err = "Unknown restriction. Use either " + _s.toSentence(_.pluck(options, 'key'), ', ', ' or ');
+            this.err = new Error(err);
+        }
+        // Map and return class
+        return _.chain(options).filter(function (obj) { return (obj.key == reliability); }).map(function (obj) { return obj.class; }).first().value();
+    };
+    // Concatenate new and predefined prefixes while filtering out duplicates
+    BaseModel.prototype._concatenatePrefixes = function (newPrefixes) {
         var prefixes = this.prefixes;
         if (newPrefixes) {
             prefixes = prefixes.concat(newPrefixes);
@@ -34,6 +44,40 @@ var BaseModel = (function () {
             });
         }
     };
+    BaseModel.prototype.cleanPath = function (path) {
+        if (!path)
+            return undefined;
+        // Trim spaces before and after
+        path = path.trim();
+        // Make array with sub-parts of path
+        var el = path.split(' ');
+        // Get subject and change it to ?foi if it is not already defined so
+        if (el[0] != '?foi')
+            path = path.replace(el[0], '?foi');
+        // Make sure that it ends with a .
+        if (path[path.length - 1] != '.')
+            path = path + ' .';
+        // Break at .
+        path = path.replace('.', '.\n');
+        // Break and indent at ;
+        path = path.replace(';', ';\n\t\t');
+        return path;
+    };
+    // clean URI by adding <> if it is a full URI
+    BaseModel.prototype.cleanURI = function (someURI) {
+        if (!someURI)
+            return undefined;
+        // If it doesn't contain http, just return it as is
+        if (someURI.indexOf('http') == -1) {
+            return someURI;
+        }
+        else if (someURI[0] == '<' && someURI[someURI.length - 1] == '>') {
+            return someURI;
+        }
+        else {
+            return "<" + someURI + ">";
+        }
+    };
     return BaseModel;
-}());
+})();
 exports.BaseModel = BaseModel;

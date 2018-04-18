@@ -1,13 +1,25 @@
 "use strict";
 var qg = require("../../dist/index");
-/**
- * EXAMPLE 8
- * Get latest evaluation of a specific property
- * 
- */
+
+
+var host = 'https://example.org/';
+
+var mainGraph = true;
+
+var prefixes = [
+    {prefix: 'ex', uri: 'https://example.org/'},
+    {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'},
+    {prefix: 'props', uri: 'https://w3id.org/product/props/'}
+];
+
+var qGen = new qg.OPMProp(host, prefixes, mainGraph);
+
 var input = {
-    propertyURI: 'https://localhost/opm/Property/52195746-4b64-40fc-99ca-5090ed11af8d'
+    foiURI: 'ex:FoI',
+    inferredProperty: 'props:designAmbientTemperature',
+    value: '"65 Cel"^^cdt:temperature',
+    reliability: 'assumed'
 };
-var sc = new qg.OPMProp();
-var q = sc.deleteProp(input);
+
+var q = qGen.deleteProp(input);
 console.log(q);

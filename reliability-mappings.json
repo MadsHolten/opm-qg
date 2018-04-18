@@ -1,0 +1,6 @@
+[
+    {"key": "deleted", "class": "opm:Deleted"},
+    {"key": "assumption", "class": "opm:Assumption"},
+    {"key": "derived", "class": "opm:Derived"},
+    {"key": "confirmed", "class": "opm:Confirmed"}
+]

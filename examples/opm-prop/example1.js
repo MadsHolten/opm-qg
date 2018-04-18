@@ -4,6 +4,7 @@ var qg = require("../../dist/index");
  * EXAMPLE 1
  * add/update property to a specific FoI
  */
+
 var input = {
     foiURI: 'https://localhost/opm/HeatingSystem/908df30e-3678-431a-b60f-8b8bc49d799c',
     inferredProperty: 'https://w3id.org/seas/fluidReturnTemperature',
