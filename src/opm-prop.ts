@@ -465,10 +465,10 @@ export class OPMProp extends BaseModel {
 
         // Retrieve and process variables
         var comment = input.comment;
-        var propertyURI = input.propertyURI;
+        var propertyURI = this.cleanURI(input.propertyURI);
         var reliability = input.reliability;
         var reliabilityClass = reliability ? this.mapReliability(reliability) : null; // Map reliability class if given
-        var userURI = this.cleanPath(input.userURI);
+        var userURI = this.cleanURI(input.userURI);
         var queryType = input.queryType ? input.queryType : this.queryType;     // Get default if not defined
 
         if(!userURI && reliability == 'confirmed') this.err = new Error("A user must be atrributed to a confirmed value. Please specify a userURI");
@@ -496,25 +496,23 @@ export class OPMProp extends BaseModel {
             q+= '}\n' +
                 'INSERT {\n';
             if(!this.mainGraph) q+= `\tGRAPH <${host}> {\n`;
-            q+= `${b}\t?previousState a opm:State .`;
+            q+= `${b}\t?previousState a opm:State .\n`;
         }
 
-        q+= `${b}${d}\t?propertyURI opm:hasState ?stateURI .\n`;
+        q+= `${b}${d}?propertyURI opm:hasState ?stateURI .\n`;
 
         //Assign value directly to property when confirmed?
         //Mark property as confirmed?
 
-        if(comment) q+= `${b}${d}\t?stateURI rdfs:comment "${comment}" .\n`;
+        if(comment) q+= `${b}${d}?stateURI rdfs:comment "${comment}" .\n`;
 
-        q+= `${b}${d}\t?stateURI a opm:CurrentState , ${reliabilityClass} ;\n`;
+        q+= `${b}${d}?stateURI a opm:CurrentState , ?reliabilityClass ;\n` +
+            `${b}${d}\t?key ?val ;\n`;
 
-        if(userURI) q+= `${d}\t\tprov:wasAttributedTo ?userURI ;\n`;
-        if(comment) q+= `${d}\t\trdfs:comment ?comment ;\n`;
+        if(userURI) q+= `${d}\tprov:wasAttributedTo ?userURI ;\n`;
+        if(comment) q+= `${d}\trdfs:comment ?comment ;\n`;
 
-        q+= `${b}${d}\t\tprov:generatedAtTime ?now .\n`;
-
-        //Deleted states don't have a value
-        if(reliability != 'deleted') q+= '\t\t?stateURI opm:valueAtState ?value .\n';
+        q+= `${b}${d}\tprov:generatedAtTime ?now .\n`;
 
         if(!this.mainGraph) q+= c; // Named graph
         q+= '}\n' +
@@ -525,35 +523,34 @@ export class OPMProp extends BaseModel {
         if(comment) q+= `${d}\tBIND("${comment}" AS ?comment)\n`;
 
         //Set for specific propertyURI
-        q+= `${b}\tBIND(<${propertyURI}> AS ?propertyURI)\n\n`;
-        //Get latest state
+        q+= `${b}\tBIND(${propertyURI} AS ?propertyURI)\n` +
+            `${b}\tBIND(${reliabilityClass} AS ?reliabilityClass)\n\n`
 
-        //Make sure it is not deleted or confirmed and get data
+        q+= `${b}\t# CREATE URI FOR NEW STATE\n` +
+        `${b}\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n` +
+        `${b}\tBIND(URI(CONCAT("${host}", "State/", ?guid)) AS ?stateURI)\n` +
+        `${b}\tBIND(now() AS ?now)\n\n`;
+
+        //Make sure latest state it is not deleted or confirmed and get data
         q+= `${b}\t# A STATE MUST EXIST AND MUST NOT BE DELETED OR CONFIRMED\n` +
             `${b}\t?propertyURI opm:hasState ?previousState .\n` +
             `${b}\t?previousState a opm:CurrentState ;\n` +
-            `${b}\t\tprov:generatedAtTime ?t .\n`;
+            `${b}\t\t?key ?val .\n\n` +
 
-        if(reliability != 'deleted') q+= `${b}\t?previousState opm:valueAtState ?value .\n\n`;
+            `${b}\t# PREVIOUS OPM CLASSES SHOULD NOT BE COPIED\n` +
+            `${b}\tFILTER(namespace(?val) != "https://w3id.org/opm#")\n\n` +
 
-        q+= `${b}\t# CAN'T CHANGE STATE IF DELETED OR CONFIRMED\n` +
+            `${b}\t# CANNOT CHANGE STATE IF DELETED OR CONFIRMED\n` +
             `${b}\tMINUS { ?previousState a opm:Deleted }\n` +
-            `${b}\tMINUS { ?previousState a opm:Confirmed }\n\n`;
+            `${b}\tMINUS { ?previousState a opm:Confirmed }\n\n` +
 
-        if(reliability == 'assumption'){
-            q+= `${b}\t# CANNOT BE AN ASSUMPTION ALREADY\n`;
-            q+= `${b}\tMINUS { ?state a opm:Assumption }\n\n`;
-        }
+            `${b}\t# SHOULD BE DIFFERENT FROM PREVIOUS STATE\n` +
+            `${b}\tMINUS { ?previousState a ?reliabilityClass }\n\n` +
 
-        // Omit derived values (these are confirmed when all arguments are confirmed)
-        q+= `${b}\t# A DERIVED PROPERTY CAN'T BE CONFIRMED - ARGUMENTS ARE CONFIRMED\n` +
+            // Omit derived values (these are confirmed when all arguments are confirmed)
+            `${b}\t# RELIABILITY OF A DERIVED PROPERTY CANNOT BE SET - IT IS INFERRED\n` +
             `${b}\tMINUS { ?state a opm:Derived }\n` +
-            `${b}\tMINUS { ?state prov:wasDerivedFrom ?dependencies }\n\n` +
-
-            `${b}\t# CREATE STATE URI\n` +
-            `${b}\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n` +
-            `${b}\tBIND(URI(CONCAT("${host}", "State/", ?guid)) AS ?stateURI)\n` +
-            `${b}\tBIND(now() AS ?now)\n`;
+            `${b}\tMINUS { ?state prov:wasDerivedFrom ?dependencies }\n\n`;
 
         if(!this.mainGraph) q+= c; // Named graph
         q+= '}';
@@ -641,12 +638,13 @@ export class OPMProp extends BaseModel {
             `${b}\t\t?key ?val\n` +
             `${b}\t]\n\n` +
 
-            `${b}\t# DON NOT RESTORE GENERATION TIME\n` +
-            `${b}\tFILTER(?key != prov:generatedAtTime)\n\n`;
+            `${b}\t# DON NOT RESTORE GENERATION TIME AND DELETED CLASS\n` +
+            `${b}\tFILTER(?key != prov:generatedAtTime)\n` +
+            `${b}\tFILTER(?val != opm:Deleted)\n\n`;
 
         if(queryType != 'construct'){
             q+= `${b}\t# GET DELETED STATE\n`;
-            q+= `${b}\t?propURI seas:evaluation ?previousState .\n`;
+            q+= `${b}\t?propURI opm:hasState ?previousState .\n`;
             q+= `${b}\t?previousState a opm:CurrentState .\n\n`;
         }
 

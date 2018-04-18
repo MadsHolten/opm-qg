@@ -321,7 +321,6 @@ describe("Test property update - main graph", () => {
             }`;
     
             const res = await query.execute(conn, dbName, q);
-            // console.log(res.body.results.bindings[0]);
     
             expect(res).to.have.property('status').that.is.equals(200);     // Should return status 200
             expect(res.body.results.bindings[0].count.value).to.equal('2'); // Should have count = 2
@@ -417,7 +416,6 @@ describe("Test property delete/restore - main graph", () => {
         };
         
         var q = qGen.putProp(input);
-        //console.log(q);
 
         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
@@ -452,7 +450,7 @@ describe("Test property delete/restore - main graph", () => {
     });
 
     /**
-     * The property should now hold 3 states:
+     * The property should now hold 4 states:
      * 1) Initial state from when it was created
      * 2) State from when it was updated
      * 3) State from when it was deleted
@@ -465,7 +463,7 @@ describe("Test property delete/restore - main graph", () => {
         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
         expect(res).to.have.property('status').that.is.equals(200);                 // Should return status 200
-        expect(res).to.have.property('body').to.be.an('array').to.have.length(5);   // Should return a body with length 6 (foiURI+propURI+4stateURI)
+        expect(res).to.have.property('body').to.be.an('array').to.have.length(6);   // Should return a body with length 6 (foiURI+propURI+4stateURI)
 
     });
 
@@ -495,17 +493,41 @@ describe("Property reliability - main graph", () => {
         
         var q = qGen.setReliability(input);
 
-        console.log(q);
+        const res = await query.execute(conn, dbName, q, 'application/ld+json');
+        
+        expect(res).to.have.property('status').that.is.equals(200);                 // Should return status 200
+        expect(res).to.have.property('body').to.be.an('array').to.have.length(2);   // Should return a body with length 2 (propURI+stateURI)
 
     });
 
-    // it("Set reliability to 'confirmed' (INSERT)", async () => {
+    it("Set reliability to 'confirmed' (INSERT)", async () => {
         
-    //     var q = qGen.confirmProperty(propURI);
+        var q = qGen.confirmProperty(propURI,'http://niras.dk/employees/mhra');
 
-    //     console.log(q);
+        const res = await query.execute(conn, dbName, q);
+        
+        expect(res).to.have.property('status').that.is.equals(200);                 // Should return status 200
 
-    // });
+    });
+
+    /**
+     * The property should now hold 5 states:
+     * 1) Initial state from when it was created
+     * 2) State from when it was updated
+     * 3) State from when it was deleted
+     * 4) State from when it was restored
+     * 5) State from when the reliability was set to confirmed
+     */
+    it('Validate property history', async () => {
+        
+        var q = qGen.getPropertyHistory(propURI);
+
+        const res = await query.execute(conn, dbName, q, 'application/ld+json');
+
+        expect(res).to.have.property('status').that.is.equals(200);                 // Should return status 200
+        expect(res).to.have.property('body').to.be.an('array').to.have.length(7);   // Should return a body with length 7 (foiURI+propURI+5stateURI)
+
+    });
 
 });
 

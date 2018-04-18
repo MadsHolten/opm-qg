@@ -348,8 +348,8 @@ var OPMProp = (function (_super) {
             q += d + "\t\tprov:wasAttributedTo ?userURI ;\n";
         if (comment)
             q += d + "\t\trdfs:comment ?comment ;\n";
-        q += "" + b + d + "\t\topm:valueAtState ?val ;\n";
-        q += "" + b + d + "\t\tprov:generatedAtTime ?now .\n";
+        q += ("" + b + d + "\t\topm:valueAtState ?val ;\n") +
+            ("" + b + d + "\t\tprov:generatedAtTime ?now .\n");
         if (!this.mainGraph)
             q += c;
         q += '}\n';
@@ -365,23 +365,23 @@ var OPMProp = (function (_super) {
             q += d + "\tBIND(" + userURI + " AS ?userURI)\n";
         if (comment)
             q += d + "\tBIND(\"" + comment + "\" AS ?comment)\n";
-        q += b + "\tBIND(" + value + " AS ?val)\n\n";
-        q += b + "\t# GET DATA FROM LATEST STATE\n";
+        q += (b + "\tBIND(" + value + " AS ?val)\n\n") +
+            (b + "\t# GET DATA FROM LATEST STATE\n");
         if (!propertyURI)
             q += b + "\t?foi " + property + " ?propertyURI .\n";
-        q += b + "\t?propertyURI opm:hasState ?previousState .\n";
-        q += b + "\t?previousState a opm:CurrentState ;\n";
-        q += b + "\t\t\topm:valueAtState ?previousVal .\n\n";
+        q += (b + "\t?propertyURI opm:hasState ?previousState .\n") +
+            (b + "\t?previousState a opm:CurrentState ;\n") +
+            (b + "\t\t\topm:valueAtState ?previousVal .\n\n");
         //if(path) q+= `\t\t\t${path}\n\n`;
-        q += b + "\t# FILTER OUT DELETED OR CONFIRMED\n";
-        q += b + "\tMINUS{ ?previousState a opm:Deleted }\n";
-        q += b + "\tMINUS{ ?previousState a opm:Confirmed }\n\n";
-        q += b + "\t#VALUE SHOULD BE DIFFERENT FROM THE PREVIOUS\n";
-        q += b + "\tFILTER(?previousVal != ?val)\n";
-        q += b + "\t#CREATE STATE URIs\n";
-        q += b + "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n";
-        q += b + "\tBIND(URI(CONCAT(\"" + host + "\", \"State/\", ?guid)) AS ?stateURI)\n";
-        q += b + "\tBIND(now() AS ?now)\n";
+        q += (b + "\t# FILTER OUT DELETED OR CONFIRMED\n") +
+            (b + "\tMINUS{ ?previousState a opm:Deleted }\n") +
+            (b + "\tMINUS{ ?previousState a opm:Confirmed }\n\n") +
+            (b + "\t#VALUE SHOULD BE DIFFERENT FROM THE PREVIOUS\n") +
+            (b + "\tFILTER(?previousVal != ?val)\n") +
+            (b + "\t#CREATE STATE URIs\n") +
+            (b + "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"State/\", ?guid)) AS ?stateURI)\n") +
+            (b + "\tBIND(now() AS ?now)\n");
         q += c; // Named graph
         q += "}";
         if (this.err) {
@@ -398,10 +398,10 @@ var OPMProp = (function (_super) {
         var prefixes = this.prefixes;
         // Retrieve and process variables
         var comment = input.comment;
-        var propertyURI = input.propertyURI;
+        var propertyURI = this.cleanURI(input.propertyURI);
         var reliability = input.reliability;
         var reliabilityClass = reliability ? this.mapReliability(reliability) : null; // Map reliability class if given
-        var userURI = this.cleanPath(input.userURI);
+        var userURI = this.cleanURI(input.userURI);
         var queryType = input.queryType ? input.queryType : this.queryType; // Get default if not defined
         if (!userURI && reliability == 'confirmed')
             this.err = new Error("A user must be atrributed to a confirmed value. Please specify a userURI");
@@ -427,60 +427,56 @@ var OPMProp = (function (_super) {
             q += b + "\t?previousState a opm:CurrentState .\n";
             if (!this.mainGraph)
                 q += c;
-            q += '}\n';
-            q += 'INSERT {\n';
+            q += '}\n' +
+                'INSERT {\n';
             if (!this.mainGraph)
                 q += "\tGRAPH <" + host + "> {\n";
-            q += b + "\t?previousState a opm:State .";
+            q += b + "\t?previousState a opm:State .\n";
         }
-        q += "" + b + d + "\t?propertyURI opm:hasState ?stateURI .\n";
+        q += "" + b + d + "?propertyURI opm:hasState ?stateURI .\n";
         //Assign value directly to property when confirmed?
         //Mark property as confirmed?
         if (comment)
-            q += "" + b + d + "\t?stateURI rdfs:comment \"" + comment + "\" .\n";
-        q += "" + b + d + "\t?stateURI a opm:CurrentState , " + reliabilityClass + " ;\n";
+            q += "" + b + d + "?stateURI rdfs:comment \"" + comment + "\" .\n";
+        q += ("" + b + d + "?stateURI a opm:CurrentState , ?reliabilityClass ;\n") +
+            ("" + b + d + "\t?key ?val ;\n");
         if (userURI)
-            q += d + "\t\tprov:wasAttributedTo ?userURI ;\n";
+            q += d + "\tprov:wasAttributedTo ?userURI ;\n";
         if (comment)
-            q += d + "\t\trdfs:comment ?comment ;\n";
-        q += "" + b + d + "\t\tprov:generatedAtTime ?now .\n";
-        //Deleted states don't have a value
-        if (reliability != 'deleted')
-            q += '\t\t?stateURI opm:valueAtState ?value .\n';
+            q += d + "\trdfs:comment ?comment ;\n";
+        q += "" + b + d + "\tprov:generatedAtTime ?now .\n";
         if (!this.mainGraph)
             q += c; // Named graph
-        q += '}\n';
-        q += 'WHERE {\n';
+        q += '}\n' +
+            'WHERE {\n';
         q += a; // Named graph
         if (userURI)
             q += d + "\tBIND(" + userURI + " AS ?userURI)\n";
         if (comment)
             q += d + "\tBIND(\"" + comment + "\" AS ?comment)\n";
         //Set for specific propertyURI
-        q += b + "\tBIND(<" + propertyURI + "> AS ?propertyURI)\n\n";
-        //Get latest state
-        //Make sure it is not deleted or confirmed and get data
-        q += b + "\t# A STATE MUST EXIST AND MUST NOT BE DELETED OR CONFIRMED\n";
-        q += b + "\t?propertyURI opm:hasState ?previousState .\n";
-        q += b + "\t?previousState a opm:CurrentState ;\n";
-        q += b + "\t\tprov:generatedAtTime ?t .\n";
-        if (reliability != 'deleted')
-            q += b + "\t?previousState opm:valueAtState ?value .\n\n";
-        q += b + "\t# CAN'T CHANGE STATE IF DELETED OR CONFIRMED\n";
-        q += b + "\tMINUS { ?previousState a opm:Deleted }\n";
-        q += b + "\tMINUS { ?previousState a opm:Confirmed }\n\n";
-        if (reliability == 'assumption') {
-            q += b + "\t# CANNOT BE AN ASSUMPTION ALREADY\n";
-            q += b + "\tMINUS { ?state a opm:Assumption }\n\n";
-        }
-        // Omit derived values (these are confirmed when all arguments are confirmed)
-        q += b + "\t# A DERIVED PROPERTY CAN'T BE CONFIRMED - ARGUMENTS ARE CONFIRMED\n";
-        q += b + "\tMINUS { ?state a opm:Derived }\n";
-        q += b + "\tMINUS { ?state prov:wasDerivedFrom ?dependencies }\n\n";
-        q += b + "\t# CREATE STATE URI\n";
-        q += b + "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n";
-        q += b + "\tBIND(URI(CONCAT(\"" + host + "\", \"State/\", ?guid)) AS ?stateURI)\n";
-        q += b + "\tBIND(now() AS ?now)\n";
+        q += (b + "\tBIND(" + propertyURI + " AS ?propertyURI)\n") +
+            (b + "\tBIND(" + reliabilityClass + " AS ?reliabilityClass)\n\n");
+        q += (b + "\t# CREATE URI FOR NEW STATE\n") +
+            (b + "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"State/\", ?guid)) AS ?stateURI)\n") +
+            (b + "\tBIND(now() AS ?now)\n\n");
+        //Make sure latest state it is not deleted or confirmed and get data
+        q += (b + "\t# A STATE MUST EXIST AND MUST NOT BE DELETED OR CONFIRMED\n") +
+            (b + "\t?propertyURI opm:hasState ?previousState .\n") +
+            (b + "\t?previousState a opm:CurrentState ;\n") +
+            (b + "\t\t?key ?val .\n\n") +
+            (b + "\t# PREVIOUS OPM CLASSES SHOULD NOT BE COPIED\n") +
+            (b + "\tFILTER(namespace(?val) != \"https://w3id.org/opm#\")\n\n") +
+            (b + "\t# CANNOT CHANGE STATE IF DELETED OR CONFIRMED\n") +
+            (b + "\tMINUS { ?previousState a opm:Deleted }\n") +
+            (b + "\tMINUS { ?previousState a opm:Confirmed }\n\n") +
+            (b + "\t# SHOULD BE DIFFERENT FROM PREVIOUS STATE\n") +
+            (b + "\tMINUS { ?previousState a ?reliabilityClass }\n\n") +
+            // Omit derived values (these are confirmed when all arguments are confirmed)
+            (b + "\t# RELIABILITY OF A DERIVED PROPERTY CANNOT BE SET - IT IS INFERRED\n") +
+            (b + "\tMINUS { ?state a opm:Derived }\n") +
+            (b + "\tMINUS { ?state prov:wasDerivedFrom ?dependencies }\n\n");
         if (!this.mainGraph)
             q += c; // Named graph
         q += '}';
@@ -520,8 +516,8 @@ var OPMProp = (function (_super) {
             q += b + "\t?previousState a opm:CurrentState .\n";
             if (!mainGraph)
                 q += c;
-            q += '}\n';
-            q += 'INSERT {\n';
+            q += '}\n' +
+                'INSERT {\n';
             if (!mainGraph)
                 q += "\tGRAPH <" + host + "> {\n";
             q += b + "\t?previousState a opm:State .\n";
@@ -532,12 +528,12 @@ var OPMProp = (function (_super) {
             q += d + "\t\tprov:wasAttributedTo ?userURI ;\n";
         if (comment)
             q += d + "\t\trdfs:comment ?comment ;\n";
-        q += '\t\tprov:generatedAtTime ?now ;\n';
-        q += '\t\t?key ?val .\n';
+        q += '\t\tprov:generatedAtTime ?now ;\n' +
+            '\t\t?key ?val .\n';
         if (!this.mainGraph)
             q += c; // Named graph
-        q += '}\n';
-        q += 'WHERE {\n';
+        q += '}\n' +
+            'WHERE {\n';
         q += a;
         if (userURI)
             q += d + "\tBIND(" + userURI + " AS ?userURI)\n";
@@ -545,28 +541,29 @@ var OPMProp = (function (_super) {
             q += d + "\tBIND(\"" + comment + "\" AS ?comment)\n";
         if (propertyURI)
             q += b + "\tBIND(" + propertyURI + " as ?propURI)\n\n";
-        q += '\t# CREATE STATE URI\n';
-        q += '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n';
-        q += "\tBIND(URI(CONCAT(\"" + host + "\", \"State/\", ?guid)) AS ?stateURI)\n";
-        q += '\tBIND(now() AS ?now)\n\n';
-        //Get latest state
-        q += b + "\t# GET THE TIME STAMP OF MOST RECENT PROPERTY THAT IS NOT DELETED\n";
-        q += b + "\t{ SELECT ?propURI (MAX(?_t) AS ?t) WHERE {\n";
-        q += b + "\t\t?propURI opm:hasState ?state .\n";
-        q += b + "\t\t?state prov:generatedAtTime ?_t .\n";
-        q += b + "\t\tMINUS { ?state a opm:Deleted }\n";
-        q += b + "\t} GROUP BY ?propURI }\n\n";
-        //Get data
-        q += b + "\t#GET DATA\n";
-        q += b + "\t?propURI opm:hasState [\n";
-        q += b + "\t\tprov:generatedAtTime ?t ;\n";
-        q += b + "\t\t?key ?val\n";
-        q += b + "\t]\n\n";
-        q += b + "\t# DON NOT RESTORE GENERATION TIME\n";
-        q += b + "\tFILTER(?key != prov:generatedAtTime)\n\n";
+        q += '\t# CREATE STATE URI\n' +
+            '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n' +
+            ("\tBIND(URI(CONCAT(\"" + host + "\", \"State/\", ?guid)) AS ?stateURI)\n") +
+            '\tBIND(now() AS ?now)\n\n' +
+            //Get latest state
+            (b + "\t# GET THE TIME STAMP OF MOST RECENT PROPERTY THAT IS NOT DELETED\n") +
+            (b + "\t{ SELECT ?propURI (MAX(?_t) AS ?t) WHERE {\n") +
+            (b + "\t\t?propURI opm:hasState ?state .\n") +
+            (b + "\t\t?state prov:generatedAtTime ?_t .\n") +
+            (b + "\t\tMINUS { ?state a opm:Deleted }\n") +
+            (b + "\t} GROUP BY ?propURI }\n\n") +
+            //Get data
+            (b + "\t#GET DATA\n") +
+            (b + "\t?propURI opm:hasState [\n") +
+            (b + "\t\tprov:generatedAtTime ?t ;\n") +
+            (b + "\t\t?key ?val\n") +
+            (b + "\t]\n\n") +
+            (b + "\t# DON NOT RESTORE GENERATION TIME AND DELETED CLASS\n") +
+            (b + "\tFILTER(?key != prov:generatedAtTime)\n") +
+            (b + "\tFILTER(?val != opm:Deleted)\n\n");
         if (queryType != 'construct') {
             q += b + "\t# GET DELETED STATE\n";
-            q += b + "\t?propURI seas:evaluation ?previousState .\n";
+            q += b + "\t?propURI opm:hasState ?previousState .\n";
             q += b + "\t?previousState a opm:CurrentState .\n\n";
         }
         if (!this.mainGraph)
@@ -604,14 +601,14 @@ var OPMProp = (function (_super) {
             q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + "> \n";
         }
         if (queryType == 'construct') {
-            q += '\nCONSTRUCT {\n';
-            q += '\t?foi ?property ?propertyURI .\n';
-            q += '\t?propertyURI opm:hasState ?state ';
+            q += '\nCONSTRUCT {\n' +
+                '\t?foi ?property ?propertyURI .\n' +
+                '\t?propertyURI opm:hasState ?state ';
             q += this.mainGraph ? '.\n' : ';\n\t\tsd:namedGraph ?g .\n';
-            q += '\t?state prov:generatedAtTime ?ts ;\n';
-            q += '\t\ta ?stateClasses ;\n';
-            q += '\t\topm:valueAtState ?value .\n';
-            q += '}\n';
+            q += '\t?state prov:generatedAtTime ?ts ;\n' +
+                '\t\ta ?stateClasses ;\n' +
+                '\t\topm:valueAtState ?value .\n' +
+                '}\n';
         }
         else {
             q += "SELECT DISTINCT ?foi ?property ?propertyURI ?value (?ts AS ?timestamp) (?state AS ?stateURI) ?label (?g AS ?graphURI)\n";
@@ -632,23 +629,23 @@ var OPMProp = (function (_super) {
         if (propertyURI)
             q += b + "\tBIND(" + propertyURI + " AS ?propertyURI)\n";
         q += "\n";
-        q += b + "\t?foi ?property ?propertyURI .\n";
-        q += b + "\t?propertyURI opm:hasState ?state .\n\n";
+        q += (b + "\t?foi ?property ?propertyURI .\n") +
+            (b + "\t?propertyURI opm:hasState ?state .\n\n");
         if (latest) {
-            q += b + "\t# GET ONLY THE LATEST STATE\n";
-            q += b + "\t?state a opm:CurrentState .\n\n";
+            q += (b + "\t# GET ONLY THE LATEST STATE\n") +
+                (b + "\t?state a opm:CurrentState .\n\n");
         }
-        q += b + "\t?state prov:generatedAtTime ?ts ;\n";
-        q += b + "\t\ta ?stateClasses .\n";
-        q += b + "\tOPTIONAL{ ?state opm:valueAtState ?value . }\n\n";
+        q += (b + "\t?state prov:generatedAtTime ?ts ;\n") +
+            (b + "\t\ta ?stateClasses .\n") +
+            (b + "\tOPTIONAL{ ?state opm:valueAtState ?value . }\n\n");
         // If restriction = deleted or querying for the full history, return also the opm:Deleted
         if (restriction != 'deleted' && latest) {
-            q += b + "\t# FILTER OUT DELETED PROPERTIES\n";
-            q += b + "\tMINUS{ ?state a opm:Deleted }\n\n";
+            q += (b + "\t# FILTER OUT DELETED PROPERTIES\n") +
+                (b + "\tMINUS{ ?state a opm:Deleted }\n\n");
         }
         if (restriction) {
-            q += b + "\t# RESTRICT VALUES\n";
-            q += b + "\t?state a " + restrictionClass + " .\n";
+            q += (b + "\t# RESTRICT VALUES\n") +
+                (b + "\t?state a " + restrictionClass + " .\n");
         }
         // q+= `\t#RETRIEVE LABEL FROM ONTOLOGY IF AVAILABLE\n`;
         // q+= `\tOPTIONAL{\n`;
