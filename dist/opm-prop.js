@@ -232,7 +232,7 @@ var OPMProp = (function (_super) {
         var foiURI = this.cleanURI(input.foiURI);
         var path = input.path ? this.cleanPath(input.path) : '?foi ?p ?o .\n';
         var reliability = input.reliability;
-        var userURI = this.cleanPath(input.userURI);
+        var userURI = this.cleanURI(input.userURI);
         var comment = input.comment;
         var reliabilityClass = reliability ? this.mapReliability(reliability) : null; // Map reliability class if given
         var queryType = input.queryType ? input.queryType : this.queryType; // Get default if not defined
@@ -264,18 +264,18 @@ var OPMProp = (function (_super) {
             if (!this.mainGraph)
                 q += "\tGRAPH <" + host + "> {\n";
         }
-        q += (d + "\t?foi " + property + " ?propertyURI .\n") +
-            (d + "\t?propertyURI a opm:Property ;\n") +
-            (d + "\t\topm:hasState ?stateURI .\n");
+        q += ("" + b + d + "\t?foi " + property + " ?propertyURI .\n") +
+            ("" + b + d + "\t?propertyURI a opm:Property ;\n") +
+            ("" + b + d + "\t\topm:hasState ?stateURI .\n");
         if (reliabilityClass)
-            q += d + "\t?stateURI a " + reliabilityClass + " .\n";
-        q += d + "\t?stateURI a opm:CurrentState ;\n";
+            q += "" + b + d + "\t?stateURI a " + reliabilityClass + " .\n";
+        q += "" + b + d + "\t?stateURI a opm:CurrentState ;\n";
         if (userURI)
-            q += d + "\t\tprov:wasAttributedTo ?userURI ;\n";
+            q += "" + b + d + "\t\tprov:wasAttributedTo ?userURI ;\n";
         if (comment)
-            q += d + "\t\trdfs:comment ?comment ;\n";
-        q += (d + "\t\topm:valueAtState ?val ;\n") +
-            (d + "\t\tprov:generatedAtTime ?now .\n");
+            q += "" + b + d + "\t\trdfs:comment ?comment ;\n";
+        q += ("" + b + d + "\t\topm:valueAtState ?val ;\n") +
+            ("" + b + d + "\t\tprov:generatedAtTime ?now .\n");
         if (!this.mainGraph)
             q += c;
         q += '}\n';
@@ -298,8 +298,8 @@ var OPMProp = (function (_super) {
             (b + "\tMINUS { ?foi " + property + " ?prop . }\n\n") +
             (b + "\t# CREATE STATE AND PROPERTY URIs\n") +
             (b + "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n\n") +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"State/\", ?guid)) AS ?stateURI)\n") +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"Property/\", ?guid)) AS ?propertyURI)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", ?guid)) AS ?stateURI)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"property_\", ?guid)) AS ?propertyURI)\n") +
             (b + "\tBIND(now() AS ?now)\n");
         q += c;
         q += "}";
@@ -316,10 +316,10 @@ var OPMProp = (function (_super) {
         var propertyURI = this.cleanURI(input.propertyURI); // OPTION 1
         var foiURI = this.cleanURI(input.foiURI); // OPTION 2
         var property = input.property; // OPTION 2
-        var path = input.path; // OPTION 3
+        var path = this.cleanPath(input.path); // OPTION 3
         var reliability = input.reliability;
         var reliabilityClass = reliability ? this.mapReliability(reliability) : null; // Map reliability class if given
-        var userURI = this.cleanPath(input.userURI);
+        var userURI = this.cleanURI(input.userURI);
         var comment = input.comment;
         var queryType = input.queryType ? input.queryType : this.queryType; // Get default if not defined
         // Either foiURI/property pair, propertyURI or path must be specified
@@ -338,8 +338,6 @@ var OPMProp = (function (_super) {
         }
         if (reliabilityClass instanceof Error)
             return reliabilityClass;
-        // Clean path
-        path = path ? this.cleanPath(path) : '?foi ?p ?o .';
         // Clean property (add triangle brackets if not prefixed)
         property = _s.startsWith(property, 'http') ? "<" + property + ">" : "" + property;
         var q = '';
@@ -392,14 +390,15 @@ var OPMProp = (function (_super) {
             q += d + "\tBIND(" + userURI + " AS ?userURI)\n";
         if (comment)
             q += d + "\tBIND(\"" + comment + "\" AS ?comment)\n";
-        q += (b + "\tBIND(" + value + " AS ?val)\n\n") +
-            (b + "\t# GET DATA FROM LATEST STATE\n");
+        q += b + "\tBIND(" + value + " AS ?val)\n\n";
+        if (path)
+            q += "\t\t\t" + path + "\n\n";
+        q += b + "\t# GET DATA FROM LATEST STATE\n";
         if (!propertyURI)
             q += b + "\t?foi " + property + " ?propertyURI .\n";
         q += (b + "\t?propertyURI opm:hasState ?previousState .\n") +
             (b + "\t?previousState a opm:CurrentState ;\n") +
             (b + "\t\t\topm:valueAtState ?previousVal .\n\n");
-        //if(path) q+= `\t\t\t${path}\n\n`;
         q += (b + "\t# FILTER OUT DELETED OR CONFIRMED\n") +
             (b + "\tMINUS{ ?previousState a opm:Deleted }\n") +
             (b + "\tMINUS{ ?previousState a opm:Confirmed }\n\n") +
@@ -407,7 +406,7 @@ var OPMProp = (function (_super) {
             (b + "\tFILTER(?previousVal != ?val)\n") +
             (b + "\t# CREATE STATE URIs\n") +
             (b + "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n") +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"State/\", ?guid)) AS ?stateURI)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", ?guid)) AS ?stateURI)\n") +
             (b + "\tBIND(now() AS ?now)\n");
         q += c; // Named graph
         q += "}";
@@ -488,7 +487,7 @@ var OPMProp = (function (_super) {
             (b + "\tBIND(" + reliabilityClass + " AS ?reliabilityClass)\n\n");
         q += (b + "\t# CREATE URI FOR NEW STATE\n") +
             (b + "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n") +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"State/\", ?guid)) AS ?stateURI)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", ?guid)) AS ?stateURI)\n") +
             (b + "\tBIND(now() AS ?now)\n\n");
         //Make sure latest state it is not deleted or confirmed and get data
         q += (b + "\t# A STATE MUST EXIST AND MUST NOT BE DELETED OR CONFIRMED\n") +
@@ -569,7 +568,7 @@ var OPMProp = (function (_super) {
             q += b + "\tBIND(" + propertyURI + " as ?propURI)\n\n";
         q += '\t# CREATE STATE URI\n' +
             '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n' +
-            ("\tBIND(URI(CONCAT(\"" + host + "\", \"State/\", ?guid)) AS ?stateURI)\n") +
+            ("\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", ?guid)) AS ?stateURI)\n") +
             '\tBIND(now() AS ?now)\n\n' +
             //Get latest state
             (b + "\t# GET THE TIME STAMP OF MOST RECENT PROPERTY THAT IS NOT DELETED\n") +

@@ -63,10 +63,50 @@ var BaseModel = (function () {
         path = path.replace(';', ';\n\t\t');
         return path;
     };
-    //Clean argument paths and return the variables used for the arguments
+    // Extracts the unique SPARQL variables from a string
+    // Optionally, give it an array to include in the search
+    BaseModel.prototype.uniqueVarsInString = function (str, array) {
+        if (!array)
+            array = [];
+        var regex = /\?[a-zA-Z]+/g;
+        var m;
+        while ((m = regex.exec(str)) !== null) {
+            // This is necessary to avoid infinite loops with zero-width matches
+            if (m.index === regex.lastIndex) {
+                regex.lastIndex++;
+            }
+            // The result can be accessed through the `m`-variable.
+            m.forEach(function (match, groupIndex) {
+                if (array.indexOf(match) == -1) {
+                    array.push(match);
+                }
+            });
+        }
+        return array;
+    };
+    BaseModel.prototype.nameSpacesInQuery = function (str) {
+        var array = [];
+        var regex = /[a-zA-Z]+\:/g;
+        var m;
+        while ((m = regex.exec(str)) !== null) {
+            // This is necessary to avoid infinite loops with zero-width matches
+            if (m.index === regex.lastIndex) {
+                regex.lastIndex++;
+            }
+            // The result can be accessed through the `m`-variable.
+            m.forEach(function (match, groupIndex) {
+                match = match.slice(0, -1);
+                if (array.indexOf(match) == -1) {
+                    array.push(match);
+                }
+            });
+        }
+        return array;
+    };
+    // Clean argument paths and return the variables used for the arguments
     BaseModel.prototype.cleanArgPaths = function (paths) {
         var vars = [];
-        //Argument paths should not include space and dot in end
+        // Argument paths should not include space and dot in end
         var paths = _.chain(paths).map(function (path) {
             //Find the first variable
             var firstVar = '?' + _s.strLeft(_s.strRight(path, '?'), ' ');

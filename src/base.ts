@@ -116,10 +116,55 @@ export class BaseModel {
         return path;
     }
 
-    //Clean argument paths and return the variables used for the arguments
+    // Extracts the unique SPARQL variables from a string
+    // Optionally, give it an array to include in the search
+    public uniqueVarsInString(str, array?){
+        if(!array) array = [];
+        const regex = /\?[a-zA-Z]+/g;
+        let m;
+        
+        while ((m = regex.exec(str)) !== null) {
+            // This is necessary to avoid infinite loops with zero-width matches
+            if (m.index === regex.lastIndex) {
+                regex.lastIndex++;
+            }
+            
+            // The result can be accessed through the `m`-variable.
+            m.forEach((match, groupIndex) => {
+                if(array.indexOf(match) == -1){
+                    array.push(match);
+                }
+            });
+        }
+        return array;
+    }
+
+    public nameSpacesInQuery(str){
+        var array = [];
+        const regex = /[a-zA-Z]+\:/g;
+        let m;
+        
+        while ((m = regex.exec(str)) !== null) {
+            // This is necessary to avoid infinite loops with zero-width matches
+            if (m.index === regex.lastIndex) {
+                regex.lastIndex++;
+            }
+            
+            // The result can be accessed through the `m`-variable.
+            m.forEach((match, groupIndex) => {
+                match = match.slice(0, -1);
+                if(array.indexOf(match) == -1){
+                    array.push(match);
+                }
+            });
+        }
+        return array;
+    }
+
+    // Clean argument paths and return the variables used for the arguments
     public cleanArgPaths(paths): any{
         var vars: string[] = [];
-        //Argument paths should not include space and dot in end
+        // Argument paths should not include space and dot in end
         var paths = _.chain(paths).map(path => {
             //Find the first variable
             var firstVar = '?'+_s.strLeft(_s.strRight(path, '?'), ' ');

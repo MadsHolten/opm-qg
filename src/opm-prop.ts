@@ -279,7 +279,7 @@ export class OPMProp extends BaseModel {
         var foiURI = this.cleanURI(input.foiURI);
         var path = input.path ? this.cleanPath(input.path) : '?foi ?p ?o .\n';
         var reliability = input.reliability;
-        var userURI = this.cleanPath(input.userURI);
+        var userURI = this.cleanURI(input.userURI);
         var comment = input.comment;
         var reliabilityClass = reliability ? this.mapReliability(reliability) : null; // Map reliability class if given
         var queryType = input.queryType ? input.queryType : this.queryType;     // Get default if not defined
@@ -310,19 +310,19 @@ export class OPMProp extends BaseModel {
             q+= '\nINSERT {\n';
             if(!this.mainGraph) q+= `\tGRAPH <${host}> {\n`;
         }
-        q+= `${d}\t?foi ${property} ?propertyURI .\n` +
-            `${d}\t?propertyURI a opm:Property ;\n` +
-            `${d}\t\topm:hasState ?stateURI .\n`;
+        q+= `${b}${d}\t?foi ${property} ?propertyURI .\n` +
+            `${b}${d}\t?propertyURI a opm:Property ;\n` +
+            `${b}${d}\t\topm:hasState ?stateURI .\n`;
 
-        if(reliabilityClass) q+= `${d}\t?stateURI a ${reliabilityClass} .\n`;
+        if(reliabilityClass) q+= `${b}${d}\t?stateURI a ${reliabilityClass} .\n`;
 
-        q+= `${d}\t?stateURI a opm:CurrentState ;\n`;
+        q+= `${b}${d}\t?stateURI a opm:CurrentState ;\n`;
 
-        if(userURI) q+= `${d}\t\tprov:wasAttributedTo ?userURI ;\n`;
-        if(comment) q+= `${d}\t\trdfs:comment ?comment ;\n`;
+        if(userURI) q+= `${b}${d}\t\tprov:wasAttributedTo ?userURI ;\n`;
+        if(comment) q+= `${b}${d}\t\trdfs:comment ?comment ;\n`;
 
-        q+= `${d}\t\topm:valueAtState ?val ;\n` +
-            `${d}\t\tprov:generatedAtTime ?now .\n`;
+        q+= `${b}${d}\t\topm:valueAtState ?val ;\n` +
+            `${b}${d}\t\tprov:generatedAtTime ?now .\n`;
         if(!this.mainGraph) q+= c;
         q+= '}\n';
 
@@ -349,8 +349,8 @@ export class OPMProp extends BaseModel {
         
             `${b}\t# CREATE STATE AND PROPERTY URIs\n` +
             `${b}\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n\n` +
-            `${b}\tBIND(URI(CONCAT("${host}", "State/", ?guid)) AS ?stateURI)\n` +
-            `${b}\tBIND(URI(CONCAT("${host}", "Property/", ?guid)) AS ?propertyURI)\n` +
+            `${b}\tBIND(URI(CONCAT("${host}", "state_", ?guid)) AS ?stateURI)\n` +
+            `${b}\tBIND(URI(CONCAT("${host}", "property_", ?guid)) AS ?propertyURI)\n` +
             `${b}\tBIND(now() AS ?now)\n`;
 
         q+= c;
@@ -372,11 +372,11 @@ export class OPMProp extends BaseModel {
         // Optional
         var propertyURI = this.cleanURI(input.propertyURI); // OPTION 1
         var foiURI = this.cleanURI(input.foiURI);           // OPTION 2
-        var property = input.property;              // OPTION 2
-        var path = input.path;                              // OPTION 3
+        var property = input.property;                      // OPTION 2
+        var path = this.cleanPath(input.path);              // OPTION 3
         var reliability = input.reliability;
         var reliabilityClass = reliability ? this.mapReliability(reliability) : null; // Map reliability class if given
-        var userURI = this.cleanPath(input.userURI);
+        var userURI = this.cleanURI(input.userURI);
         var comment = input.comment;
         var queryType = input.queryType ? input.queryType : this.queryType;     // Get default if not defined
 
@@ -390,9 +390,6 @@ export class OPMProp extends BaseModel {
             return new Error("Specify either a path, a foiURI/property pair or a propertyURI");
         }
         if(reliabilityClass instanceof Error) return reliabilityClass;
-
-        // Clean path
-        path = path ? this.cleanPath(path) : '?foi ?p ?o .';
 
         // Clean property (add triangle brackets if not prefixed)
         property = _s.startsWith(property, 'http') ? `<${property}>` : `${property}`;
@@ -450,17 +447,17 @@ export class OPMProp extends BaseModel {
         if(userURI) q+= `${d}\tBIND(${userURI} AS ?userURI)\n`;
         if(comment) q+= `${d}\tBIND("${comment}" AS ?comment)\n`;
 
-        q+= `${b}\tBIND(${value} AS ?val)\n\n` +
+        q+= `${b}\tBIND(${value} AS ?val)\n\n`;
 
-            `${b}\t# GET DATA FROM LATEST STATE\n`;
+        if(path) q+= `\t\t\t${path}\n\n`;
+
+        q+= `${b}\t# GET DATA FROM LATEST STATE\n`;
 
         if(!propertyURI) q+= `${b}\t?foi ${property} ?propertyURI .\n`;
 
         q+= `${b}\t?propertyURI opm:hasState ?previousState .\n` +
             `${b}\t?previousState a opm:CurrentState ;\n` +
             `${b}\t\t\topm:valueAtState ?previousVal .\n\n`;
-
-        //if(path) q+= `\t\t\t${path}\n\n`;
 
         q+= `${b}\t# FILTER OUT DELETED OR CONFIRMED\n` +
             `${b}\tMINUS{ ?previousState a opm:Deleted }\n` +
@@ -471,7 +468,7 @@ export class OPMProp extends BaseModel {
 
             `${b}\t# CREATE STATE URIs\n` +
             `${b}\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n` +
-            `${b}\tBIND(URI(CONCAT("${host}", "State/", ?guid)) AS ?stateURI)\n` +
+            `${b}\tBIND(URI(CONCAT("${host}", "state_", ?guid)) AS ?stateURI)\n` +
             `${b}\tBIND(now() AS ?now)\n`;
 
         q+= c; // Named graph
@@ -558,7 +555,7 @@ export class OPMProp extends BaseModel {
 
         q+= `${b}\t# CREATE URI FOR NEW STATE\n` +
         `${b}\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n` +
-        `${b}\tBIND(URI(CONCAT("${host}", "State/", ?guid)) AS ?stateURI)\n` +
+        `${b}\tBIND(URI(CONCAT("${host}", "state_", ?guid)) AS ?stateURI)\n` +
         `${b}\tBIND(now() AS ?now)\n\n`;
 
         //Make sure latest state it is not deleted or confirmed and get data
@@ -649,7 +646,7 @@ export class OPMProp extends BaseModel {
 
         q+= '\t# CREATE STATE URI\n' +
             '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n' +
-            `\tBIND(URI(CONCAT("${host}", "State/", ?guid)) AS ?stateURI)\n` +
+            `\tBIND(URI(CONCAT("${host}", "state_", ?guid)) AS ?stateURI)\n` +
             '\tBIND(now() AS ?now)\n\n' +
 
             //Get latest state
