@@ -26,7 +26,7 @@ var BaseModel = (function () {
         // Return error if 
         if (!_.chain(options).filter(function (obj) { return (obj.key == reliability); }).first().value()) {
             var err = "Unknown restriction. Use either " + _s.toSentence(_.pluck(options, 'key'), ', ', ' or ');
-            this.err = new Error(err);
+            return new Error(err);
         }
         // Map and return class
         return _.chain(options).filter(function (obj) { return (obj.key == reliability); }).map(function (obj) { return obj.class; }).first().value();
@@ -62,6 +62,30 @@ var BaseModel = (function () {
         // Break and indent at ;
         path = path.replace(';', ';\n\t\t');
         return path;
+    };
+    //Clean argument paths and return the variables used for the arguments
+    BaseModel.prototype.cleanArgPaths = function (paths) {
+        var vars = [];
+        //Argument paths should not include space and dot in end
+        var paths = _.chain(paths).map(function (path) {
+            //Find the first variable
+            var firstVar = '?' + _s.strLeft(_s.strRight(path, '?'), ' ');
+            if (firstVar != '?foi') {
+                path = path.replace(firstVar, '?foi');
+            }
+            return path;
+        }).map(function (path) {
+            //Find last variable
+            var lastVar = '?' + _s.strRightBack(path, '?');
+            //remove things after space if any
+            if (_s.contains(lastVar, ' ')) {
+                vars.push(_s.strLeftBack(lastVar, ' '));
+                return _s.strLeftBack(path, ' ');
+            }
+            vars.push(lastVar);
+            return path;
+        }).value();
+        return { paths: paths, vars: vars };
     };
     // clean URI by adding <> if it is a full URI
     BaseModel.prototype.cleanURI = function (someURI) {

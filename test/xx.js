@@ -25,14 +25,27 @@ async function main() {
 
     var qGen = new qg.OPMProp(host, prefixes, mainGraph);
 
+    // Get property URI for ex:FoI
+    var q = `
+    PREFIX ex: <https://example.org/>
+    PREFIX props: <https://w3id.org/product/props/>
+
+    SELECT ?uri
+    WHERE {
+        ex:FoI props:designAmbientTemperature ?uri .
+    }`;
+
+    const res1 = await query.execute(conn, dbName, q);
+
+    // Save to global variable
+    var propURI = res1.body.results.bindings[0].uri.value;
+
     var input = {
-        foiURI: 'ex:FoI',
-        inferredProperty: 'props:designAmbientTemperature',
-        value: '"70 Cel"^^cdt:temperature',
-        reliability: 'assumed'
+        propertyURI: propURI,
+        reliability: 'derived'
     };
     
-    // var q = qGen.postFoIProp(input);
+    var q = qGen.setReliability(input);
 
     // const res = await query.execute(conn, dbName, q, 'application/ld+json');
     

@@ -1,0 +1,6 @@
+{
+    "username": "admin",
+    "password": "admin",
+    "endpoint": "http://localhost:5820",
+    "database": "qg-test"
+}

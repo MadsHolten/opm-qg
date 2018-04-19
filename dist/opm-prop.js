@@ -24,7 +24,7 @@ var OPMProp = (function (_super) {
         var input = {
             host: this.host,
             foiURI: foiURI,
-            inferredProperty: property,
+            property: property,
             value: value,
             reliability: reliability,
             userURI: userURI,
@@ -46,7 +46,7 @@ var OPMProp = (function (_super) {
         var input = {
             host: this.host,
             path: path,
-            inferredProperty: property,
+            property: property,
             value: value,
             reliability: reliability,
             userURI: userURI,
@@ -69,7 +69,30 @@ var OPMProp = (function (_super) {
         var input = {
             host: this.host,
             foiURI: foiURI,
-            inferredProperty: property,
+            property: property,
+            value: value,
+            reliability: reliability,
+            userURI: userURI,
+            comment: comment,
+            queryType: 'insert'
+        };
+        return this.putProp(input);
+    };
+    /**
+     * PUT BY PATH INSERT QUERY
+     * Update a property of a specific FoI
+     * @param foiURI        URI of the Feature of Interest (FoI) holding the property that is to be updated
+     * @param property      URI of the property
+     * @param value         value of the property
+     * @param reliability   reliability (optional)
+     * @param userURI       URI of the user who assigned the property (optional)
+     * @param comment       comment - why was it assigned? (optional)
+     */
+    OPMProp.prototype.putByPath = function (path, property, value, reliability, userURI, comment) {
+        var input = {
+            host: this.host,
+            path: path,
+            property: property,
             value: value,
             reliability: reliability,
             userURI: userURI,
@@ -203,9 +226,9 @@ var OPMProp = (function (_super) {
         var host = this.host;
         var prefixes = this.prefixes;
         // Retrieve and process variables
-        var property = input.inferredProperty;
+        var property = input.property;
         var value = input.value;
-        // Optional
+        // Optional arguments
         var foiURI = this.cleanURI(input.foiURI);
         var path = input.path ? this.cleanPath(input.path) : '?foi ?p ?o .\n';
         var reliability = input.reliability;
@@ -213,10 +236,15 @@ var OPMProp = (function (_super) {
         var comment = input.comment;
         var reliabilityClass = reliability ? this.mapReliability(reliability) : null; // Map reliability class if given
         var queryType = input.queryType ? input.queryType : this.queryType; // Get default if not defined
-        // Throw error if no foiURI or path received
-        if (!foiURI && !path) {
-            this.err = new Error("Specify either a foiURI or a path");
-        }
+        // Validate arguments
+        if (!foiURI && !input.path)
+            return new Error("Specify either a foiURI or a path");
+        if (!property)
+            return new Error('Specify a property');
+        if (!value)
+            return new Error('Specify a value');
+        if (reliabilityClass instanceof Error)
+            return reliabilityClass;
         //Clean property (add triangle brackets if not prefixed)
         property = _s.startsWith(property, 'http') ? "<" + property + ">" : "" + property;
         var q = '';
@@ -275,9 +303,6 @@ var OPMProp = (function (_super) {
             (b + "\tBIND(now() AS ?now)\n");
         q += c;
         q += "}";
-        if (this.err) {
-            q = 'Error: ' + this.err;
-        }
         return q;
     };
     // Update FoI property
@@ -290,7 +315,7 @@ var OPMProp = (function (_super) {
         // Optional
         var propertyURI = this.cleanURI(input.propertyURI); // OPTION 1
         var foiURI = this.cleanURI(input.foiURI); // OPTION 2
-        var property = input.inferredProperty; // OPTION 2
+        var property = input.property; // OPTION 2
         var path = input.path; // OPTION 3
         var reliability = input.reliability;
         var reliabilityClass = reliability ? this.mapReliability(reliability) : null; // Map reliability class if given
@@ -300,17 +325,19 @@ var OPMProp = (function (_super) {
         // Either foiURI/property pair, propertyURI or path must be specified
         if (!path && !propertyURI) {
             if (foiURI && !property)
-                this.err = new Error("Specify a property to be assigned to the FoI");
+                return new Error("Specify a property to be assigned to the FoI");
             if (!foiURI && property)
-                this.err = new Error("Specify a FoI to assign the property to");
+                return new Error("Specify a FoI to assign the property to");
         }
         else if (!path) {
             if (!propertyURI)
-                this.err = new Error("Specify a property URI");
+                return new Error("Specify a property URI");
         }
-        else {
-            this.err = new Error("Specify either a path, a foiURI/property pair or a propertyURI");
+        else if (!path) {
+            return new Error("Specify either a path, a foiURI/property pair or a propertyURI");
         }
+        if (reliabilityClass instanceof Error)
+            return reliabilityClass;
         // Clean path
         path = path ? this.cleanPath(path) : '?foi ?p ?o .';
         // Clean property (add triangle brackets if not prefixed)
@@ -376,17 +403,14 @@ var OPMProp = (function (_super) {
         q += (b + "\t# FILTER OUT DELETED OR CONFIRMED\n") +
             (b + "\tMINUS{ ?previousState a opm:Deleted }\n") +
             (b + "\tMINUS{ ?previousState a opm:Confirmed }\n\n") +
-            (b + "\t#VALUE SHOULD BE DIFFERENT FROM THE PREVIOUS\n") +
+            (b + "\t# VALUE SHOULD BE DIFFERENT FROM THE PREVIOUS\n") +
             (b + "\tFILTER(?previousVal != ?val)\n") +
-            (b + "\t#CREATE STATE URIs\n") +
+            (b + "\t# CREATE STATE URIs\n") +
             (b + "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n") +
             (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"State/\", ?guid)) AS ?stateURI)\n") +
             (b + "\tBIND(now() AS ?now)\n");
         q += c; // Named graph
         q += "}";
-        if (this.err) {
-            q = 'Error: ' + this.err;
-        }
         return q;
     };
     //Set reliability
@@ -403,10 +427,15 @@ var OPMProp = (function (_super) {
         var reliabilityClass = reliability ? this.mapReliability(reliability) : null; // Map reliability class if given
         var userURI = this.cleanURI(input.userURI);
         var queryType = input.queryType ? input.queryType : this.queryType; // Get default if not defined
+        // Validate input
         if (!userURI && reliability == 'confirmed')
-            this.err = new Error("A user must be atrributed to a confirmed value. Please specify a userURI");
+            return new Error("A user must be atrributed to a confirmed value. Please specify a userURI");
         if (!reliability)
-            this.err = new Error("Reliability specification missing.");
+            return new Error("Reliability specification missing");
+        if (reliability == 'derived')
+            return new Error("opm:Derived can not be set explicitly as it is reserved for properties that are derived");
+        if (reliabilityClass instanceof Error)
+            return reliabilityClass;
         var q = '';
         //Define prefixes
         for (var i in prefixes) {
@@ -480,9 +509,6 @@ var OPMProp = (function (_super) {
         if (!this.mainGraph)
             q += c; // Named graph
         q += '}';
-        if (this.err) {
-            q = 'Error: ' + this.err;
-        }
         return q;
     };
     //Restore a deleted property

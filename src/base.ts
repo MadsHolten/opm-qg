@@ -35,7 +35,6 @@ export class BaseModel {
     public queryType: string;                           // query type (construct/select/insert)
     public reliabilityOptions: ReliabilityOption[];     // reliability mappings
     public mainGraph: boolean;                          // query the main graph or a named graph?
-    public err: Error;
 
     constructor(host: string, prefixes?: Prefix[], mainGraph?: boolean){
 
@@ -72,7 +71,7 @@ export class BaseModel {
         // Return error if 
         if(!_.chain(options).filter(obj => (obj.key == reliability) ).first().value()){
             var err = "Unknown restriction. Use either "+_s.toSentence(_.pluck(options, 'key'), ', ', ' or ');
-            this.err = new Error(err);
+            return new Error(err);
         }
         // Map and return class
         return _.chain(options).filter(obj => (obj.key == reliability) ).map(obj => obj.class).first().value();
@@ -92,7 +91,7 @@ export class BaseModel {
         }
     }
 
-    cleanPath(path){
+    public cleanPath(path){
 
         if(!path) return undefined;
 
@@ -117,8 +116,34 @@ export class BaseModel {
         return path;
     }
 
+    //Clean argument paths and return the variables used for the arguments
+    public cleanArgPaths(paths): any{
+        var vars: string[] = [];
+        //Argument paths should not include space and dot in end
+        var paths = _.chain(paths).map(path => {
+            //Find the first variable
+            var firstVar = '?'+_s.strLeft(_s.strRight(path, '?'), ' ');
+            if(firstVar != '?foi'){
+                path = path.replace(firstVar, '?foi');
+            }
+            return path;
+        }).map(path => {
+            //Find last variable
+            var lastVar = '?'+_s.strRightBack(path, '?');
+
+            //remove things after space if any
+            if(_s.contains(lastVar, ' ')){
+                vars.push(_s.strLeftBack(lastVar, ' '));
+                return _s.strLeftBack(path, ' ');
+            }
+            vars.push(lastVar);
+            return path;
+        }).value();
+        return {paths: paths, vars: vars};
+    }
+
     // clean URI by adding <> if it is a full URI
-    cleanURI(someURI){
+    public cleanURI(someURI){
 
         if(!someURI) return undefined;
 
