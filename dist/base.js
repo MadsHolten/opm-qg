@@ -1,4 +1,4 @@
-var _ = require("underscore");
+var _ = require("lodash");
 var _s = require("underscore.string");
 var BaseModel = (function () {
     function BaseModel(host, prefixes, mainGraph) {
@@ -25,7 +25,7 @@ var BaseModel = (function () {
         var options = _.filter(mappings, function (obj) { return (obj.key != 'derived'); });
         // Return error if 
         if (!_.chain(options).filter(function (obj) { return (obj.key == reliability); }).first().value()) {
-            var err = "Unknown restriction. Use either " + _s.toSentence(_.pluck(options, 'key'), ', ', ' or ');
+            var err = "Unknown restriction. Use either " + _s.toSentence(_.map(options, function (o) { return o.key; }), ', ', ' or ');
             return new Error(err);
         }
         // Map and return class
@@ -103,11 +103,35 @@ var BaseModel = (function () {
         }
         return array;
     };
+    /**
+     *
+     * @param query
+     * 1) Extract all namespaces used in the query using nameSpacesInQuery()
+     * 2) Get URIs from match with this.prefixes
+     * 3) Create string in form `PREFIX pfx: <someURI>`
+     */
+    BaseModel.prototype.appendPrefixesToQuery = function (query) {
+        var _this = this;
+        // Extract namespaces used in the query
+        var namespaces = this.nameSpacesInQuery(query);
+        // Get the URIs of the prefixes and append them to the query
+        var p = '';
+        _.each(namespaces, function (ns) {
+            var match = _.filter(_this.prefixes, function (pfx) { return pfx.prefix == ns; })[0];
+            if (match) {
+                p += "PREFIX  " + ns + ": <" + match.uri + ">\n";
+            }
+            else {
+                return new Error('Unknown prefix ' + ns);
+            }
+        });
+        return p + query;
+    };
     // Clean argument paths and return the variables used for the arguments
     BaseModel.prototype.cleanArgPaths = function (paths) {
         var vars = [];
         // Argument paths should not include space and dot in end
-        var paths = _.chain(paths).map(function (path) {
+        paths = _.chain(paths).map(function (path) {
             //Find the first variable
             var firstVar = '?' + _s.strLeft(_s.strRight(path, '?'), ' ');
             if (firstVar != '?foi') {

@@ -3,6 +3,7 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
+var _ = require("lodash");
 var _s = require("underscore.string");
 var base_1 = require("./base");
 var OPMCalc = (function (_super) {
@@ -89,18 +90,91 @@ var OPMCalc = (function (_super) {
     OPMCalc.prototype.listOutdatedByFoI = function (foiURI) {
         return this.getOutdated(foiURI);
     };
+    OPMCalc.prototype.postCalcData = function (input) {
+        //Define variables
+        var label = input.label;
+        var comment = input.comment;
+        var userURI = input.userURI;
+        var hostURI = input.hostURI;
+        var expression = input.expression;
+        var argumentPaths = input.argumentPaths;
+        //Inferred property
+        var iProp = input.inferredProperty;
+        var iPropURI = iProp.propertyURI;
+        var iUnit = iProp.unit.value;
+        var iDatatype = iProp.unit.datatype;
+        //Clean property (add triangle brackets if not prefixes)
+        iPropURI = _s.startsWith(iPropURI, 'http') ? "<" + iPropURI + ">" : "" + iPropURI;
+        //Make sure that argument paths begin with ?foi
+        argumentPaths = _.map(argumentPaths, function (path) {
+            var firstSubjectVar = _s.strLeft(_s.strRight(path, '?'), ' ');
+            return path.replace('?' + firstSubjectVar, '?foi'); //Replace with ?foi
+        });
+        var q = '';
+        q += 'CONSTRUCT {\n';
+        q += "\t?calculationURI a opm:Calculation ;\n";
+        if (label) {
+            q += "\t\trdfs:label \"" + label + "\" ;\n";
+        }
+        if (comment) {
+            q += "\t\trdfs:comment \"" + comment + "\" ;\n";
+        }
+        if (userURI) {
+            q += "\t\tprov:wasAttributedTo <" + userURI + "> ;\n";
+        }
+        q += '\t\tprov:generatedAtTime ?now ;\n';
+        q += "\t\topm:inferredProperty " + iPropURI + " ;\n";
+        q += "\t\topm:expression \"" + expression + "\" ;\n";
+        q += "\t\topm:unit \"" + iUnit + "\"";
+        q += iDatatype ? "^^" + iDatatype + " ;\n" : ' ;\n';
+        /**
+         * THE FOLLOWING DOESN'T WORK WITH STARDOG
+         */
+        // q+= '\t\topm:arguments ( ';
+        // // Add arguments to arguments list
+        // for(var i in argumentPaths){
+        //     q+= `argumentPaths[i]`;
+        //     q+= (Number(i) == args.length-1) ? ' ) .\n' : ' ';
+        // }
+        /**
+         * INSTEAD WE WILL HAVE TO NEST THE ARGUMENT LIST
+         */
+        q += '\t\topm:argumentPaths [\n';
+        _.each(argumentPaths, function (obj, i) {
+            q += '\t\t';
+            q += _s.repeat("  ", i + 1); //two spaces
+            q += "rdf:first \"" + argumentPaths[i] + "\" ; rdf:rest ";
+            q += (argumentPaths.length == i + 1) ? 'rdf:nil\n' : '[\n';
+        });
+        _.each(argumentPaths, function (obj, i) {
+            if (i < argumentPaths.length - 1) {
+                q += '\t\t';
+                q += _s.repeat("  ", argumentPaths.length - (i + 1));
+                q += ']\n';
+            }
+        });
+        q += '\t\t] .\n';
+        q += '} WHERE {\n';
+        q += "\t#GENERATE URIs FOR NEW CLASS INSTANCE\n";
+        q += "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n";
+        q += '\t#CREATE STATE AND PROPERTY URI´s\n';
+        q += "\tBIND(URI(CONCAT(STR(\"" + hostURI + "\"), \"/Calculation/\", ?guid)) AS ?calculationURI)\n";
+        q += "\t#GET CURRENT TIME\n";
+        q += "\tBIND(now() AS ?now)\n";
+        q += '}';
+        return this.appendPrefixesToQuery(q);
+    };
     // Insert derived values matching some calculation where they do not already exist
     // NB! it could be useful to be able to apply a restriction that should be fulfilled. Fx ?foi a bot:Element
     OPMCalc.prototype.postCalc = function (input) {
         // Get global variables
         var host = this.host;
-        var prefixes = this.prefixes;
         //Define variables
         var calculationURI = input.calculationURI;
         var expression = input.expression;
         var argumentPaths = input.argumentPaths;
         var argumentVars = [];
-        var iProp = input.inferredProperty;
+        var iProp = this.cleanURI(input.inferredProperty);
         //Optional
         var foiURI = this.cleanURI(input.foiURI); //If only for a specific FoI
         var queryType = input.queryType ? input.queryType : this.queryType; // Get default if not defined
@@ -115,13 +189,7 @@ var OPMCalc = (function (_super) {
             return new Error("Specify " + expressionVars.length + " argument path(s)");
         if (expressionVars.length != argumentPaths.length)
             return new Error('There is a mismatch between number of arguments used in the expression and the number of argument paths given');
-        //Clean property (add triangle brackets if not prefixes)
-        iProp = _s.startsWith(iProp, 'http') ? "<" + iProp + ">" : "" + iProp;
         var q = '';
-        //Define prefixes
-        for (var i in prefixes) {
-            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + ">\n";
-        }
         // define a few variables to use with named graphs
         var a = this.mainGraph ? '' : '\tGRAPH ?g {\n';
         var b = this.mainGraph ? '' : '\t';
@@ -189,20 +257,15 @@ var OPMCalc = (function (_super) {
         if (!this.mainGraph)
             q += c;
         q += '}';
-        return q;
+        return this.appendPrefixesToQuery(q);
     };
     OPMCalc.prototype.getOutdated = function (foiURI, queryType) {
         // Get global variables
         var mainGraph = this.mainGraph;
-        var prefixes = this.prefixes;
         // Process variables
         foiURI = this.cleanURI(foiURI);
         queryType = queryType ? queryType : this.queryType; // Get default if not defined
         var q = '';
-        //Define prefixes
-        // for(var i in prefixes){
-        //     q+= `PREFIX  ${prefixes[i].prefix}: <${prefixes[i].uri}>\n`;
-        // }
         // define a few variables to use with named graphs
         var a = this.mainGraph ? '' : '\tGRAPH ?g {\n';
         var b = this.mainGraph ? '' : '\t';
@@ -231,20 +294,7 @@ var OPMCalc = (function (_super) {
             (b + "}");
         if (queryType == 'select')
             q += "GROUP BY ?foi\n";
-        var namespaces = this.nameSpacesInQuery(q);
-        console.log(namespaces);
-        //Define prefixes
-        var p = '';
-        console.log(prefixes);
-        for (var i in namespaces) {
-            var prefix = namespaces[i];
-            if (!prefixes[prefix])
-                return new Error("Undefined prefix " + prefix);
-            var uri = prefixes[prefix];
-            p += "PREFIX  " + prefix + ": <" + uri + ">\n";
-        }
-        console.log(p);
-        return q;
+        return this.appendPrefixesToQuery(q);
     };
     return OPMCalc;
 })(base_1.BaseModel);

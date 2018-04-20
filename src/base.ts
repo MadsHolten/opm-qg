@@ -1,4 +1,4 @@
-import * as _ from "underscore";
+import * as _ from "lodash";
 import * as _s from "underscore.string";
 
 declare var require: any;
@@ -70,7 +70,7 @@ export class BaseModel {
 
         // Return error if 
         if(!_.chain(options).filter(obj => (obj.key == reliability) ).first().value()){
-            var err = "Unknown restriction. Use either "+_s.toSentence(_.pluck(options, 'key'), ', ', ' or ');
+            var err = "Unknown restriction. Use either "+_s.toSentence(_.map(options, o => o.key), ', ', ' or ');
             return new Error(err);
         }
         // Map and return class
@@ -161,11 +161,38 @@ export class BaseModel {
         return array;
     }
 
+    /**
+     * 
+     * @param query 
+     * 1) Extract all namespaces used in the query using nameSpacesInQuery()
+     * 2) Get URIs from match with this.prefixes
+     * 3) Create string in form `PREFIX pfx: <someURI>`
+     */
+    public appendPrefixesToQuery(query){
+        
+        // Extract namespaces used in the query
+        var namespaces = this.nameSpacesInQuery(query);
+        
+        // Get the URIs of the prefixes and append them to the query
+        var p = '';
+        _.each(namespaces, ns => {
+            var match = _.filter(this.prefixes, pfx => pfx.prefix == ns)[0];
+            if(match){
+                p+= `PREFIX  ${ns}: <${match.uri}>\n`;
+            }
+            else {
+                return new Error('Unknown prefix '+ns);
+            }
+        })
+        return p+query;
+
+    }
+
     // Clean argument paths and return the variables used for the arguments
     public cleanArgPaths(paths): any{
         var vars: string[] = [];
         // Argument paths should not include space and dot in end
-        var paths = _.chain(paths).map(path => {
+        paths = _.chain(paths).map(path => {
             //Find the first variable
             var firstVar = '?'+_s.strLeft(_s.strRight(path, '?'), ' ');
             if(firstVar != '?foi'){

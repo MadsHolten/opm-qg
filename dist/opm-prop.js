@@ -3,7 +3,7 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-var _ = require("underscore");
+var _ = require("lodash");
 var _s = require("underscore.string");
 var base_1 = require("./base");
 var OPMProp = (function (_super) {
@@ -224,7 +224,6 @@ var OPMProp = (function (_super) {
     OPMProp.prototype.postProp = function (input) {
         // Get global variables
         var host = this.host;
-        var prefixes = this.prefixes;
         // Retrieve and process variables
         var property = input.property;
         var value = input.value;
@@ -248,10 +247,6 @@ var OPMProp = (function (_super) {
         //Clean property (add triangle brackets if not prefixed)
         property = _s.startsWith(property, 'http') ? "<" + property + ">" : "" + property;
         var q = '';
-        //Define prefixes
-        for (var i in prefixes) {
-            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + "> \n";
-        }
         // define a few variables to use with named graphs
         var a = this.mainGraph ? '' : '\tGRAPH ?g {\n';
         var b = this.mainGraph ? '' : '\t';
@@ -303,13 +298,12 @@ var OPMProp = (function (_super) {
             (b + "\tBIND(now() AS ?now)\n");
         q += c;
         q += "}";
-        return q;
+        return this.appendPrefixesToQuery(q);
     };
     // Update FoI property
     OPMProp.prototype.putProp = function (input) {
         // Get global variables
         var host = this.host;
-        var prefixes = this.prefixes;
         // Retrieve and process variables
         var value = input.value;
         // Optional
@@ -341,10 +335,6 @@ var OPMProp = (function (_super) {
         // Clean property (add triangle brackets if not prefixed)
         property = _s.startsWith(property, 'http') ? "<" + property + ">" : "" + property;
         var q = '';
-        // Define prefixes
-        for (var i in prefixes) {
-            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + ">\n";
-        }
         // define a few variables to use with named graphs
         var a = this.mainGraph ? '' : '\tGRAPH ?g {\n';
         var b = this.mainGraph ? '' : '\t';
@@ -410,7 +400,7 @@ var OPMProp = (function (_super) {
             (b + "\tBIND(now() AS ?now)\n");
         q += c; // Named graph
         q += "}";
-        return q;
+        return this.appendPrefixesToQuery(q);
     };
     //Set reliability
     //Make it an assumption or a confirmed property
@@ -418,7 +408,6 @@ var OPMProp = (function (_super) {
     OPMProp.prototype.setReliability = function (input) {
         // Get global variables
         var host = this.host;
-        var prefixes = this.prefixes;
         // Retrieve and process variables
         var comment = input.comment;
         var propertyURI = this.cleanURI(input.propertyURI);
@@ -436,10 +425,6 @@ var OPMProp = (function (_super) {
         if (reliabilityClass instanceof Error)
             return reliabilityClass;
         var q = '';
-        //Define prefixes
-        for (var i in prefixes) {
-            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + "> \n";
-        }
         // define a few variables to use with named graphs
         var a = this.mainGraph ? '' : '\tGRAPH ?g {\n';
         var b = this.mainGraph ? '' : '\t';
@@ -508,13 +493,12 @@ var OPMProp = (function (_super) {
         if (!this.mainGraph)
             q += c; // Named graph
         q += '}';
-        return q;
+        return this.appendPrefixesToQuery(q);
     };
     //Restore a deleted property
     OPMProp.prototype.restoreProp = function (input) {
         // Get global variables
         var host = this.host;
-        var prefixes = this.prefixes;
         var mainGraph = this.mainGraph;
         // Optional variables
         var propertyURI = this.cleanURI(input.propertyURI); // Giving no propertyURI will restore everything!
@@ -522,10 +506,6 @@ var OPMProp = (function (_super) {
         var userURI = this.cleanPath(input.userURI);
         var comment = input.comment;
         var q = '';
-        //Define prefixes
-        for (var i in prefixes) {
-            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + "> \n";
-        }
         // define a few variables to use with named graphs
         var a = this.mainGraph ? '' : '\tGRAPH ?g {\n';
         var b = this.mainGraph ? '' : '\t';
@@ -594,7 +574,7 @@ var OPMProp = (function (_super) {
         if (!this.mainGraph)
             q += c; // Named graph
         q += '}';
-        return q;
+        return this.appendPrefixesToQuery(q);
     };
     // Get one or more properties
     // Return either for a specific FoI or for all FoIs
@@ -605,8 +585,6 @@ var OPMProp = (function (_super) {
     // Return graph subset (construct query) by setting argument queryType = 'construct'
     // Restrict to either 'deleted', 'assumptions', 'derived' or 'confirmed'
     OPMProp.prototype.getProps = function (input) {
-        // Get global variables
-        var prefixes = this.prefixes;
         // Process input
         var foiURI = this.cleanURI(input.foiURI);
         var property = this.cleanURI(input.property);
@@ -621,10 +599,6 @@ var OPMProp = (function (_super) {
             var restrictionClass = _.chain(this.reliabilityOptions).filter(function (obj) { return (obj.key == restriction); }).map(function (obj) { return obj.class; }).first().value();
         }
         var q = '';
-        //Define prefixes
-        for (var i in prefixes) {
-            q += "PREFIX  " + prefixes[i].prefix + ": <" + prefixes[i].uri + "> \n";
-        }
         if (queryType == 'construct') {
             q += '\nCONSTRUCT {\n' +
                 '\t?foi ?property ?propertyURI .\n' +
@@ -681,7 +655,7 @@ var OPMProp = (function (_super) {
         // q+= '\t}\n';
         q += c; // Named graph
         q += '}';
-        return q;
+        return this.appendPrefixesToQuery(q);
     };
     return OPMProp;
 })(base_1.BaseModel);

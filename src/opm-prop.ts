@@ -1,4 +1,4 @@
-import * as _ from "underscore";
+import * as _ from "lodash";
 import * as _s from "underscore.string";
 import { BaseModel } from "./base";
 import { Prefix, Literal, Base } from "./base";
@@ -269,7 +269,6 @@ export class OPMProp extends BaseModel {
         
         // Get global variables
         var host = this.host;
-        var prefixes = this.prefixes;
 
         // Retrieve and process variables
         var property = input.property;
@@ -294,10 +293,6 @@ export class OPMProp extends BaseModel {
         property = _s.startsWith(property, 'http') ? `<${property}>` : `${property}`;
 
         var q: string = '';
-        //Define prefixes
-        for(var i in prefixes){
-            q+= `PREFIX  ${prefixes[i].prefix}: <${prefixes[i].uri}> \n`;
-        }
 
         // define a few variables to use with named graphs
         var a = this.mainGraph ? '' : '\tGRAPH ?g {\n';
@@ -356,7 +351,8 @@ export class OPMProp extends BaseModel {
         q+= c;
         q+= `}`;
 
-        return q;
+        return this.appendPrefixesToQuery(q);
+
     }
 
 
@@ -364,7 +360,6 @@ export class OPMProp extends BaseModel {
     public putProp(input: PostPutProp) {
         // Get global variables
         var host = this.host;
-        var prefixes = this.prefixes;
 
         // Retrieve and process variables
         var value = input.value;
@@ -395,10 +390,6 @@ export class OPMProp extends BaseModel {
         property = _s.startsWith(property, 'http') ? `<${property}>` : `${property}`;
 
         var q: string = '';
-        // Define prefixes
-        for(var i in prefixes){
-            q+= `PREFIX  ${prefixes[i].prefix}: <${prefixes[i].uri}>\n`;
-        }
 
         // define a few variables to use with named graphs
         var a = this.mainGraph ? '' : '\tGRAPH ?g {\n';
@@ -475,7 +466,8 @@ export class OPMProp extends BaseModel {
 
         q+= `}`;
 
-        return q;
+        return this.appendPrefixesToQuery(q);
+
     }
 
     //Set reliability
@@ -485,7 +477,6 @@ export class OPMProp extends BaseModel {
 
         // Get global variables
         var host = this.host;
-        var prefixes = this.prefixes;
 
         // Retrieve and process variables
         var comment = input.comment;
@@ -502,10 +493,6 @@ export class OPMProp extends BaseModel {
         if(reliabilityClass instanceof Error) return reliabilityClass;
 
         var q: string = '';
-        //Define prefixes
-        for(var i in prefixes){
-            q+= `PREFIX  ${prefixes[i].prefix}: <${prefixes[i].uri}> \n`;
-        }
 
         // define a few variables to use with named graphs
         var a = this.mainGraph ? '' : '\tGRAPH ?g {\n';
@@ -582,7 +569,8 @@ export class OPMProp extends BaseModel {
         if(!this.mainGraph) q+= c; // Named graph
         q+= '}';
 
-        return q;
+        return this.appendPrefixesToQuery(q);
+
     }
 
     //Restore a deleted property
@@ -590,7 +578,6 @@ export class OPMProp extends BaseModel {
 
         // Get global variables
         var host = this.host;
-        var prefixes = this.prefixes;
         var mainGraph = this.mainGraph;      
 
         // Optional variables
@@ -600,11 +587,6 @@ export class OPMProp extends BaseModel {
         var comment = input.comment;
 
         var q: string = '';
-
-        //Define prefixes
-        for(var i in prefixes){
-            q+= `PREFIX  ${prefixes[i].prefix}: <${prefixes[i].uri}> \n`;
-        }
 
         // define a few variables to use with named graphs
         var a = this.mainGraph ? '' : '\tGRAPH ?g {\n';
@@ -676,7 +658,9 @@ export class OPMProp extends BaseModel {
 
         if(!this.mainGraph) q+= c; // Named graph
         q+= '}';
-        return q;
+        
+        return this.appendPrefixesToQuery(q);
+
     }
 
     // Get one or more properties
@@ -688,13 +672,12 @@ export class OPMProp extends BaseModel {
     // Return graph subset (construct query) by setting argument queryType = 'construct'
     // Restrict to either 'deleted', 'assumptions', 'derived' or 'confirmed'
     public getProps(input: GetProp): string {
-        // Get global variables
-        var prefixes = this.prefixes;
 
         // Process input
         var foiURI = this.cleanURI(input.foiURI);
         var property = this.cleanURI(input.property);
         var propertyURI = this.cleanURI(input.propertyURI);
+
         //Queries all properties as default - else queries a specific property or FoI
         var strLang = (input && input.language) ? input.language : 'en';
         var latest = input.latest;
@@ -707,10 +690,6 @@ export class OPMProp extends BaseModel {
         }
 
         var q: string = '';
-        //Define prefixes
-        for(var i in prefixes){
-            q+= `PREFIX  ${prefixes[i].prefix}: <${prefixes[i].uri}> \n`;
-        }
 
         if(queryType == 'construct'){
             q+= '\nCONSTRUCT {\n' +
@@ -780,7 +759,8 @@ export class OPMProp extends BaseModel {
 
         q+= '}';
 
-        return q;
+        return this.appendPrefixesToQuery(q);
+
     }
 
 }

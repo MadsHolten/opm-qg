@@ -1,6 +1,6 @@
 const expect = require('chai').expect;
 const { Connection, query, db } = require('stardog');
-const qg = require('../dist/index');
+const { OPMProp, OPMCalc } = require('../dist/index');
 const config = require('./config.json');
 
 /**
@@ -54,7 +54,7 @@ describe("Prepare 3 Features of Interest each with a supply- and return water te
             {prefix: 'props', uri: 'https://w3id.org/product/props/'}
         ];
     
-        var qGen = new qg.OPMProp(host, prefixes, mainGraph);
+        let opmProp = new OPMProp(host, prefixes, mainGraph);
         
         // Insert FoIs
         it('Insert four FoIs (ex:FoI1, ex:FoI2, ex:FoI3, ex:FoI4)', async () => {
@@ -91,7 +91,7 @@ describe("Prepare 3 Features of Interest each with a supply- and return water te
 
         it('Assign a property (props:supplyWaterTemperatureHeating) to all FoIs (INSERT)', async () => {
             
-            var q = qGen.postByPath('?foi a ?class FILTER(?class = bot:Element || ?class = bot:Space)', 'props:supplyWaterTemperatureHeating', '"70"^^xsd:decimal', 'assumed');
+            var q = opmProp.postByPath('?foi a ?class FILTER(?class = bot:Element || ?class = bot:Space)', 'props:supplyWaterTemperatureHeating', '"70"^^xsd:decimal', 'assumed');
     
             const res = await query.execute(conn, dbName, q);
     
@@ -101,7 +101,7 @@ describe("Prepare 3 Features of Interest each with a supply- and return water te
 
         it('Check that the properties were correctly inserted', async () => {
             
-            var q = qGen.getPropsByType('props:supplyWaterTemperatureHeating');
+            var q = opmProp.getPropsByType('props:supplyWaterTemperatureHeating');
     
             const res = await query.execute(conn, dbName, q, 'application/ld+json');
     
@@ -112,7 +112,7 @@ describe("Prepare 3 Features of Interest each with a supply- and return water te
 
         it('Assign a property (props:returnWaterTemperatureHeating) to all FoIs (INSERT)', async () => {
             
-            var q = qGen.postByPath('?foi a ?class FILTER(?class = bot:Element || ?class = bot:Space)', 'props:returnWaterTemperatureHeating', '"40"^^xsd:decimal');
+            var q = opmProp.postByPath('?foi a ?class FILTER(?class = bot:Element || ?class = bot:Space)', 'props:returnWaterTemperatureHeating', '"40"^^xsd:decimal');
     
             const res = await query.execute(conn, dbName, q);
     
@@ -122,7 +122,7 @@ describe("Prepare 3 Features of Interest each with a supply- and return water te
 
         it('Check that the properties were correctly inserted', async () => {
             
-            var q = qGen.getPropsByType('props:returnWaterTemperatureHeating');
+            var q = opmProp.getPropsByType('props:returnWaterTemperatureHeating');
     
             const res = await query.execute(conn, dbName, q, 'application/ld+json');
     
@@ -145,8 +145,8 @@ describe("Infer derived properties - main graph", () => {
         {prefix: 'props', uri: 'https://w3id.org/product/props/'}
     ];
 
-    var qGen = new qg.OPMCalc(host, prefixes, mainGraph);
-    var qGenP = new qg.OPMProp(host, prefixes, mainGraph);
+    let opmCalc = new OPMCalc(host, prefixes, mainGraph);
+    let opmProp = new OPMProp(host, prefixes, mainGraph);
 
     it('Try appending a calculation where the number of arguments does not match with the number of argument paths given (CONSTRUCT)', async () => {
         
@@ -157,7 +157,7 @@ describe("Infer derived properties - main graph", () => {
             argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr']
         };
 
-        var q = qGen.postCalc(input);
+        var q = opmCalc.postCalc(input);
 
         expect(q).to.be.a('error');
 
@@ -175,7 +175,7 @@ describe("Infer derived properties - main graph", () => {
             argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr']
         };
 
-        var q = qGen.postCalc(input);
+        var q = opmCalc.postCalc(input);
 
         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
@@ -192,7 +192,7 @@ describe("Infer derived properties - main graph", () => {
         var inferredProperty = 'props:heatingTemperatureDelta';
         var argumentPaths = ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr'];
 
-        var q = qGen.postByFoI(foiURI, inferredProperty, expression, argumentPaths);
+        var q = opmCalc.postByFoI(foiURI, inferredProperty, expression, argumentPaths);
 
         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
@@ -202,7 +202,7 @@ describe("Infer derived properties - main graph", () => {
 
     it('Check that the derived property was correctly inserted', async () => {
 
-        var q = qGenP.getFoIProps('ex:FoI1');
+        var q = opmProp.getFoIProps('ex:FoI1');
 
         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
@@ -223,7 +223,7 @@ describe("Infer derived properties - main graph", () => {
             argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr']
         };
 
-        var q = qGen.postCalc(input);
+        var q = opmCalc.postCalc(input);
 
         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
@@ -246,7 +246,7 @@ describe("Infer derived properties - main graph", () => {
             argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr']
         };
 
-        var q = qGen.postCalc(input);
+        var q = opmCalc.postCalc(input);
 
         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
@@ -264,7 +264,7 @@ describe("Infer derived properties - main graph", () => {
         var inferredProperty = 'props:heatingTemperatureDelta';
         var argumentPaths = ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr'];
 
-        var q = qGen.postByPath(path, inferredProperty, expression, argumentPaths, calculationURI);
+        var q = opmCalc.postByPath(path, inferredProperty, expression, argumentPaths, calculationURI);
 
         const res = await query.execute(conn, dbName, q);
 
@@ -284,7 +284,7 @@ describe("Infer derived properties - main graph", () => {
             argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr']
         };
 
-        var q = qGen.postCalc(input);
+        var q = opmCalc.postCalc(input);
 
         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
@@ -310,17 +310,15 @@ describe("Make changes to arguments - main graph", () => {
         {prefix: 'props', uri: 'https://w3id.org/product/props/'}
     ];
 
-    var qGen = new qg.OPMCalc(host, prefixes, mainGraph);
-    var qGenP = new qg.OPMProp(host, prefixes, mainGraph);
+    let opmCalc = new OPMCalc(host, prefixes, mainGraph);
+    let opmProp = new OPMProp(host, prefixes, mainGraph);
 
     /**
      * There should not be any outdated properties at this point
      */
     it('List outdated properties (CONSTRUCT)', async () => {
 
-        var q = qGen.listAllOutdated();
-
-        console.log(q);
+        var q = opmCalc.listAllOutdated();
 
         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
@@ -331,7 +329,7 @@ describe("Make changes to arguments - main graph", () => {
 
     it('Update property (props:supplyWaterTemperatureHeating) for all bot:Element instances', async () => {
         
-        var q = qGenP.putByPath('?foi a bot:Element', 'props:supplyWaterTemperatureHeating', '"65 Cel"^^cdt:temperature', 'assumed');
+        var q = opmProp.putByPath('?foi a bot:Element', 'props:supplyWaterTemperatureHeating', '"65 Cel"^^cdt:temperature', 'assumed');
 
         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
@@ -344,7 +342,7 @@ describe("Make changes to arguments - main graph", () => {
      */
     it('Confirm that it affects the list of outdated properties', async () => {
         
-        var q = qGen.listAllOutdated();
+        var q = opmCalc.listAllOutdated();
 
         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
@@ -355,9 +353,7 @@ describe("Make changes to arguments - main graph", () => {
 
     it('List outdated properties for ex:FoI1', async () => {
         
-        var q = qGen.listOutdatedByFoI('ex:FoI1');
-
-        console.log(q);
+        var q = opmCalc.listOutdatedByFoI('ex:FoI1');
 
         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
@@ -365,5 +361,33 @@ describe("Make changes to arguments - main graph", () => {
         expect(res).to.have.property('body').to.be.an('array').to.have.length(3);   // Should return a body with length 3 (foiURI+propURI+stateURI)
 
     });
+
+    /**
+     * Update the derived ex:FoI1
+     */
+    // it('List outdated properties for ex:FoI1', async () => {
+
+    //     var input = {
+    //         args: [
+    //             { property: 'seas:fluidSupplyTemperature' },
+    //             { property: 'seas:fluidReturnTemperature' }
+    //         ],
+    //         comment: 'Just a comment',
+    //         userURI: 'https://www.niras.dk/employees/mhra',
+    //         result: {
+    //             unit: '°C',
+    //             datatype: 'cdt:temperature',
+    //             property: 'seas:fluidTemperatureDifference',
+    //             calc: 'abs(?arg1-?arg2)'
+    //         },
+    //         prefixes: [
+    //             {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'}
+    //         ],
+    //         hostURI: "https://localhost/opm"
+    //     };
+    //     var sc = new qg.OPMCalc(input);
+    //     var q = sc.postCalcData();
+
+    // })
 
 });
