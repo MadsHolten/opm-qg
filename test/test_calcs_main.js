@@ -135,7 +135,7 @@ describe("Prepare 3 Features of Interest each with a supply- and return water te
     
 });
 
-describe("Infer derived properties - main graph", () => {
+describe("Simple tests for postCalc", () => {
 
     var host = 'https://example.org/';
     
@@ -148,7 +148,6 @@ describe("Infer derived properties - main graph", () => {
     ];
 
     let opmCalc = new OPMCalc(host, prefixes, mainGraph);
-    let opmProp = new OPMProp(host, prefixes, mainGraph);
 
     it('Try appending a calculation where the number of arguments does not match with the number of argument paths given (CONSTRUCT)', async () => {
         
@@ -165,40 +164,128 @@ describe("Infer derived properties - main graph", () => {
 
     });
 
+});
+
+describe("Infer derived properties - main graph", () => {
+
+    var host = 'https://example.org/';
+    
+    var mainGraph = true;
+    
+    var prefixes = [
+        {prefix: 'ex', uri: 'https://example.org/'},
+        {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'},
+        {prefix: 'props', uri: 'https://w3id.org/product/props/'}
+    ];
+
+    let opmCalc = new OPMCalc(host, prefixes, mainGraph);
+    let opmProp = new OPMProp(host, prefixes, mainGraph);
+
     /**
-     * Append derived property to a specific FoI by providing an expression and paths to the arguments of the expression
+     * Add new calculation
      */
-    it('Append calculation to ex:FoI1 (CONSTRUCT)', async () => {
+    it('Add new calculation (CONSTRUCT)', async () => {
         
         var input = {
-            foiURI: 'ex:FoI1',
+            label: '"Heating temperature difference for ex:FoI1"@en',
+            foiRestriction: 'ex:FoI1',
+            argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr'],
+            comment: 'This calculation derives the heating temperature difference for ex:FoI1 as the difference between its supply- and return water temperature',
+            userURI: 'https://www.niras.dk/employees/mhra',
             expression: 'abs(?ts-?tr)',
-            inferredProperty: 'props:heatingTemperatureDelta',
-            argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr']
+            inferredProperty: 'props:heatingTemperatureDelta'
         };
 
-        var q = opmCalc.postCalc(input);
+        var q = opmCalc.postCalcData(input);
 
         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
+        var context = opmCalc.getJSONLDContext()                        // Get JSON-LD formatted context file with known prefixes
+        var data = await jsonld.compact(res.body, context);             // Shorten URIs with prefixes ()
+
         expect(res).to.have.property('status').that.is.equals(200);                 // Should return status 200
-        expect(res).to.have.property('body').to.be.an('array').to.have.length(3);   // Should return a body with length 3 (foiURI+propURI+stateURI)
-        expect(res.body[2]['@type']).to.be.an('array').to.have.length(3);           // Property state should have 3 classes (opm:CurrentState+opm:Derived+opm:Assumed)
+        expect(res).to.have.property('body').to.be.an('array').to.have.length(1);   // Should return a body with length 1 (calculationURI)
+        expect(data).to.have.deep.any.key('opm:foiRestriction');                    // Should have a FoI restriction
+        expect(data).to.have.deep.any.key('rdfs:label');                            // Should have a label
+        expect(data).to.have.deep.any.key('rdfs:comment');                          // Should have a comment
+        expect(data).to.have.deep.any.key('opm:argumentPaths');                     // Should have argument paths
+        expect(data).to.have.deep.any.key('opm:inferredProperty');                  // Should have an inferred property
+        expect(data).to.have.deep.any.key('prov:generatedAtTime');                  // Should have a generation time
+        expect(data).to.have.deep.any.key('prov:wasAttributedTo');                  // Should be attributed to some user
+        
+    });
+
+    it('Add new calculation (INSERT)', async () => {
+        
+        var input = {
+            label: '"Heating temperature difference for ex:FoI1"@en',
+            foiRestriction: 'ex:FoI1',
+            argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr'],
+            comment: 'This calculation derives the heating temperature difference for ex:FoI1 as the difference between its supply- and return water temperature',
+            userURI: 'https://www.niras.dk/employees/mhra',
+            expression: 'abs(?ts-?tr)',
+            inferredProperty: 'props:heatingTemperatureDelta',
+            queryType: 'insert'
+        };
+
+        var q = opmCalc.postCalcData(input);
+
+        const res = await query.execute(conn, dbName, q);
+
+        expect(res).to.have.property('status').that.is.equals(200);     // Should return status 200
 
     });
 
-    it('Append calculation to ex:FoI1 (INSERT)', async () => {
-        
-        var foiURI = 'ex:FoI1';
-        var expression = 'abs(?ts-?tr)';
-        var inferredProperty = 'props:heatingTemperatureDelta';
-        var argumentPaths = ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr'];
+    /**
+     * When querying for calculations, we should now receive 1 result
+     */
+    it('Check that it was correctly inserted', async () => {
 
-        var q = opmCalc.postByFoI(foiURI, inferredProperty, expression, argumentPaths);
+        var q = opmCalc.listCalculations();
 
         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
-        expect(res).to.have.property('status').that.is.equals(200);                 // Should return status 200
+        // Save URI of the calculation in a global variable
+        this.calcURI = res.body[0]['@id'];
+
+        expect(res).to.have.property('status').that.is.equals(200);     // Should return status 200
+        expect(res).to.have.property('body').to.be.an('array').to.have.length(1);   // Should return a body with length 1 (calculationURI)
+
+    });
+
+    /**
+     * This is a demponstration of the steps that should be performed by the server when receiving a POST request to the calculation URI
+     * 1) Get calculation data
+     * 2) Do an update query
+     */
+    it('get calculation data and append calculation where applicable', async () => {
+        
+        // STEP 1
+        // Get calculation data
+
+        var q = opmCalc.getCalcData({calculationURI: this.calcURI});
+
+        var res = await query.execute(conn, dbName, q, 'application/ld+json');
+
+        expect(res).to.have.property('status').that.is.equals(200);                // Should return status 200
+        expect(res).to.have.property('body').to.be.an('array').to.have.length(1);  // Should return a body with length 1 (calculationURI)
+
+        var context = opmCalc.getJSONLDContext()                // Get JSON-LD formatted context file with known prefixes
+        var data = await jsonld.compact(res.body, context);    // Shorten URIs with prefixes ()
+
+        // STEP 2
+        // Post calculation to FoI
+
+        var calculationURI = this.calcURI;
+        var expression = data['opm:expression'];
+        var inferredProperty = data['opm:inferredProperty']['@id'];
+        var argumentPaths = data['opm:argumentPaths']['@list'];
+        var foiRestriction = data['opm:foiRestriction']['@id'];
+        var q = opmCalc.postByFoI(foiRestriction, inferredProperty, expression, argumentPaths, calculationURI);
+
+        res = await query.execute(conn, dbName, q, 'application/ld+json');
+
+        expect(res).to.have.property('status').that.is.equals(200);     // Should return status 200
 
     });
 
@@ -219,6 +306,7 @@ describe("Infer derived properties - main graph", () => {
     it('Re-append calculation to ex:FoI1 (CONSTRUCT)', async () => {
         
         var input = {
+            label: '"Calculation 1"@en',
             foiURI: 'ex:FoI1',
             expression: 'abs(?ts-?tr)',
             inferredProperty: 'props:heatingTemperatureDelta',
@@ -238,64 +326,79 @@ describe("Infer derived properties - main graph", () => {
      * Appending the property by path should assign it to all instances of bot:Element but not to ex:FoI4 which is a bot:Space
      * The query should append the property to ex:FoI2 and ex:FoI3
      */
-    it('Post derived property props:heatingTemperatureDelta by path (?foi a bot:Element) (CONSTRUCT)', async () => {
-
-        var input = {
-            path: '?foi a bot:Element',
-            calculationURI: 'https://localhost/opm/Calculation/0c69e6a2-5146-45c3-babb-2ecea5f5d2c9',
-            expression: 'abs(?ts-?tr)',
-            inferredProperty: 'props:heatingTemperatureDelta',
-            argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr']
-        };
-
-        var q = opmCalc.postCalc(input);
-
-        const res = await query.execute(conn, dbName, q, 'application/ld+json');
-
-        expect(res).to.have.property('status').that.is.equals(200);                 // Should return status 200
-        expect(res).to.have.property('body').to.be.an('array').to.have.length(6);   // Should return a body with length 6 (2foiURI+2propURI+2stateURI)
-        expect(res.body[5]['@type']).to.be.an('array').to.have.length(3);           // Property state should have 3 classes (opm:CurrentState+opm:Derived+opm:Assumed)
-
-    });
-
     it('Post derived property props:heatingTemperatureDelta by path (?foi a bot:Element) (INSERT)', async () => {
-        
-        var path = '?foi a bot:Element';
-        var calculationURI = 'https://localhost/opm/Calculation/0c69e6a2-5146-45c3-babb-2ecea5f5d2c9';
-        var expression ='abs(?ts-?tr)';
-        var inferredProperty = 'props:heatingTemperatureDelta';
-        var argumentPaths = ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr'];
 
-        var q = opmCalc.postByPath(path, inferredProperty, expression, argumentPaths, calculationURI);
+        // STEP 1
+        // Add calculation
 
-        const res = await query.execute(conn, dbName, q);
-
-        expect(res).to.have.property('status').that.is.equals(200);                 // Should return status 200
-
-    });
-
-    /**
-     * Appending the property globally should also append it to the bot:Space instance
-     */
-    it('Post derived property globally (CONSTRUCT)', async () => {
-        
         var input = {
-            calculationURI: 'https://localhost/opm/Calculation/0c69e6a2-5146-45c3-babb-2ecea5f5d2c9',
+            label: '"Heating temperature difference for all bot:Element instances"@en',
+            pathRestriction: '?foi a bot:Element',
+            argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr'],
+            comment: 'This calculation derives the heating temperature difference for all bot:Element instances as the difference between its supply- and return water temperature',
+            userURI: 'https://www.niras.dk/employees/mhra',
             expression: 'abs(?ts-?tr)',
             inferredProperty: 'props:heatingTemperatureDelta',
-            argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr']
+            queryType: 'insert'
         };
 
-        var q = opmCalc.postCalc(input);
+        var q = opmCalc.postCalcData(input);
 
-        const res = await query.execute(conn, dbName, q, 'application/ld+json');
+        var res = await query.execute(conn, dbName, q);
 
-        expect(res).to.have.property('status').that.is.equals(200);                 // Should return status 200
-        expect(res).to.have.property('body').to.be.an('array').to.have.length(3);   // Should return a body with length 3 (foiURI+propURI+stateURI)
-        expect(res.body[2]['@type']).to.be.an('array').to.have.length(3);           // Property state should have 3 classes (opm:CurrentState+opm:Derived+opm:Assumed)
+        expect(res).to.have.property('status').that.is.equals(200);     // Should return status 200
+
+        // STEP 2
+        // Get calculation data
+
+        q = opmCalc.getCalcData({label: input.label});
+        
+        res = await query.execute(conn, dbName, q, 'application/ld+json');
+        
+        expect(res).to.have.property('status').that.is.equals(200);     // Should return status 200
+
+        var context = opmCalc.getJSONLDContext()                        // Get JSON-LD formatted context file with known prefixes
+        var data = await jsonld.compact(res.body[0], context);          // Shorten URIs with prefixes ()
+
+        expect(data).to.have.deep.any.key('opm:pathRestriction');                   // Should have a path restriction
+        expect(data).to.have.deep.any.key('rdfs:label');                            // Should have a label
+        expect(data).to.have.deep.any.key('rdfs:comment');                          // Should have a comment
+        expect(data).to.have.deep.any.key('opm:argumentPaths');                     // Should have argument paths
+        expect(data).to.have.deep.any.key('opm:inferredProperty');                  // Should have an inferred property
+        expect(data).to.have.deep.any.key('prov:generatedAtTime');                  // Should have a generation time
+        expect(data).to.have.deep.any.key('prov:wasAttributedTo');                  // Should be attributed to some user
+
+        // STEP 3
+        // Post to FoIs matching the path
+
+        var calculationURI = data['@id'];
+        var expression = data['opm:expression'];
+        var inferredProperty = data['opm:inferredProperty']['@id'];
+        var argumentPaths = data['opm:argumentPaths']['@list'];
+        var pathRestriction = data['opm:pathRestriction'];
+
+        q = opmCalc.postByPath(pathRestriction, inferredProperty, expression, argumentPaths, calculationURI);
+
+        res = await query.execute(conn, dbName, q, 'application/ld+json');
+
+        expect(res).to.have.property('status').that.is.equals(200);     // Should return status 200
 
     });
 
+    it('Confirm that the properties were correctly inserted', async () => {
+    
+        var q = opmProp.getPropsByType('props:heatingTemperatureDelta', 'construct');
+
+        // console.log(q);
+
+        res = await query.execute(conn, dbName, q, 'application/ld+json');
+
+        var ids = _.map(res.body, x => x['@id']);
+
+        expect(res).to.have.property('status').that.is.equals(200);             // Should return status 200
+        expect(ids).to.not.include('https://example.org/FoI4');     // Should not be assigned to ex:FoI4
+
+    });
     
 
 });
@@ -318,7 +421,7 @@ describe("Make changes to arguments - main graph", () => {
     /**
      * There should not be any outdated properties at this point
      */
-    it('List outdated properties (CONSTRUCT)', async () => {
+    it('Verify that there are no outdated properties (CONSTRUCT)', async () => {
 
         var q = opmCalc.listAllOutdated();
 
@@ -348,140 +451,66 @@ describe("Make changes to arguments - main graph", () => {
 
         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
-        expect(res).to.have.property('status').that.is.equals(200); // Should return status 200
-        expect(res).to.have.property('body').to.be.an('array').to.have.length(9);   // Should return a body with length 9 (3foiURI+3propURI+3stateURI)
+        var context = opmCalc.getJSONLDContext()               // Get JSON-LD formatted context file with known prefixes
+        var data = await jsonld.compact(res.body, context);    // Shorten URIs with prefixes ()
 
-    });
-
-    it('List outdated properties for ex:FoI1', async () => {
-        
-        var q = opmCalc.listOutdatedByFoI('ex:FoI1');
-
-        const res = await query.execute(conn, dbName, q, 'application/ld+json');
+        var ids = _.map(data['@graph'], x => x['@id']);
 
         expect(res).to.have.property('status').that.is.equals(200); // Should return status 200
-        expect(res).to.have.property('body').to.be.an('array').to.have.length(3);   // Should return a body with length 3 (foiURI+propURI+stateURI)
+        expect(ids).to.include.members(['ex:FoI1', 'ex:FoI2', 'ex:FoI3']);
 
     });
 
-
-    /**
-     * SHOULD BEGIN WITH THESE STEPS!
-     */
-
-
-    /**
-     * Add new calculation
-     */
-    it('Add new calculation (CONSTRUCT)', async () => {
-
-        var input = {
-            label: '"Heating temperature difference"@en',
-            argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr'],
-            comment: 'Just a comment',
-            userURI: 'https://www.niras.dk/employees/mhra',
-            expression: 'abs(?ts-?tr)',
-            inferredProperty: 'props:heatingTemperatureDelta'
-        };
-
-        var q = opmCalc.postCalcData(input);
-
-        const res = await query.execute(conn, dbName, q, 'application/ld+json');
-
-        expect(res).to.have.property('status').that.is.equals(200);                 // Should return status 200
-        expect(res).to.have.property('body').to.be.an('array').to.have.length(1);   // Should return a body with length 1 (calculationURI)
-
-    });
-
-    it('Add new calculation (INSERT)', async () => {
+//     it('List outdated properties for ex:FoI1', async () => {
         
-        var input = {
-            label: '"Heating temperature difference"@en',
-            argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr'],
-            comment: 'Just a comment',
-            userURI: 'https://www.niras.dk/employees/mhra',
-            expression: 'abs(?ts-?tr)',
-            inferredProperty: 'props:heatingTemperatureDelta',
-            queryType: 'insert'
-        };
+//         var q = opmCalc.listOutdatedByFoI('ex:FoI1');
 
-        var q = opmCalc.postCalcData(input);
+//         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
-        const res = await query.execute(conn, dbName, q);
+//         expect(res).to.have.property('status').that.is.equals(200); // Should return status 200
+//         expect(res).to.have.property('body').to.be.an('array').to.have.length(3);   // Should return a body with length 3 (foiURI+propURI+stateURI)
 
-        expect(res).to.have.property('status').that.is.equals(200);     // Should return status 200
+//     });
 
-    });
+//     it('Update derived property props:heatingTemperatureDelta for ex:FoI1', async () => {
 
-    /**
-     * When querying for calculations, we should now receive 1 result
-     */
-    it('Check that it was correctly inserted', async () => {
+//         var foiURI = 'ex:FoI1';
+//         var calculationURI = 'https://localhost/opm/Calculation/0c69e6a2-5146-45c3-babb-2ecea5f5d2c9';
+//         var expression = 'abs(?ts-?tr)';
+//         var inferredProperty = 'props:heatingTemperatureDelta';
+//         var argumentPaths = ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr'];
 
-        var q = opmCalc.listCalculations();
+//         var q = opmCalc.putByFoI(foiURI, inferredProperty, expression, argumentPaths, calculationURI);
 
-        const res = await query.execute(conn, dbName, q, 'application/ld+json');
+//         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
-        // Save URI of the calculation in global variable
-        this.calcURI = res.body[0]['@id'];
+//         expect(res).to.have.property('status').that.is.equals(200); // Should return status 200
 
-        expect(res).to.have.property('status').that.is.equals(200);     // Should return status 200
-        expect(res).to.have.property('body').to.be.an('array').to.have.length(1);   // Should return a body with length 1 (calculationURI)
+//     });
 
-    });
-
-    /**
-     * This is a demponstration of the steps that should be performed by the server when receiving a PUT request to the calculation URI
-     * 1) Get calculation data
-     * 2) Do an update query
-     */
-    it('get calculation data', async () => {
+//     it('Check that ex:FoI1 has no outdated properties', async () => {
         
-        // STEP 1
-        // Get calculation data
+//         var q = opmCalc.listOutdatedByFoI('ex:FoI1');
 
-        var q = opmCalc.getCalcData({calculationURI: this.calcURI});
+//         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
-        const res1 = await query.execute(conn, dbName, q, 'application/ld+json');
+//         expect(res).to.have.property('status').that.is.equals(200); // Should return status 200
+//         expect(res).to.have.property('body').to.be.empty;   // Should return a body with length 3 (foiURI+propURI+stateURI)
 
-        expect(res1).to.have.property('status').that.is.equals(200);     // Should return status 200
-        expect(res1).to.have.property('body').to.be.an('array').to.have.length(1);   // Should return a body with length 1 (calculationURI)
+//     });
 
-        var context = opmCalc.getJSONLDContext()                // Get JSON-LD formatted context file with known prefixes
-        var data = await jsonld.compact(res1.body, context);    // Shorten URIs with prefixes ()
-
-        // STEP 2
-        // Update all derived properties that are outdated (argument(s) have changed)
-
-        var calculationURI = this.calcURI;
-        var expression = data['opm:expression'];
-        var inferredProperty = data['opm:inferredProperty']['@id'];
-        var argumentPaths = data['opm:argumentPaths']['@list'];
-
-        var q = opmCalc.putGlobally(inferredProperty, expression, argumentPaths, calculationURI);
-
-        console.log(q);
-
-        const res2 = await query.execute(conn, dbName, q, 'application/ld+json');
-
-        expect(res2).to.have.property('status').that.is.equals(200);     // Should return status 200
-
-    });
-
-    /**
-     * Make sure that no calculations are now outdated
-     */
-    it('Confirm that there are no longer any outdated calculations', async () => {
+    // /**
+    //  * Make sure that no calculations are now outdated
+    //  */
+    // it('Confirm that there are no longer any outdated calculations', async () => {
         
-        var q = opmCalc.listAllOutdated();
+    //     var q = opmCalc.listAllOutdated();
 
-        const res = await query.execute(conn, dbName, q, 'application/ld+json');
+    //     const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
-        // console.log(res);
+    //     expect(res).to.have.property('status').that.is.equals(200); // Should return status 200
+    //     expect(res).to.have.property('body').to.be.empty;   // Should return a body with length 9 (3foiURI+3propURI+3stateURI)
 
-        expect(res).to.have.property('status').that.is.equals(200); // Should return status 200
-        expect(res).to.have.property('body').to.be.empty;   // Should return a body with length 9 (3foiURI+3propURI+3stateURI)
-
-    });
+    // });
 
 });

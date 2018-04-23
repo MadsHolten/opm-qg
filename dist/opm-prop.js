@@ -598,15 +598,15 @@ var OPMProp = (function (_super) {
         if (queryType == 'construct') {
             q += '\nCONSTRUCT {\n' +
                 '\t?foi ?property ?propertyURI .\n' +
-                '\t?propertyURI opm:hasState ?state ';
+                '\t?propertyURI opm:hasState ?stateURI ';
             q += this.mainGraph ? '.\n' : ';\n\t\tsd:namedGraph ?g .\n';
-            q += '\t?state prov:generatedAtTime ?ts ;\n' +
+            q += '\t?stateURI prov:generatedAtTime ?ts ;\n' +
                 '\t\ta ?stateClasses ;\n' +
                 '\t\topm:valueAtState ?value .\n' +
                 '}\n';
         }
         else {
-            q += "SELECT DISTINCT ?foi ?property ?propertyURI ?value (?ts AS ?timestamp) (?state AS ?stateURI) ?label (?g AS ?graphURI)\n";
+            q += "SELECT DISTINCT ?foi ?property ?propertyURI ?value (?ts AS ?timestamp) ?stateURI ?label (?g AS ?graphURI)\n";
         }
         // define a few variables to use with named graphs
         var a = this.mainGraph ? '' : '\tGRAPH ?g {\n';
@@ -625,14 +625,14 @@ var OPMProp = (function (_super) {
             q += b + "\tBIND(" + propertyURI + " AS ?propertyURI)\n";
         q += "\n";
         q += (b + "\t?foi ?property ?propertyURI .\n") +
-            (b + "\t?propertyURI opm:hasState ?state .\n\n");
+            (b + "\t?propertyURI opm:hasState ?stateURI .\n");
         if (latest) {
             q += (b + "\t# GET ONLY THE LATEST STATE\n") +
-                (b + "\t?state a opm:CurrentState .\n\n");
+                (b + "\t?stateURI a opm:CurrentState .\n\n");
         }
-        q += (b + "\t?state prov:generatedAtTime ?ts ;\n") +
+        q += (b + "\t?stateURI prov:generatedAtTime ?ts ;\n") +
             (b + "\t\ta ?stateClasses .\n") +
-            (b + "\tOPTIONAL{ ?state opm:valueAtState ?value . }\n\n");
+            (b + "\tOPTIONAL{ ?stateURI opm:valueAtState ?value . }\n\n");
         // If restriction = deleted or querying for the full history, return also the opm:Deleted
         if (restriction != 'deleted' && latest) {
             q += (b + "\t# FILTER OUT DELETED PROPERTIES\n") +
