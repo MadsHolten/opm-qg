@@ -292,9 +292,8 @@ var OPMProp = (function (_super) {
         q += (b + "\t# THE FoI CANNOT HAVE THE PROPERTY ASSIGNED ALREADY\n") +
             (b + "\tMINUS { ?foi " + property + " ?prop . }\n\n") +
             (b + "\t# CREATE STATE AND PROPERTY URIs\n") +
-            (b + "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n\n") +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", ?guid)) AS ?stateURI)\n") +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"property_\", ?guid)) AS ?propertyURI)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", STRUUID())) AS ?stateURI)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"property_\", STRUUID())) AS ?propertyURI)\n") +
             (b + "\tBIND(now() AS ?now)\n");
         q += c;
         q += "}";
@@ -395,8 +394,7 @@ var OPMProp = (function (_super) {
             (b + "\t# VALUE SHOULD BE DIFFERENT FROM THE PREVIOUS\n") +
             (b + "\tFILTER(?previousVal != ?val)\n") +
             (b + "\t# CREATE STATE URIs\n") +
-            (b + "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n") +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", ?guid)) AS ?stateURI)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", STRUUID())) AS ?stateURI)\n") +
             (b + "\tBIND(now() AS ?now)\n");
         q += c; // Named graph
         q += "}";
@@ -471,8 +469,7 @@ var OPMProp = (function (_super) {
         q += (b + "\tBIND(" + propertyURI + " AS ?propertyURI)\n") +
             (b + "\tBIND(" + reliabilityClass + " AS ?reliabilityClass)\n\n");
         q += (b + "\t# CREATE URI FOR NEW STATE\n") +
-            (b + "\tBIND(REPLACE(STR(UUID()), \"urn:uuid:\", \"\") AS ?guid)\n") +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", ?guid)) AS ?stateURI)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", STRUUID())) AS ?stateURI)\n") +
             (b + "\tBIND(now() AS ?now)\n\n");
         //Make sure latest state it is not deleted or confirmed and get data
         q += (b + "\t# A STATE MUST EXIST AND MUST NOT BE DELETED OR CONFIRMED\n") +
@@ -547,8 +544,7 @@ var OPMProp = (function (_super) {
         if (propertyURI)
             q += b + "\tBIND(" + propertyURI + " as ?propURI)\n\n";
         q += '\t# CREATE STATE URI\n' +
-            '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n' +
-            ("\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", ?guid)) AS ?stateURI)\n") +
+            ("\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", STRUUID())) AS ?stateURI)\n") +
             '\tBIND(now() AS ?now)\n\n' +
             //Get latest state
             (b + "\t# GET THE TIME STAMP OF MOST RECENT PROPERTY THAT IS NOT DELETED\n") +

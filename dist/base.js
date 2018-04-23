@@ -18,6 +18,17 @@ var BaseModel = (function () {
     BaseModel.prototype.addPrefix = function (prefix) {
         this.prefixes = this._concatenatePrefixes([prefix]);
     };
+    BaseModel.prototype.getPrefixes = function () {
+        return this.prefixes;
+    };
+    // Convert prefixes to JSON-LD context file format
+    BaseModel.prototype.getJSONLDContext = function () {
+        var context = {};
+        _.each(this.prefixes, function (x) {
+            context[x.prefix] = x.uri;
+        });
+        return context;
+    };
     BaseModel.prototype.mapReliability = function (reliability) {
         // Get reliability mappings
         var mappings = require('../config.json').reliabilityMappings;
@@ -68,7 +79,7 @@ var BaseModel = (function () {
     BaseModel.prototype.uniqueVarsInString = function (str, array) {
         if (!array)
             array = [];
-        var regex = /\?[a-zA-Z]+/g;
+        var regex = /\?[a-zA-Z0-9]+/g;
         var m;
         while ((m = regex.exec(str)) !== null) {
             // This is necessary to avoid infinite loops with zero-width matches
@@ -164,6 +175,22 @@ var BaseModel = (function () {
         }
         else {
             return "<" + someURI + ">";
+        }
+    };
+    /**
+     * CLEAN STRING
+     * Strings can be either defined just as the text or as text + language/datatype "text"@en / "text"^^xsd:string
+     * @param string test string to clean
+     */
+    BaseModel.prototype.cleanLiteral = function (string) {
+        if (!string)
+            return undefined;
+        // If begins with "
+        if (string[0] == '"') {
+            return string;
+        }
+        else {
+            return "\"" + string + "\"";
         }
     };
     return BaseModel;

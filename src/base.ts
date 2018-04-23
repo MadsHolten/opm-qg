@@ -60,6 +60,19 @@ export class BaseModel {
         this.prefixes = this._concatenatePrefixes([prefix]);
     }
 
+    public getPrefixes(){
+        return this.prefixes;
+    }
+
+    // Convert prefixes to JSON-LD context file format
+    public getJSONLDContext(){
+        var context = {};
+        _.each(this.prefixes, x => {
+            context[x.prefix] = x.uri;
+        });
+        return context;
+    }
+
     public mapReliability(reliability: string){
 
         // Get reliability mappings
@@ -120,7 +133,7 @@ export class BaseModel {
     // Optionally, give it an array to include in the search
     public uniqueVarsInString(str, array?){
         if(!array) array = [];
-        const regex = /\?[a-zA-Z]+/g;
+        const regex = /\?[a-zA-Z0-9]+/g;
         let m;
         
         while ((m = regex.exec(str)) !== null) {
@@ -229,6 +242,23 @@ export class BaseModel {
         }else{
             return `<${someURI}>`;
         }
+    }
+
+    /**
+     * CLEAN STRING
+     * Strings can be either defined just as the text or as text + language/datatype "text"@en / "text"^^xsd:string
+     * @param string test string to clean
+     */
+    public cleanLiteral(string) {
+        if(!string) return undefined;
+
+        // If begins with "
+        if(string[0] == '"'){
+            return string;
+        }else{
+            return `"${string}"`;
+        }
+
     }
 
 }

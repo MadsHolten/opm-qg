@@ -1,4 +1,6 @@
 const expect = require('chai').expect;
+const _ = require('lodash');
+const jsonld = require('jsonld');
 const { Connection, query, db } = require('stardog');
 const { OPMProp, OPMCalc } = require('../dist/index');
 const config = require('./config.json');
@@ -14,7 +16,7 @@ var conn = new Connection({
 var dbName = config.database;
 
 // Global variables
-var propURI;
+var calcURI;
 
 describe("Test Stardog connection", () => {
 
@@ -329,7 +331,7 @@ describe("Make changes to arguments - main graph", () => {
 
     it('Update property (props:supplyWaterTemperatureHeating) for all bot:Element instances', async () => {
         
-        var q = opmProp.putByPath('?foi a bot:Element', 'props:supplyWaterTemperatureHeating', '"65 Cel"^^cdt:temperature', 'assumed');
+        var q = opmProp.putByPath('?foi a bot:Element', 'props:supplyWaterTemperatureHeating', '"65"^^xsd:decimal', 'assumed');
 
         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
@@ -362,32 +364,124 @@ describe("Make changes to arguments - main graph", () => {
 
     });
 
+
     /**
-     * Update the derived ex:FoI1
+     * SHOULD BEGIN WITH THESE STEPS!
      */
-    // it('List outdated properties for ex:FoI1', async () => {
 
-    //     var input = {
-    //         args: [
-    //             { property: 'seas:fluidSupplyTemperature' },
-    //             { property: 'seas:fluidReturnTemperature' }
-    //         ],
-    //         comment: 'Just a comment',
-    //         userURI: 'https://www.niras.dk/employees/mhra',
-    //         result: {
-    //             unit: '°C',
-    //             datatype: 'cdt:temperature',
-    //             property: 'seas:fluidTemperatureDifference',
-    //             calc: 'abs(?arg1-?arg2)'
-    //         },
-    //         prefixes: [
-    //             {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'}
-    //         ],
-    //         hostURI: "https://localhost/opm"
-    //     };
-    //     var sc = new qg.OPMCalc(input);
-    //     var q = sc.postCalcData();
 
-    // })
+    /**
+     * Add new calculation
+     */
+    it('Add new calculation (CONSTRUCT)', async () => {
+
+        var input = {
+            label: '"Heating temperature difference"@en',
+            argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr'],
+            comment: 'Just a comment',
+            userURI: 'https://www.niras.dk/employees/mhra',
+            expression: 'abs(?ts-?tr)',
+            inferredProperty: 'props:heatingTemperatureDelta'
+        };
+
+        var q = opmCalc.postCalcData(input);
+
+        const res = await query.execute(conn, dbName, q, 'application/ld+json');
+
+        expect(res).to.have.property('status').that.is.equals(200);                 // Should return status 200
+        expect(res).to.have.property('body').to.be.an('array').to.have.length(1);   // Should return a body with length 1 (calculationURI)
+
+    });
+
+    it('Add new calculation (INSERT)', async () => {
+        
+        var input = {
+            label: '"Heating temperature difference"@en',
+            argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr'],
+            comment: 'Just a comment',
+            userURI: 'https://www.niras.dk/employees/mhra',
+            expression: 'abs(?ts-?tr)',
+            inferredProperty: 'props:heatingTemperatureDelta',
+            queryType: 'insert'
+        };
+
+        var q = opmCalc.postCalcData(input);
+
+        const res = await query.execute(conn, dbName, q);
+
+        expect(res).to.have.property('status').that.is.equals(200);     // Should return status 200
+
+    });
+
+    /**
+     * When querying for calculations, we should now receive 1 result
+     */
+    it('Check that it was correctly inserted', async () => {
+
+        var q = opmCalc.listCalculations();
+
+        const res = await query.execute(conn, dbName, q, 'application/ld+json');
+
+        // Save URI of the calculation in global variable
+        this.calcURI = res.body[0]['@id'];
+
+        expect(res).to.have.property('status').that.is.equals(200);     // Should return status 200
+        expect(res).to.have.property('body').to.be.an('array').to.have.length(1);   // Should return a body with length 1 (calculationURI)
+
+    });
+
+    /**
+     * This is a demponstration of the steps that should be performed by the server when receiving a PUT request to the calculation URI
+     * 1) Get calculation data
+     * 2) Do an update query
+     */
+    it('get calculation data', async () => {
+        
+        // STEP 1
+        // Get calculation data
+
+        var q = opmCalc.getCalcData({calculationURI: this.calcURI});
+
+        const res1 = await query.execute(conn, dbName, q, 'application/ld+json');
+
+        expect(res1).to.have.property('status').that.is.equals(200);     // Should return status 200
+        expect(res1).to.have.property('body').to.be.an('array').to.have.length(1);   // Should return a body with length 1 (calculationURI)
+
+        var context = opmCalc.getJSONLDContext()                // Get JSON-LD formatted context file with known prefixes
+        var data = await jsonld.compact(res1.body, context);    // Shorten URIs with prefixes ()
+
+        // STEP 2
+        // Update all derived properties that are outdated (argument(s) have changed)
+
+        var calculationURI = this.calcURI;
+        var expression = data['opm:expression'];
+        var inferredProperty = data['opm:inferredProperty']['@id'];
+        var argumentPaths = data['opm:argumentPaths']['@list'];
+
+        var q = opmCalc.putGlobally(inferredProperty, expression, argumentPaths, calculationURI);
+
+        console.log(q);
+
+        const res2 = await query.execute(conn, dbName, q, 'application/ld+json');
+
+        expect(res2).to.have.property('status').that.is.equals(200);     // Should return status 200
+
+    });
+
+    /**
+     * Make sure that no calculations are now outdated
+     */
+    it('Confirm that there are no longer any outdated calculations', async () => {
+        
+        var q = opmCalc.listAllOutdated();
+
+        const res = await query.execute(conn, dbName, q, 'application/ld+json');
+
+        // console.log(res);
+
+        expect(res).to.have.property('status').that.is.equals(200); // Should return status 200
+        expect(res).to.have.property('body').to.be.empty;   // Should return a body with length 9 (3foiURI+3propURI+3stateURI)
+
+    });
 
 });

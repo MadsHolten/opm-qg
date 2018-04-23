@@ -343,9 +343,8 @@ export class OPMProp extends BaseModel {
             `${b}\tMINUS { ?foi ${property} ?prop . }\n\n` +
         
             `${b}\t# CREATE STATE AND PROPERTY URIs\n` +
-            `${b}\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n\n` +
-            `${b}\tBIND(URI(CONCAT("${host}", "state_", ?guid)) AS ?stateURI)\n` +
-            `${b}\tBIND(URI(CONCAT("${host}", "property_", ?guid)) AS ?propertyURI)\n` +
+            `${b}\tBIND(URI(CONCAT("${host}", "state_", STRUUID())) AS ?stateURI)\n` +
+            `${b}\tBIND(URI(CONCAT("${host}", "property_", STRUUID())) AS ?propertyURI)\n` +
             `${b}\tBIND(now() AS ?now)\n`;
 
         q+= c;
@@ -458,8 +457,7 @@ export class OPMProp extends BaseModel {
             `${b}\tFILTER(?previousVal != ?val)\n` +
 
             `${b}\t# CREATE STATE URIs\n` +
-            `${b}\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n` +
-            `${b}\tBIND(URI(CONCAT("${host}", "state_", ?guid)) AS ?stateURI)\n` +
+            `${b}\tBIND(URI(CONCAT("${host}", "state_", STRUUID())) AS ?stateURI)\n` +
             `${b}\tBIND(now() AS ?now)\n`;
 
         q+= c; // Named graph
@@ -541,8 +539,7 @@ export class OPMProp extends BaseModel {
             `${b}\tBIND(${reliabilityClass} AS ?reliabilityClass)\n\n`
 
         q+= `${b}\t# CREATE URI FOR NEW STATE\n` +
-        `${b}\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n` +
-        `${b}\tBIND(URI(CONCAT("${host}", "state_", ?guid)) AS ?stateURI)\n` +
+        `${b}\tBIND(URI(CONCAT("${host}", "state_", STRUUID())) AS ?stateURI)\n` +
         `${b}\tBIND(now() AS ?now)\n\n`;
 
         //Make sure latest state it is not deleted or confirmed and get data
@@ -627,8 +624,7 @@ export class OPMProp extends BaseModel {
         if(propertyURI) q+= `${b}\tBIND(${propertyURI} as ?propURI)\n\n`;
 
         q+= '\t# CREATE STATE URI\n' +
-            '\tBIND(REPLACE(STR(UUID()), "urn:uuid:", "") AS ?guid)\n' +
-            `\tBIND(URI(CONCAT("${host}", "state_", ?guid)) AS ?stateURI)\n` +
+            `\tBIND(URI(CONCAT("${host}", "state_", STRUUID())) AS ?stateURI)\n` +
             '\tBIND(now() AS ?now)\n\n' +
 
             //Get latest state
