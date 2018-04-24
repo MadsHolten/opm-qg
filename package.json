@@ -21,6 +21,7 @@
   ],
   "dependencies": {
     "@types/lodash": "^4.14.107",
+    "@types/underscore.string": "0.0.32",
     "chai": "^4.1.2",
     "jsonld": "^1.0.1",
     "lodash": "^4.17.5",
@@ -29,6 +30,6 @@
     "underscore.string": "^3.3.4"
   },
   "devDependencies": {
-    "typescript": "^2.0.0"
+    "typescript": "^2.8.3"
   }
 }

@@ -1,15 +1,22 @@
-var __extends = (this && this.__extends) || function (d, b) {
-    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-    function __() { this.constructor = d; }
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-};
+"use strict";
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = Object.setPrototypeOf ||
+        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
+exports.__esModule = true;
 var _ = require("lodash");
 var _s = require("underscore.string");
 var base_1 = require("./base");
-var OPMProp = (function (_super) {
+var OPMProp = /** @class */ (function (_super) {
     __extends(OPMProp, _super);
     function OPMProp() {
-        _super.apply(this, arguments);
+        return _super !== null && _super.apply(this, arguments) || this;
     }
     /**
      * POST BY FoI INSERT QUERY
@@ -175,11 +182,12 @@ var OPMProp = (function (_super) {
      * @param foiURI        URI of the Feature of Interest (FoI) to which the property is assigned
      * @param queryType     Return results as 'construct' or 'select'? (defaults to 'construct')
       */
-    OPMProp.prototype.getFoIProps = function (foiURI, queryType) {
+    OPMProp.prototype.getFoIProps = function (foiURI, property, queryType) {
         if (!queryType)
             queryType = 'construct';
         var input = {
             foiURI: foiURI,
+            property: property,
             queryType: queryType,
             latest: true
         };
@@ -248,7 +256,7 @@ var OPMProp = (function (_super) {
         property = _s.startsWith(property, 'http') ? "<" + property + ">" : "" + property;
         var q = '';
         // define a few variables to use with named graphs
-        var a = this.mainGraph ? '' : '\tGRAPH ?g {\n';
+        var a = this.mainGraph ? '' : "\tGRAPH ?g {\n";
         var b = this.mainGraph ? '' : '\t';
         var c = this.mainGraph ? '' : '\t}\n';
         var d = queryType != 'insert' ? '' : '\t';
@@ -259,19 +267,19 @@ var OPMProp = (function (_super) {
             if (!this.mainGraph)
                 q += "\tGRAPH <" + host + "> {\n";
         }
-        q += ("" + b + d + "\t?foi " + property + " ?propertyURI .\n") +
-            ("" + b + d + "\t?propertyURI a opm:Property ;\n") +
-            ("" + b + d + "\t\topm:hasState ?stateURI .\n");
+        q += d + "\t?foi " + property + " ?propertyURI .\n" +
+            (d + "\t?propertyURI a opm:Property ;\n") +
+            (d + "\t\topm:hasState ?stateURI .\n");
         if (reliabilityClass)
-            q += "" + b + d + "\t?stateURI a " + reliabilityClass + " .\n";
-        q += "" + b + d + "\t?stateURI a opm:CurrentState ;\n";
+            q += d + "\t?stateURI a " + reliabilityClass + " .\n";
+        q += d + "\t?stateURI a opm:CurrentState ;\n";
         if (userURI)
-            q += "" + b + d + "\t\tprov:wasAttributedTo ?userURI ;\n";
+            q += d + "\t\tprov:wasAttributedTo ?userURI ;\n";
         if (comment)
-            q += "" + b + d + "\t\trdfs:comment ?comment ;\n";
-        q += ("" + b + d + "\t\topm:valueAtState ?val ;\n") +
-            ("" + b + d + "\t\tprov:generatedAtTime ?now .\n");
-        if (!this.mainGraph)
+            q += d + "\t\trdfs:comment ?comment ;\n";
+        q += d + "\t\topm:valueAtState ?val ;\n" +
+            (d + "\t\tprov:generatedAtTime ?now .\n");
+        if (!this.mainGraph && queryType == 'insert')
             q += c;
         q += '}\n';
         q += 'WHERE {\n';
@@ -289,7 +297,7 @@ var OPMProp = (function (_super) {
         // q+= `${b}\t}}\n\n`;
         q += foiURI ? b + "\t# FoI MUST EXIST\n" : b + "\t# PATH TO BE MATCHED\n";
         q += b + "\t" + path + "\n";
-        q += (b + "\t# THE FoI CANNOT HAVE THE PROPERTY ASSIGNED ALREADY\n") +
+        q += b + "\t# THE FoI CANNOT HAVE THE PROPERTY ASSIGNED ALREADY\n" +
             (b + "\tMINUS { ?foi " + property + " ?prop . }\n\n") +
             (b + "\t# CREATE STATE AND PROPERTY URIs\n") +
             (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", STRUUID())) AS ?stateURI)\n") +
@@ -346,25 +354,25 @@ var OPMProp = (function (_super) {
             q += '\nDELETE {\n';
             if (!this.mainGraph)
                 q += "\tGRAPH <" + host + "> {\n";
-            q += b + "\t?previousState a opm:CurrentState .\n";
+            q += d + "\t?previousState a opm:CurrentState .\n";
             if (!this.mainGraph)
                 q += c;
             q += '}\n';
             q += 'INSERT {\n';
             if (!this.mainGraph)
                 q += "\tGRAPH <" + host + "> {\n";
-            q += b + "\t?previousState a opm:State .";
+            q += d + "\t?previousState a opm:State .";
         }
-        q += "" + b + d + "\t?propertyURI opm:hasState ?stateURI .\n";
-        q += "" + b + d + "\t?stateURI a opm:CurrentState";
+        q += d + "\t?propertyURI opm:hasState ?stateURI .\n";
+        q += d + "\t?stateURI a opm:CurrentState";
         q += reliabilityClass ? " , " + reliabilityClass + " ;\n" : " ;\n";
         if (userURI)
             q += d + "\t\tprov:wasAttributedTo ?userURI ;\n";
         if (comment)
             q += d + "\t\trdfs:comment ?comment ;\n";
-        q += ("" + b + d + "\t\topm:valueAtState ?val ;\n") +
-            ("" + b + d + "\t\tprov:generatedAtTime ?now .\n");
-        if (!this.mainGraph)
+        q += d + "\t\topm:valueAtState ?val ;\n" +
+            (d + "\t\tprov:generatedAtTime ?now .\n");
+        if (!this.mainGraph && queryType == 'insert')
             q += c;
         q += '}\n';
         q += 'WHERE {\n';
@@ -385,10 +393,10 @@ var OPMProp = (function (_super) {
         q += b + "\t# GET DATA FROM LATEST STATE\n";
         if (!propertyURI)
             q += b + "\t?foi " + property + " ?propertyURI .\n";
-        q += (b + "\t?propertyURI opm:hasState ?previousState .\n") +
+        q += b + "\t?propertyURI opm:hasState ?previousState .\n" +
             (b + "\t?previousState a opm:CurrentState ;\n") +
             (b + "\t\t\topm:valueAtState ?previousVal .\n\n");
-        q += (b + "\t# FILTER OUT DELETED OR CONFIRMED\n") +
+        q += b + "\t# FILTER OUT DELETED OR CONFIRMED\n" +
             (b + "\tMINUS{ ?previousState a opm:Deleted }\n") +
             (b + "\tMINUS{ ?previousState a opm:Confirmed }\n\n") +
             (b + "\t# VALUE SHOULD BE DIFFERENT FROM THE PREVIOUS\n") +
@@ -435,44 +443,44 @@ var OPMProp = (function (_super) {
             q += '\nDELETE {\n';
             if (!this.mainGraph)
                 q += "\tGRAPH <" + host + "> {\n";
-            q += b + "\t?previousState a opm:CurrentState .\n";
+            q += d + "\t?previousState a opm:CurrentState .\n";
             if (!this.mainGraph)
                 q += c;
             q += '}\n' +
                 'INSERT {\n';
             if (!this.mainGraph)
                 q += "\tGRAPH <" + host + "> {\n";
-            q += b + "\t?previousState a opm:State .\n";
+            q += d + "\t?previousState a opm:State .\n";
         }
-        q += "" + b + d + "?propertyURI opm:hasState ?stateURI .\n";
+        q += d + "\t?propertyURI opm:hasState ?stateURI .\n";
         //Assign value directly to property when confirmed?
         //Mark property as confirmed?
         if (comment)
-            q += "" + b + d + "?stateURI rdfs:comment \"" + comment + "\" .\n";
-        q += ("" + b + d + "?stateURI a opm:CurrentState , ?reliabilityClass ;\n") +
-            ("" + b + d + "\t?key ?val ;\n");
+            q += d + "?stateURI rdfs:comment \"" + comment + "\" .\n";
+        q += d + "\t?stateURI a opm:CurrentState , ?reliabilityClass ;\n" +
+            (d + "\t\t?key ?val ;\n");
         if (userURI)
-            q += d + "\tprov:wasAttributedTo ?userURI ;\n";
+            q += d + "\t\tprov:wasAttributedTo ?userURI ;\n";
         if (comment)
-            q += d + "\trdfs:comment ?comment ;\n";
-        q += "" + b + d + "\tprov:generatedAtTime ?now .\n";
-        if (!this.mainGraph)
-            q += c; // Named graph
+            q += d + "\t\trdfs:comment ?comment ;\n";
+        q += d + "\t\tprov:generatedAtTime ?now .\n";
+        if (!this.mainGraph && queryType == 'insert')
+            q += c;
         q += '}\n' +
             'WHERE {\n';
         q += a; // Named graph
         if (userURI)
-            q += d + "\tBIND(" + userURI + " AS ?userURI)\n";
+            q += b + "\tBIND(" + userURI + " AS ?userURI)\n";
         if (comment)
-            q += d + "\tBIND(\"" + comment + "\" AS ?comment)\n";
+            q += b + "\tBIND(\"" + comment + "\" AS ?comment)\n";
         //Set for specific propertyURI
-        q += (b + "\tBIND(" + propertyURI + " AS ?propertyURI)\n") +
+        q += b + "\tBIND(" + propertyURI + " AS ?propertyURI)\n" +
             (b + "\tBIND(" + reliabilityClass + " AS ?reliabilityClass)\n\n");
-        q += (b + "\t# CREATE URI FOR NEW STATE\n") +
+        q += b + "\t# CREATE URI FOR NEW STATE\n" +
             (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", STRUUID())) AS ?stateURI)\n") +
             (b + "\tBIND(now() AS ?now)\n\n");
         //Make sure latest state it is not deleted or confirmed and get data
-        q += (b + "\t# A STATE MUST EXIST AND MUST NOT BE DELETED OR CONFIRMED\n") +
+        q += b + "\t# A STATE MUST EXIST AND MUST NOT BE DELETED OR CONFIRMED\n" +
             (b + "\t?propertyURI opm:hasState ?previousState .\n") +
             (b + "\t?previousState a opm:CurrentState ;\n") +
             (b + "\t\t?key ?val .\n\n") +
@@ -483,8 +491,9 @@ var OPMProp = (function (_super) {
             (b + "\tMINUS { ?previousState a opm:Confirmed }\n\n") +
             (b + "\t# SHOULD BE DIFFERENT FROM PREVIOUS STATE\n") +
             (b + "\tMINUS { ?previousState a ?reliabilityClass }\n\n") +
+            (
             // Omit derived values (these are confirmed when all arguments are confirmed)
-            (b + "\t# RELIABILITY OF A DERIVED PROPERTY CANNOT BE SET - IT IS INFERRED\n") +
+            b + "\t# RELIABILITY OF A DERIVED PROPERTY CANNOT BE SET - IT IS INFERRED\n") +
             (b + "\tMINUS { ?state a opm:Derived }\n") +
             (b + "\tMINUS { ?state prov:wasDerivedFrom ?dependencies }\n\n");
         if (!this.mainGraph)
@@ -515,16 +524,16 @@ var OPMProp = (function (_super) {
             q += '\nDELETE {\n';
             if (!mainGraph)
                 q += "\tGRAPH <" + host + "> {\n";
-            q += b + "\t?previousState a opm:CurrentState .\n";
+            q += d + "\t?previousState a opm:CurrentState .\n";
             if (!mainGraph)
                 q += c;
             q += '}\n' +
                 'INSERT {\n';
             if (!mainGraph)
                 q += "\tGRAPH <" + host + "> {\n";
-            q += b + "\t?previousState a opm:State .\n";
+            q += d + "\t?previousState a opm:State .\n";
         }
-        q += "" + b + d + "\t?propURI opm:hasState ?stateURI .\n";
+        q += d + "\t?propURI opm:hasState ?stateURI .\n";
         q += '\t?stateURI a opm:CurrentState ;\n';
         if (userURI)
             q += d + "\t\tprov:wasAttributedTo ?userURI ;\n";
@@ -532,33 +541,34 @@ var OPMProp = (function (_super) {
             q += d + "\t\trdfs:comment ?comment ;\n";
         q += '\t\tprov:generatedAtTime ?now ;\n' +
             '\t\t?key ?val .\n';
-        if (!this.mainGraph)
-            q += c; // Named graph
+        if (!this.mainGraph && queryType == 'insert')
+            q += c;
         q += '}\n' +
             'WHERE {\n';
         q += a;
         if (userURI)
-            q += d + "\tBIND(" + userURI + " AS ?userURI)\n";
+            q += b + "\tBIND(" + userURI + " AS ?userURI)\n";
         if (comment)
-            q += d + "\tBIND(\"" + comment + "\" AS ?comment)\n";
+            q += b + "\tBIND(\"" + comment + "\" AS ?comment)\n";
         if (propertyURI)
             q += b + "\tBIND(" + propertyURI + " as ?propURI)\n\n";
-        q += '\t# CREATE STATE URI\n' +
-            ("\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", STRUUID())) AS ?stateURI)\n") +
-            '\tBIND(now() AS ?now)\n\n' +
+        q += b + "\t# CREATE STATE URI\n" +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", STRUUID())) AS ?stateURI)\n") +
+            (b + "\tBIND(now() AS ?now)\n\n") +
+            (
             //Get latest state
-            (b + "\t# GET THE TIME STAMP OF MOST RECENT PROPERTY THAT IS NOT DELETED\n") +
+            b + "\t# GET THE TIME STAMP OF MOST RECENT PROPERTY THAT IS NOT DELETED\n") +
             (b + "\t{ SELECT ?propURI (MAX(?_t) AS ?t) WHERE {\n") +
             (b + "\t\t?propURI opm:hasState ?state .\n") +
             (b + "\t\t?state prov:generatedAtTime ?_t .\n") +
             (b + "\t\tMINUS { ?state a opm:Deleted }\n") +
             (b + "\t} GROUP BY ?propURI }\n\n") +
+            (
             //Get data
-            (b + "\t#GET DATA\n") +
+            b + "\t#GET DATA\n") +
             (b + "\t?propURI opm:hasState [\n") +
             (b + "\t\tprov:generatedAtTime ?t ;\n") +
-            (b + "\t\t?key ?val\n") +
-            (b + "\t]\n\n") +
+            (b + "\t\t?key ?val ] .\n\n") +
             (b + "\t# DON NOT RESTORE GENERATION TIME AND DELETED CLASS\n") +
             (b + "\tFILTER(?key != prov:generatedAtTime)\n") +
             (b + "\tFILTER(?val != opm:Deleted)\n\n");
@@ -592,7 +602,7 @@ var OPMProp = (function (_super) {
         var queryType = input.queryType ? input.queryType : this.queryType;
         //Find restriction class
         if (restriction) {
-            var restrictionClass = _.chain(this.reliabilityOptions).filter(function (obj) { return (obj.key == restriction); }).map(function (obj) { return obj.class; }).first().value();
+            var restrictionClass = _.chain(this.reliabilityOptions).filter(function (obj) { return (obj.key == restriction); }).map(function (obj) { return obj["class"]; }).first().value();
         }
         var q = '';
         if (queryType == 'construct') {
@@ -624,22 +634,22 @@ var OPMProp = (function (_super) {
         if (propertyURI)
             q += b + "\tBIND(" + propertyURI + " AS ?propertyURI)\n";
         q += "\n";
-        q += (b + "\t?foi ?property ?propertyURI .\n") +
+        q += b + "\t?foi ?property ?propertyURI .\n" +
             (b + "\t?propertyURI opm:hasState ?stateURI .\n");
         if (latest) {
-            q += (b + "\t# GET ONLY THE LATEST STATE\n") +
+            q += b + "\t# GET ONLY THE LATEST STATE\n" +
                 (b + "\t?stateURI a opm:CurrentState .\n\n");
         }
-        q += (b + "\t?stateURI prov:generatedAtTime ?ts ;\n") +
+        q += b + "\t?stateURI prov:generatedAtTime ?ts ;\n" +
             (b + "\t\ta ?stateClasses .\n") +
             (b + "\tOPTIONAL{ ?stateURI opm:valueAtState ?value . }\n\n");
         // If restriction = deleted or querying for the full history, return also the opm:Deleted
         if (restriction != 'deleted' && latest) {
-            q += (b + "\t# FILTER OUT DELETED PROPERTIES\n") +
+            q += b + "\t# FILTER OUT DELETED PROPERTIES\n" +
                 (b + "\tMINUS{ ?state a opm:Deleted }\n\n");
         }
         if (restriction) {
-            q += (b + "\t# RESTRICT VALUES\n") +
+            q += b + "\t# RESTRICT VALUES\n" +
                 (b + "\t?state a " + restrictionClass + " .\n");
         }
         // q+= `\t#RETRIEVE LABEL FROM ONTOLOGY IF AVAILABLE\n`;
@@ -654,5 +664,5 @@ var OPMProp = (function (_super) {
         return this.appendPrefixesToQuery(q);
     };
     return OPMProp;
-})(base_1.BaseModel);
+}(base_1.BaseModel));
 exports.OPMProp = OPMProp;

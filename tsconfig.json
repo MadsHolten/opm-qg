@@ -1,6 +1,9 @@
 {
     "compilerOptions": {
-        "outDir": "dist"
+        "outDir": "dist",
+        "typeRoots": [
+            "node_modules/@types"
+        ]
     },
     "files": [
         "src/index.ts"

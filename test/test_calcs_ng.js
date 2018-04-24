@@ -19,9 +19,8 @@ var dbName = config.database;
  * GLOBAL SETTINGS
  */
 var host = 'https://example.org/';
-
-var mainGraph = true;
-
+var iGraph = 'https://example.org/I';
+var mainGraph = false;
 var calcURI;
 
 var prefixes = [
@@ -31,7 +30,7 @@ var prefixes = [
 ];
 
 let opmProp = new OPMProp(host, prefixes, mainGraph);
-let opmCalc = new OPMCalc(host, prefixes, mainGraph);
+let opmCalc = new OPMCalc(host, prefixes, mainGraph, iGraph);
 
 var context = opmCalc.getJSONLDContext()                // Get JSON-LD formatted context file with known prefixes
 
@@ -69,10 +68,12 @@ describe("Prepare 3 Features of Interest each with a supply- and return water te
             PREFIX bot: <https://w3id.org/bot#>
             PREFIX ex: <https://example.org/>
             INSERT DATA {
-                ex:FoI1 a bot:Element .
-                ex:FoI2 a bot:Element .
-                ex:FoI3 a bot:Element .
-                ex:FoI4 a bot:Space .
+                GRAPH <${host}> {
+                    ex:FoI1 a bot:Element .
+                    ex:FoI2 a bot:Element .
+                    ex:FoI3 a bot:Element .
+                    ex:FoI4 a bot:Space .
+                }
             }`;
     
             const res = await query.execute(conn, dbName, q);
@@ -86,7 +87,9 @@ describe("Prepare 3 Features of Interest each with a supply- and return water te
             PREFIX bot: <https://w3id.org/bot#>
             PREFIX ex: <https://example.org/>
             SELECT (COUNT(?foi) AS ?count) {
-                ?foi ?p ?o
+                GRAPH ?g {
+                    ?foi ?p ?o
+                }
             }`;
             
             const res = await query.execute(conn, dbName, q);
@@ -99,7 +102,7 @@ describe("Prepare 3 Features of Interest each with a supply- and return water te
         it('Assign a property (props:supplyWaterTemperatureHeating) (70 Cel) to all FoIs (INSERT)', async () => {
             
             var q = opmProp.postByPath('?foi a ?class FILTER(?class = bot:Element || ?class = bot:Space)', 'props:supplyWaterTemperatureHeating', '"70"^^xsd:decimal', 'assumed');
-    
+
             const res = await query.execute(conn, dbName, q);
     
             expect(res).to.have.property('status').that.is.equals(200);                 // Should return status 200
@@ -138,25 +141,6 @@ describe("Prepare 3 Features of Interest each with a supply- and return water te
     
         });
     
-});
-
-describe("Simple tests for postCalc", () => {
-
-    it('Try appending a calculation where the number of arguments does not match with the number of argument paths given (CONSTRUCT)', async () => {
-        
-        var input = {
-            foiURI: 'ex:FoI1',
-            expression: 'abs(?ts-?tr+?x)',
-            inferredProperty: 'props:heatingTemperatureDelta',
-            argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr']
-        };
-
-        var q = opmCalc.postCalc(input);
-
-        expect(q).to.be.a('error');
-
-    });
-
 });
 
 describe("Infer derived properties - main graph", () => {
@@ -505,7 +489,7 @@ describe("Make changes to arguments - main graph", () => {
 
     });
 
-    /**
+        /**
      * Get the subscribers (ie properties that will be affected when the property changes)
      */
     it('Get the subscribers of property props:supplyWaterTemperatureHeating of ex:FoI1', async () => {

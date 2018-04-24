@@ -5,6 +5,7 @@ declare var require: any;
 
 export interface Base {
     host: string;
+    iGraph?: string;
     label?: string;
     comment?: string;
     userURI?: string;
@@ -35,8 +36,9 @@ export class BaseModel {
     public queryType: string;                           // query type (construct/select/insert)
     public reliabilityOptions: ReliabilityOption[];     // reliability mappings
     public mainGraph: boolean;                          // query the main graph or a named graph?
+    public iGraph: string;                              // named graph to use for inferred triples
 
-    constructor(host: string, prefixes?: Prefix[], mainGraph?: boolean){
+    constructor(host: string, prefixes?: Prefix[], mainGraph?: boolean, iGraph?: string){
 
         // Get host
         this.host = host;
@@ -54,6 +56,10 @@ export class BaseModel {
 
         // Query main graph as default
         this.mainGraph = mainGraph != undefined ? mainGraph : true;
+
+        // Inference graph defaults to host+I
+        this.iGraph = iGraph ? iGraph : this.host+'I';
+
     }
 
     public addPrefix(prefix: Prefix){

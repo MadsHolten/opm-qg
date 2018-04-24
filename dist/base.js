@@ -1,7 +1,9 @@
+"use strict";
+exports.__esModule = true;
 var _ = require("lodash");
 var _s = require("underscore.string");
-var BaseModel = (function () {
-    function BaseModel(host, prefixes, mainGraph) {
+var BaseModel = /** @class */ (function () {
+    function BaseModel(host, prefixes, mainGraph, iGraph) {
         // Get host
         this.host = host;
         // Get predefined prefixes
@@ -14,6 +16,8 @@ var BaseModel = (function () {
         this.queryType = 'construct';
         // Query main graph as default
         this.mainGraph = mainGraph != undefined ? mainGraph : true;
+        // Inference graph defaults to host+I
+        this.iGraph = iGraph ? iGraph : this.host + 'I';
     }
     BaseModel.prototype.addPrefix = function (prefix) {
         this.prefixes = this._concatenatePrefixes([prefix]);
@@ -40,7 +44,7 @@ var BaseModel = (function () {
             return new Error(err);
         }
         // Map and return class
-        return _.chain(options).filter(function (obj) { return (obj.key == reliability); }).map(function (obj) { return obj.class; }).first().value();
+        return _.chain(options).filter(function (obj) { return (obj.key == reliability); }).map(function (obj) { return obj["class"]; }).first().value();
     };
     // Concatenate new and predefined prefixes while filtering out duplicates
     BaseModel.prototype._concatenatePrefixes = function (newPrefixes) {
@@ -169,6 +173,7 @@ var BaseModel = (function () {
         // If it doesn't contain http, just return it as is
         if (someURI.indexOf('http') == -1) {
             return someURI;
+            // If not and it already has <> just return as is
         }
         else if (someURI[0] == '<' && someURI[someURI.length - 1] == '>') {
             return someURI;
@@ -194,5 +199,5 @@ var BaseModel = (function () {
         }
     };
     return BaseModel;
-})();
+}());
 exports.BaseModel = BaseModel;

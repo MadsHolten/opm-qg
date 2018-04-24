@@ -212,11 +212,12 @@ export class OPMProp extends BaseModel {
      * @param foiURI        URI of the Feature of Interest (FoI) to which the property is assigned
      * @param queryType     Return results as 'construct' or 'select'? (defaults to 'construct')
       */
-    public getFoIProps(foiURI: string, queryType: string){
+    public getFoIProps(foiURI: string, property?: string, queryType?: string){
         if(!queryType) queryType = 'construct';
 
         var input: GetProp = {
             foiURI: foiURI,
+            property: property,
             queryType: queryType,
             latest: true
         }
@@ -295,7 +296,7 @@ export class OPMProp extends BaseModel {
         var q: string = '';
 
         // define a few variables to use with named graphs
-        var a = this.mainGraph ? '' : '\tGRAPH ?g {\n';
+        var a = this.mainGraph ? '' : `\tGRAPH ?g {\n`;
         var b = this.mainGraph ? '' : '\t';
         var c = this.mainGraph ? '' : '\t}\n';
         var d = queryType != 'insert' ? '' : '\t';
@@ -305,20 +306,22 @@ export class OPMProp extends BaseModel {
             q+= '\nINSERT {\n';
             if(!this.mainGraph) q+= `\tGRAPH <${host}> {\n`;
         }
-        q+= `${b}${d}\t?foi ${property} ?propertyURI .\n` +
-            `${b}${d}\t?propertyURI a opm:Property ;\n` +
-            `${b}${d}\t\topm:hasState ?stateURI .\n`;
+        q+= `${d}\t?foi ${property} ?propertyURI .\n` +
+            `${d}\t?propertyURI a opm:Property ;\n` +
+            `${d}\t\topm:hasState ?stateURI .\n`;
 
-        if(reliabilityClass) q+= `${b}${d}\t?stateURI a ${reliabilityClass} .\n`;
+        if(reliabilityClass) q+= `${d}\t?stateURI a ${reliabilityClass} .\n`;
 
-        q+= `${b}${d}\t?stateURI a opm:CurrentState ;\n`;
+        q+= `${d}\t?stateURI a opm:CurrentState ;\n`;
 
-        if(userURI) q+= `${b}${d}\t\tprov:wasAttributedTo ?userURI ;\n`;
-        if(comment) q+= `${b}${d}\t\trdfs:comment ?comment ;\n`;
+        if(userURI) q+= `${d}\t\tprov:wasAttributedTo ?userURI ;\n`;
+        if(comment) q+= `${d}\t\trdfs:comment ?comment ;\n`;
 
-        q+= `${b}${d}\t\topm:valueAtState ?val ;\n` +
-            `${b}${d}\t\tprov:generatedAtTime ?now .\n`;
-        if(!this.mainGraph) q+= c;
+        q+= `${d}\t\topm:valueAtState ?val ;\n` +
+            `${d}\t\tprov:generatedAtTime ?now .\n`;
+
+        if(!this.mainGraph && queryType == 'insert') q+= c;
+
         q+= '}\n';
 
         q+= 'WHERE {\n';
@@ -401,27 +404,28 @@ export class OPMProp extends BaseModel {
             // FIRST DELETE CURRENT STATE CLASS FROM PREVIOUS STATE
             q+= '\nDELETE {\n';
             if(!this.mainGraph) q+= `\tGRAPH <${host}> {\n`;
-            q+= `${b}\t?previousState a opm:CurrentState .\n`;
+            q+= `${d}\t?previousState a opm:CurrentState .\n`;
             if(!this.mainGraph) q+= c;
             q+= '}\n';
             q+= 'INSERT {\n';
             if(!this.mainGraph) q+= `\tGRAPH <${host}> {\n`;
-            q+= `${b}\t?previousState a opm:State .`;
+            q+= `${d}\t?previousState a opm:State .`;
         }
 
-        q+= `${b}${d}\t?propertyURI opm:hasState ?stateURI .\n`;
+        q+= `${d}\t?propertyURI opm:hasState ?stateURI .\n`;
 
-        q+= `${b}${d}\t?stateURI a opm:CurrentState`;
+        q+= `${d}\t?stateURI a opm:CurrentState`;
 
         q+= reliabilityClass ? ` , ${reliabilityClass} ;\n` : ` ;\n`;
 
         if(userURI) q+= `${d}\t\tprov:wasAttributedTo ?userURI ;\n`;
         if(comment) q+= `${d}\t\trdfs:comment ?comment ;\n`;
 
-        q+= `${b}${d}\t\topm:valueAtState ?val ;\n` +
-            `${b}${d}\t\tprov:generatedAtTime ?now .\n`;
+        q+= `${d}\t\topm:valueAtState ?val ;\n` +
+            `${d}\t\tprov:generatedAtTime ?now .\n`;
 
-        if(!this.mainGraph) q+= c;
+        if(!this.mainGraph && queryType == 'insert') q+= c;
+
         q+= '}\n';
 
         q+= 'WHERE {\n';
@@ -503,44 +507,46 @@ export class OPMProp extends BaseModel {
             // FIRST DELETE CURRENT STATE CLASS FROM PREVIOUS STATE
             q+= '\nDELETE {\n';
             if(!this.mainGraph) q+= `\tGRAPH <${host}> {\n`;
-            q+= `${b}\t?previousState a opm:CurrentState .\n`;
+            q+= `${d}\t?previousState a opm:CurrentState .\n`;
             if(!this.mainGraph) q+= c;
             q+= '}\n' +
                 'INSERT {\n';
             if(!this.mainGraph) q+= `\tGRAPH <${host}> {\n`;
-            q+= `${b}\t?previousState a opm:State .\n`;
+            q+= `${d}\t?previousState a opm:State .\n`;
         }
 
-        q+= `${b}${d}?propertyURI opm:hasState ?stateURI .\n`;
+        q+= `${d}\t?propertyURI opm:hasState ?stateURI .\n`;
 
         //Assign value directly to property when confirmed?
         //Mark property as confirmed?
 
-        if(comment) q+= `${b}${d}?stateURI rdfs:comment "${comment}" .\n`;
+        if(comment) q+= `${d}?stateURI rdfs:comment "${comment}" .\n`;
 
-        q+= `${b}${d}?stateURI a opm:CurrentState , ?reliabilityClass ;\n` +
-            `${b}${d}\t?key ?val ;\n`;
+        q+= `${d}\t?stateURI a opm:CurrentState , ?reliabilityClass ;\n` +
+            `${d}\t\t?key ?val ;\n`;
 
-        if(userURI) q+= `${d}\tprov:wasAttributedTo ?userURI ;\n`;
-        if(comment) q+= `${d}\trdfs:comment ?comment ;\n`;
+        if(userURI) q+= `${d}\t\tprov:wasAttributedTo ?userURI ;\n`;
+        if(comment) q+= `${d}\t\trdfs:comment ?comment ;\n`;
 
-        q+= `${b}${d}\tprov:generatedAtTime ?now .\n`;
+        q+= `${d}\t\tprov:generatedAtTime ?now .\n`;
 
-        if(!this.mainGraph) q+= c; // Named graph
+        if(!this.mainGraph && queryType == 'insert') q+= c;
+
         q+= '}\n' +
             'WHERE {\n';
+
         q+= a; // Named graph
 
-        if(userURI) q+= `${d}\tBIND(${userURI} AS ?userURI)\n`;
-        if(comment) q+= `${d}\tBIND("${comment}" AS ?comment)\n`;
+        if(userURI) q+= `${b}\tBIND(${userURI} AS ?userURI)\n`;
+        if(comment) q+= `${b}\tBIND("${comment}" AS ?comment)\n`;
 
         //Set for specific propertyURI
         q+= `${b}\tBIND(${propertyURI} AS ?propertyURI)\n` +
             `${b}\tBIND(${reliabilityClass} AS ?reliabilityClass)\n\n`
 
         q+= `${b}\t# CREATE URI FOR NEW STATE\n` +
-        `${b}\tBIND(URI(CONCAT("${host}", "state_", STRUUID())) AS ?stateURI)\n` +
-        `${b}\tBIND(now() AS ?now)\n\n`;
+            `${b}\tBIND(URI(CONCAT("${host}", "state_", STRUUID())) AS ?stateURI)\n` +
+            `${b}\tBIND(now() AS ?now)\n\n`;
 
         //Make sure latest state it is not deleted or confirmed and get data
         q+= `${b}\t# A STATE MUST EXIST AND MUST NOT BE DELETED OR CONFIRMED\n` +
@@ -596,15 +602,15 @@ export class OPMProp extends BaseModel {
             // FIRST DELETE CURRENT STATE CLASS FROM PREVIOUS STATE
             q+= '\nDELETE {\n';
             if(!mainGraph) q+= `\tGRAPH <${host}> {\n`;
-            q+= `${b}\t?previousState a opm:CurrentState .\n`;
+            q+= `${d}\t?previousState a opm:CurrentState .\n`;
             if(!mainGraph) q+= c;
             q+= '}\n' +
                 'INSERT {\n';
             if(!mainGraph) q+= `\tGRAPH <${host}> {\n`;
-            q+= `${b}\t?previousState a opm:State .\n`;
+            q+= `${d}\t?previousState a opm:State .\n`;
         }
 
-        q+= `${b}${d}\t?propURI opm:hasState ?stateURI .\n`;
+        q+= `${d}\t?propURI opm:hasState ?stateURI .\n`;
 
         q+= '\t?stateURI a opm:CurrentState ;\n';
 
@@ -614,18 +620,19 @@ export class OPMProp extends BaseModel {
         q+= '\t\tprov:generatedAtTime ?now ;\n' +
             '\t\t?key ?val .\n';
 
-        if(!this.mainGraph) q+= c; // Named graph
+        if(!this.mainGraph && queryType == 'insert') q+= c;
+
         q+= '}\n' +
             'WHERE {\n';
         q+= a;
 
-        if(userURI) q+= `${d}\tBIND(${userURI} AS ?userURI)\n`;
-        if(comment) q+= `${d}\tBIND("${comment}" AS ?comment)\n`;
+        if(userURI) q+= `${b}\tBIND(${userURI} AS ?userURI)\n`;
+        if(comment) q+= `${b}\tBIND("${comment}" AS ?comment)\n`;
         if(propertyURI) q+= `${b}\tBIND(${propertyURI} as ?propURI)\n\n`;
 
-        q+= '\t# CREATE STATE URI\n' +
-            `\tBIND(URI(CONCAT("${host}", "state_", STRUUID())) AS ?stateURI)\n` +
-            '\tBIND(now() AS ?now)\n\n' +
+        q+= `${b}\t# CREATE STATE URI\n` +
+            `${b}\tBIND(URI(CONCAT("${host}", "state_", STRUUID())) AS ?stateURI)\n` +
+            `${b}\tBIND(now() AS ?now)\n\n` +
 
             //Get latest state
             `${b}\t# GET THE TIME STAMP OF MOST RECENT PROPERTY THAT IS NOT DELETED\n` +
@@ -639,8 +646,7 @@ export class OPMProp extends BaseModel {
             `${b}\t#GET DATA\n` +
             `${b}\t?propURI opm:hasState [\n` +
             `${b}\t\tprov:generatedAtTime ?t ;\n` +
-            `${b}\t\t?key ?val\n` +
-            `${b}\t]\n\n` +
+            `${b}\t\t?key ?val ] .\n\n` +
 
             `${b}\t# DON NOT RESTORE GENERATION TIME AND DELETED CLASS\n` +
             `${b}\tFILTER(?key != prov:generatedAtTime)\n` +

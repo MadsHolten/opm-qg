@@ -122,41 +122,7 @@ export class OPMProp extends BaseModel {
     /**
      * OTHER
      */
-    listSubscribers(input: GetProp): string {
-        var propertyURI = input.propertyURI;
-        var queryType = input.queryType ? input.queryType : this.queryType;
-        var q = '';
-        q+= 'PREFIX  opm: <https://w3id.org/opm#>\n';
-        q+= 'PREFIX  prov: <http://www.w3.org/ns/prov#>\n';
-        q+= 'PREFIX  seas: <https://w3id.org/seas/>\n';
-        q+= 'PREFIX  sd: <http://www.w3.org/ns/sparql-service-description#>\n';
-
-        if(queryType == 'construct'){
-            q+= 'CONSTRUCT {\n';
-            q+= '\t?propertyURI opm:hasSubscriber ?propertyURI .\n';
-            q+= '\t?propertyURI sd:namedGraph ?g2 ;\n';
-            q+= '\t\tseas:isPropertyOf ?foiURI .\n';
-            q+= '}\n';
-        }else{
-            q+= 'SELECT DISTINCT ?propertyURI (?g2 as ?graphURI) ?foiURI\n';
-        }
-
-        q+= 'WHERE {\n';
-        q+= '\tGRAPH ?g {\n';
-        q+= `\t\tBIND(<${propertyURI}> AS ?propertyURI)\n`;
-        q+= `\t\t?propertyURI opm:hasState ?state .\n`;
-        q+= `\t}\n`;
-        q+= '\tGRAPH ?g2 {\n';
-        q+= `\t\t[ ^prov:wasDerivedFrom ?depState ] ?pos ?state .\n`;
-        q+= `\t\t?depState ^opm:hasState ?propertyURI .\n`;
-        q+= `\t\t#FINDING THE FoI IS ONLY POSSIBLE WITH REASONING\n`;
-        q+= `\t\tOPTIONAL { ?propertyURI seas:isPropertyOf ?foiURI . }\n`;
-        q+= '\t\t#EXCLUDE DELETED\n';
-        q+= '\t\tMINUS { ?depState a opm:Deleted }\n';
-        q+= `\t}\n`;
-        q+= `}\n`;
-        return q;
-    }
+    
 
     getHost(someURI): string {
         var q = '';
