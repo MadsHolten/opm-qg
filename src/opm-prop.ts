@@ -308,7 +308,7 @@ export class OPMProp extends BaseModel {
         }
         q+= `${d}\t?foi ${property} ?propertyURI .\n` +
             `${d}\t?propertyURI a opm:Property ;\n` +
-            `${d}\t\topm:hasState ?stateURI .\n`;
+            `${d}\t\tseas:evaluation ?stateURI .\n`;
 
         if(reliabilityClass) q+= `${d}\t?stateURI a ${reliabilityClass} .\n`;
 
@@ -412,7 +412,7 @@ export class OPMProp extends BaseModel {
             q+= `${d}\t?previousState a opm:State .`;
         }
 
-        q+= `${d}\t?propertyURI opm:hasState ?stateURI .\n`;
+        q+= `${d}\t?propertyURI seas:evaluation ?stateURI .\n`;
 
         q+= `${d}\t?stateURI a opm:CurrentState`;
 
@@ -449,7 +449,7 @@ export class OPMProp extends BaseModel {
 
         if(!propertyURI) q+= `${b}\t?foi ${property} ?propertyURI .\n`;
 
-        q+= `${b}\t?propertyURI opm:hasState ?previousState .\n` +
+        q+= `${b}\t?propertyURI seas:evaluation ?previousState .\n` +
             `${b}\t?previousState a opm:CurrentState ;\n` +
             `${b}\t\t\topm:valueAtState ?previousVal .\n\n`;
 
@@ -515,7 +515,7 @@ export class OPMProp extends BaseModel {
             q+= `${d}\t?previousState a opm:State .\n`;
         }
 
-        q+= `${d}\t?propertyURI opm:hasState ?stateURI .\n`;
+        q+= `${d}\t?propertyURI seas:evaluation ?stateURI .\n`;
 
         //Assign value directly to property when confirmed?
         //Mark property as confirmed?
@@ -550,7 +550,7 @@ export class OPMProp extends BaseModel {
 
         //Make sure latest state it is not deleted or confirmed and get data
         q+= `${b}\t# A STATE MUST EXIST AND MUST NOT BE DELETED OR CONFIRMED\n` +
-            `${b}\t?propertyURI opm:hasState ?previousState .\n` +
+            `${b}\t?propertyURI seas:evaluation ?previousState .\n` +
             `${b}\t?previousState a opm:CurrentState ;\n` +
             `${b}\t\t?key ?val .\n\n` +
 
@@ -610,7 +610,7 @@ export class OPMProp extends BaseModel {
             q+= `${d}\t?previousState a opm:State .\n`;
         }
 
-        q+= `${d}\t?propURI opm:hasState ?stateURI .\n`;
+        q+= `${d}\t?propURI seas:evaluation ?stateURI .\n`;
 
         q+= '\t?stateURI a opm:CurrentState ;\n';
 
@@ -637,14 +637,14 @@ export class OPMProp extends BaseModel {
             //Get latest state
             `${b}\t# GET THE TIME STAMP OF MOST RECENT PROPERTY THAT IS NOT DELETED\n` +
             `${b}\t{ SELECT ?propURI (MAX(?_t) AS ?t) WHERE {\n` +
-            `${b}\t\t?propURI opm:hasState ?state .\n` +
+            `${b}\t\t?propURI seas:evaluation ?state .\n` +
             `${b}\t\t?state prov:generatedAtTime ?_t .\n` +
             `${b}\t\tMINUS { ?state a opm:Deleted }\n` +
             `${b}\t} GROUP BY ?propURI }\n\n` +
 
             //Get data
             `${b}\t#GET DATA\n` +
-            `${b}\t?propURI opm:hasState [\n` +
+            `${b}\t?propURI seas:evaluation [\n` +
             `${b}\t\tprov:generatedAtTime ?t ;\n` +
             `${b}\t\t?key ?val ] .\n\n` +
 
@@ -654,7 +654,7 @@ export class OPMProp extends BaseModel {
 
         if(queryType != 'construct'){
             q+= `${b}\t# GET DELETED STATE\n`;
-            q+= `${b}\t?propURI opm:hasState ?previousState .\n`;
+            q+= `${b}\t?propURI seas:evaluation ?previousState .\n`;
             q+= `${b}\t?previousState a opm:CurrentState .\n\n`;
         }
 
@@ -696,7 +696,7 @@ export class OPMProp extends BaseModel {
         if(queryType == 'construct'){
             q+= '\nCONSTRUCT {\n' +
                 '\t?foi ?property ?propertyURI .\n' +
-                '\t?propertyURI opm:hasState ?stateURI ';
+                '\t?propertyURI seas:evaluation ?stateURI ';
 
             q+= this.mainGraph ? '.\n' : ';\n\t\tsd:namedGraph ?g .\n';
 
@@ -728,7 +728,7 @@ export class OPMProp extends BaseModel {
         q+= `\n`;
 
         q+= `${b}\t?foi ?property ?propertyURI .\n` +
-            `${b}\t?propertyURI opm:hasState ?stateURI .\n`;
+            `${b}\t?propertyURI seas:evaluation ?stateURI .\n`;
 
         if(latest) {
             q+= `${b}\t# GET ONLY THE LATEST STATE\n` +

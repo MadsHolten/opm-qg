@@ -269,7 +269,7 @@ var OPMProp = /** @class */ (function (_super) {
         }
         q += d + "\t?foi " + property + " ?propertyURI .\n" +
             (d + "\t?propertyURI a opm:Property ;\n") +
-            (d + "\t\topm:hasState ?stateURI .\n");
+            (d + "\t\tseas:evaluation ?stateURI .\n");
         if (reliabilityClass)
             q += d + "\t?stateURI a " + reliabilityClass + " .\n";
         q += d + "\t?stateURI a opm:CurrentState ;\n";
@@ -363,7 +363,7 @@ var OPMProp = /** @class */ (function (_super) {
                 q += "\tGRAPH <" + host + "> {\n";
             q += d + "\t?previousState a opm:State .";
         }
-        q += d + "\t?propertyURI opm:hasState ?stateURI .\n";
+        q += d + "\t?propertyURI seas:evaluation ?stateURI .\n";
         q += d + "\t?stateURI a opm:CurrentState";
         q += reliabilityClass ? " , " + reliabilityClass + " ;\n" : " ;\n";
         if (userURI)
@@ -393,7 +393,7 @@ var OPMProp = /** @class */ (function (_super) {
         q += b + "\t# GET DATA FROM LATEST STATE\n";
         if (!propertyURI)
             q += b + "\t?foi " + property + " ?propertyURI .\n";
-        q += b + "\t?propertyURI opm:hasState ?previousState .\n" +
+        q += b + "\t?propertyURI seas:evaluation ?previousState .\n" +
             (b + "\t?previousState a opm:CurrentState ;\n") +
             (b + "\t\t\topm:valueAtState ?previousVal .\n\n");
         q += b + "\t# FILTER OUT DELETED OR CONFIRMED\n" +
@@ -452,7 +452,7 @@ var OPMProp = /** @class */ (function (_super) {
                 q += "\tGRAPH <" + host + "> {\n";
             q += d + "\t?previousState a opm:State .\n";
         }
-        q += d + "\t?propertyURI opm:hasState ?stateURI .\n";
+        q += d + "\t?propertyURI seas:evaluation ?stateURI .\n";
         //Assign value directly to property when confirmed?
         //Mark property as confirmed?
         if (comment)
@@ -481,7 +481,7 @@ var OPMProp = /** @class */ (function (_super) {
             (b + "\tBIND(now() AS ?now)\n\n");
         //Make sure latest state it is not deleted or confirmed and get data
         q += b + "\t# A STATE MUST EXIST AND MUST NOT BE DELETED OR CONFIRMED\n" +
-            (b + "\t?propertyURI opm:hasState ?previousState .\n") +
+            (b + "\t?propertyURI seas:evaluation ?previousState .\n") +
             (b + "\t?previousState a opm:CurrentState ;\n") +
             (b + "\t\t?key ?val .\n\n") +
             (b + "\t# PREVIOUS OPM CLASSES SHOULD NOT BE COPIED\n") +
@@ -533,7 +533,7 @@ var OPMProp = /** @class */ (function (_super) {
                 q += "\tGRAPH <" + host + "> {\n";
             q += d + "\t?previousState a opm:State .\n";
         }
-        q += d + "\t?propURI opm:hasState ?stateURI .\n";
+        q += d + "\t?propURI seas:evaluation ?stateURI .\n";
         q += '\t?stateURI a opm:CurrentState ;\n';
         if (userURI)
             q += d + "\t\tprov:wasAttributedTo ?userURI ;\n";
@@ -559,14 +559,14 @@ var OPMProp = /** @class */ (function (_super) {
             //Get latest state
             b + "\t# GET THE TIME STAMP OF MOST RECENT PROPERTY THAT IS NOT DELETED\n") +
             (b + "\t{ SELECT ?propURI (MAX(?_t) AS ?t) WHERE {\n") +
-            (b + "\t\t?propURI opm:hasState ?state .\n") +
+            (b + "\t\t?propURI seas:evaluation ?state .\n") +
             (b + "\t\t?state prov:generatedAtTime ?_t .\n") +
             (b + "\t\tMINUS { ?state a opm:Deleted }\n") +
             (b + "\t} GROUP BY ?propURI }\n\n") +
             (
             //Get data
             b + "\t#GET DATA\n") +
-            (b + "\t?propURI opm:hasState [\n") +
+            (b + "\t?propURI seas:evaluation [\n") +
             (b + "\t\tprov:generatedAtTime ?t ;\n") +
             (b + "\t\t?key ?val ] .\n\n") +
             (b + "\t# DON NOT RESTORE GENERATION TIME AND DELETED CLASS\n") +
@@ -574,7 +574,7 @@ var OPMProp = /** @class */ (function (_super) {
             (b + "\tFILTER(?val != opm:Deleted)\n\n");
         if (queryType != 'construct') {
             q += b + "\t# GET DELETED STATE\n";
-            q += b + "\t?propURI opm:hasState ?previousState .\n";
+            q += b + "\t?propURI seas:evaluation ?previousState .\n";
             q += b + "\t?previousState a opm:CurrentState .\n\n";
         }
         if (!this.mainGraph)
@@ -608,7 +608,7 @@ var OPMProp = /** @class */ (function (_super) {
         if (queryType == 'construct') {
             q += '\nCONSTRUCT {\n' +
                 '\t?foi ?property ?propertyURI .\n' +
-                '\t?propertyURI opm:hasState ?stateURI ';
+                '\t?propertyURI seas:evaluation ?stateURI ';
             q += this.mainGraph ? '.\n' : ';\n\t\tsd:namedGraph ?g .\n';
             q += '\t?stateURI prov:generatedAtTime ?ts ;\n' +
                 '\t\ta ?stateClasses ;\n' +
@@ -635,7 +635,7 @@ var OPMProp = /** @class */ (function (_super) {
             q += b + "\tBIND(" + propertyURI + " AS ?propertyURI)\n";
         q += "\n";
         q += b + "\t?foi ?property ?propertyURI .\n" +
-            (b + "\t?propertyURI opm:hasState ?stateURI .\n");
+            (b + "\t?propertyURI seas:evaluation ?stateURI .\n");
         if (latest) {
             q += b + "\t# GET ONLY THE LATEST STATE\n" +
                 (b + "\t?stateURI a opm:CurrentState .\n\n");

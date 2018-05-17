@@ -436,7 +436,7 @@ describe("Make changes to arguments - main graph", () => {
 
         expect(res).to.have.property('status').that.is.equals(200); // Should return status 200
         expect(ids).to.include.members(['ex:FoI1']);   // Should have member ex:FoI1
-        expect(keys).to.include.members(['props:heatingTemperatureDelta','opm:hasState','prov:wasDerivedFrom']);
+        expect(keys).to.include.members(['props:heatingTemperatureDelta','seas:evaluation','prov:wasDerivedFrom']);
 
         var state = _.filter(data['@graph'], x => x['@type'] && x['@type'].indexOf('opm:CurrentState') != -1 )[0];
 
@@ -523,5 +523,38 @@ describe("Make changes to arguments - main graph", () => {
         expect(res).to.have.property('body').to.be.an('array').to.have.length(1);   // Should return a body with length 1
 
     });
+
+    /**
+     * Testing the extended post calc method
+     */
+    // it('Calculate the product of supply- and return water temperature - insert globally and add calculation resource at the same time', async () => {
+        
+    //     var input = {
+    //         label: '"temp product"@en',
+    //         argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr'],
+    //         comment: 'This calculation sums the supply- and return water temperature for heating',
+    //         userURI: 'https://www.niras.dk/employees/mhra',
+    //         expression: '?ts+?tr',
+    //         inferredProperty: 'props:heatingTemperatureSum',
+    //         queryType: 'construct'
+    //     };
+
+    //     var q = opmCalc.postCalcExtended(input);
+
+    //     // var res = await query.execute(conn, dbName, q);
+
+    //     // expect(res).to.have.property('status').that.is.equals(200); // Should return status 200
+
+    //     // q = opmCalc.getCalcDataByLabel(input.label);
+
+    //     console.log(q);
+
+    //     // res = await query.execute(conn, dbName, q, 'application/ld+json');
+
+    //     // // Currently not working. Should only yeild one claculation URI!
+
+    //     // console.log(res);
+
+    // });
 
 });
