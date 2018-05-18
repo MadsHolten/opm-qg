@@ -177,6 +177,20 @@ var OPMProp = /** @class */ (function (_super) {
         return this.setReliability(input);
     };
     /**
+     * GET LATEST STATE OF ALL PROPERTIES
+     * Returns only the latest states and does not return results for deleted properties
+     * @param queryType     Return results as 'construct' or 'select'? (defaults to 'construct')
+      */
+    OPMProp.prototype.getAllProps = function (queryType) {
+        if (!queryType)
+            queryType = 'construct';
+        var input = {
+            queryType: queryType,
+            latest: true
+        };
+        return this.getProps(input);
+    };
+    /**
      * GET PROPERTIES BY URI OF FoI
      * Returns only the latest states and does not return results for deleted properties
      * @param foiURI        URI of the Feature of Interest (FoI) to which the property is assigned
@@ -616,7 +630,7 @@ var OPMProp = /** @class */ (function (_super) {
                 '}\n';
         }
         else {
-            q += "SELECT DISTINCT ?foi ?property ?propertyURI ?value (?ts AS ?timestamp) ?stateURI ?label (?g AS ?graphURI)\n";
+            q += "SELECT DISTINCT ?foi ?property ?propertyURI ?value ?stateURI ?label (?g AS ?graphURI)\n";
         }
         // define a few variables to use with named graphs
         var a = this.mainGraph ? '' : '\tGRAPH ?g {\n';

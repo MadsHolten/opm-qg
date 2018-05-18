@@ -207,6 +207,22 @@ export class OPMProp extends BaseModel {
     }
 
     /**
+     * GET LATEST STATE OF ALL PROPERTIES
+     * Returns only the latest states and does not return results for deleted properties
+     * @param queryType     Return results as 'construct' or 'select'? (defaults to 'construct')
+      */
+      public getAllProps(queryType?: string){
+        if(!queryType) queryType = 'construct';
+
+        var input: GetProp = {
+            queryType: queryType,
+            latest: true
+        }
+
+        return this.getProps(input);
+    }
+
+    /**
      * GET PROPERTIES BY URI OF FoI
      * Returns only the latest states and does not return results for deleted properties
      * @param foiURI        URI of the Feature of Interest (FoI) to which the property is assigned
@@ -705,7 +721,7 @@ export class OPMProp extends BaseModel {
                 '\t\topm:valueAtState ?value .\n' +
                 '}\n';
         }else{
-            q+= `SELECT DISTINCT ?foi ?property ?propertyURI ?value (?ts AS ?timestamp) ?stateURI ?label (?g AS ?graphURI)\n`;
+            q+= `SELECT DISTINCT ?foi ?property ?propertyURI ?value ?stateURI ?label (?g AS ?graphURI)\n`;
         }
 
         // define a few variables to use with named graphs
