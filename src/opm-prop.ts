@@ -289,7 +289,7 @@ export class OPMProp extends BaseModel {
 
         // Retrieve and process variables
         var property = input.property;
-        var value = input.value;
+        var value = this.cleanProp(input.value);
 
         // Optional arguments
         var foiURI = this.cleanURI(input.foiURI);
@@ -324,16 +324,16 @@ export class OPMProp extends BaseModel {
         }
         q+= `${d}\t?foi ${property} ?propertyURI .\n` +
             `${d}\t?propertyURI a opm:Property ;\n` +
-            `${d}\t\tseas:evaluation ?stateURI .\n`;
+            `${d}\t\topm:hasPropertyState ?stateURI .\n`;
 
         if(reliabilityClass) q+= `${d}\t?stateURI a ${reliabilityClass} .\n`;
 
-        q+= `${d}\t?stateURI a opm:CurrentState ;\n`;
+        q+= `${d}\t?stateURI a opm:CurrentPropertyState ;\n`;
 
         if(userURI) q+= `${d}\t\tprov:wasAttributedTo ?userURI ;\n`;
         if(comment) q+= `${d}\t\trdfs:comment ?comment ;\n`;
 
-        q+= `${d}\t\topm:valueAtState ?val ;\n` +
+        q+= `${d}\t\tschema:value ?val ;\n` +
             `${d}\t\tprov:generatedAtTime ?now .\n`;
 
         if(!this.mainGraph && queryType == 'insert') q+= c;
@@ -342,6 +342,11 @@ export class OPMProp extends BaseModel {
 
         q+= 'WHERE {\n';
         q+= a;
+
+        q+= `${b}\t# CREATE STATE AND PROPERTY URIs\n` +
+        `${b}\tBIND(URI(CONCAT("${host}", "state_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?stateURI)\n` +
+        `${b}\tBIND(URI(CONCAT("${host}", "property_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?propertyURI)\n` +
+        `${b}\tBIND(now() AS ?now)\n`;
 
         // If posting to a specific FoI
         if(foiURI) q+= `${b}\tBIND(${foiURI} AS ?foi)\n`;
@@ -359,12 +364,103 @@ export class OPMProp extends BaseModel {
         q+= `${b}\t${path}\n`;
 
         q+= `${b}\t# THE FoI CANNOT HAVE THE PROPERTY ASSIGNED ALREADY\n` +
-            `${b}\tMINUS { ?foi ${property} ?prop . }\n\n` +
+            `${b}\tMINUS { ?foi ${property} ?prop . }\n\n`;
+
+        q+= c;
+        q+= `}`;
+
+        return this.appendPrefixesToQuery(q);
+
+    }
+
+    // Create property for a FoI where it doesn't already exist
+    public postClassProp(input: PostPutProp) {
         
-            `${b}\t# CREATE STATE AND PROPERTY URIs\n` +
-            `${b}\tBIND(URI(CONCAT("${host}", "state_", STRUUID())) AS ?stateURI)\n` +
-            `${b}\tBIND(URI(CONCAT("${host}", "property_", STRUUID())) AS ?propertyURI)\n` +
-            `${b}\tBIND(now() AS ?now)\n`;
+        // Get global variables
+        var host = this.host;
+
+        // Retrieve and process variables
+        var property = input.property;
+        var value = this.cleanProp(input.value);
+
+        // Optional arguments
+        var foiURI = this.cleanURI(input.foiURI);
+        var reliability = input.reliability;
+        var userURI = this.cleanURI(input.userURI);
+        var comment = input.comment;
+        var reliabilityClass = reliability ? this.mapReliability(reliability) : null; // Map reliability class if given
+        var queryType = input.queryType ? input.queryType : this.queryType;     // Get default if not defined
+
+        // Validate arguments
+        if(!foiURI) return new Error("Specify foiURI (URI of the Class)");
+        if(!property) return new Error('Specify a property');
+        if(!value) return new Error('Specify a value');
+        if(reliabilityClass instanceof Error) return reliabilityClass;
+
+        //Clean property (add triangle brackets if not prefixed)
+        property = _s.startsWith(property, 'http') ? `<${property}>` : `${property}`;
+
+        var q: string = '';
+
+        // define a few variables to use with named graphs
+        var a = this.mainGraph ? '' : `\tGRAPH ?g {\n`;
+        var b = this.mainGraph ? '' : '\t';
+        var c = this.mainGraph ? '' : '\t}\n';
+        var d = queryType != 'insert' ? '' : '\t';
+
+        if(queryType == 'construct') q+= '\nCONSTRUCT {\n';
+        if(queryType == 'insert') {
+            q+= '\nINSERT {\n';
+            if(!this.mainGraph) q+= `\tGRAPH <${host}> {\n`;
+        }
+        q+= `${d}\t?foi rdfs:subClassOf [\n` +
+            `${d}\t\ta owl:Restriction ;\n` +
+            `${d}\t\towl:onProperty ${property} ;\n` +
+            `${d}\t\towl:hasValue ?propertyURI\n` +
+            `${d}\t] .\n` +
+            `${d}\t?propertyURI a opm:Property ;\n` +
+            `${d}\t\topm:hasPropertyState ?stateURI .\n`;
+
+        if(reliabilityClass) q+= `${d}\t?stateURI a ${reliabilityClass} .\n`;
+
+        q+= `${d}\t?stateURI a opm:CurrentPropertyState ;\n`;
+
+        if(userURI) q+= `${d}\t\tprov:wasAttributedTo ?userURI ;\n`;
+        if(comment) q+= `${d}\t\trdfs:comment ?comment ;\n`;
+
+        q+= `${d}\t\tschema:value ?val ;\n` +
+            `${d}\t\tprov:generatedAtTime ?now .\n`;
+
+        if(!this.mainGraph && queryType == 'insert') q+= c;
+
+        q+= '}\n';
+
+        q+= 'WHERE {\n';
+        q+= a;
+
+        q+= `${b}\t# CREATE STATE AND PROPERTY URIs\n` +
+        `${b}\tBIND(URI(CONCAT("${host}", "state_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?stateURI)\n` +
+        `${b}\tBIND(URI(CONCAT("${host}", "property_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?propertyURI)\n` +
+        `${b}\tBIND(now() AS ?now)\n`;
+
+        // If posting to a specific FoI
+        if(foiURI) q+= `${b}\tBIND(${foiURI} AS ?foi)\n`;
+
+        if(userURI) q+= `${d}\tBIND(${userURI} AS ?userURI)\n`;
+        if(comment) q+= `${d}\tBIND("${comment}" AS ?comment)\n`;
+
+        q+= `${b}\tBIND(${value} AS ?val)\n\n`;
+
+        q+= `${b}\t# FoI MUST EXIST\n`;
+
+        q+= `${b}\t# THE FoI CANNOT HAVE THE PROPERTY ASSIGNED ALREADY\n` +
+            `${b}\tMINUS {\n` +
+            `${b}\t\t?foi rdfs:subClassOf [\n` +
+            `${b}\t\t\ta owl:Restriction ;\n` +
+            `${b}\t\t\towl:onProperty ${property} ;\n` +
+            `${b}\t\t\towl:hasValue ?existPropURI\n` +
+            `${b}\t\t]\n` +
+            `${b}\t}\n\n`;
 
         q+= c;
         q+= `}`;
@@ -380,9 +476,10 @@ export class OPMProp extends BaseModel {
         var host = this.host;
 
         // Retrieve and process variables
-        var value = input.value;
+        var value = this.cleanProp(input.value);
 
         // Optional
+        var graphURI = input.graphURI ? this.cleanURI(input.graphURI) : this.cleanURI(host);
         var propertyURI = this.cleanURI(input.propertyURI); // OPTION 1
         var foiURI = this.cleanURI(input.foiURI);           // OPTION 2
         var property = input.property;                      // OPTION 2
@@ -419,25 +516,25 @@ export class OPMProp extends BaseModel {
         if(queryType == 'insert') {
             // FIRST DELETE CURRENT STATE CLASS FROM PREVIOUS STATE
             q+= '\nDELETE {\n';
-            if(!this.mainGraph) q+= `\tGRAPH <${host}> {\n`;
-            q+= `${d}\t?previousState a opm:CurrentState .\n`;
+            if(!this.mainGraph) q+= `\tGRAPH ${graphURI} {\n`;
+            q+= `${d}\t?previousState a opm:CurrentPropertyState .\n`;
             if(!this.mainGraph) q+= c;
             q+= '}\n';
             q+= 'INSERT {\n';
-            if(!this.mainGraph) q+= `\tGRAPH <${host}> {\n`;
-            q+= `${d}\t?previousState a opm:State .`;
+            if(!this.mainGraph) q+= `\tGRAPH ${graphURI} {\n`;
+            q+= `${d}\t?previousState a opm:PropertyState .`;
         }
 
-        q+= `${d}\t?propertyURI seas:evaluation ?stateURI .\n`;
+        q+= `${d}\t?propertyURI opm:hasPropertyState ?stateURI .\n`;
 
-        q+= `${d}\t?stateURI a opm:CurrentState`;
+        q+= `${d}\t?stateURI a opm:CurrentPropertyState`;
 
         q+= reliabilityClass ? ` , ${reliabilityClass} ;\n` : ` ;\n`;
 
         if(userURI) q+= `${d}\t\tprov:wasAttributedTo ?userURI ;\n`;
         if(comment) q+= `${d}\t\trdfs:comment ?comment ;\n`;
 
-        q+= `${d}\t\topm:valueAtState ?val ;\n` +
+        q+= `${d}\t\tschema:value ?val ;\n` +
             `${d}\t\tprov:generatedAtTime ?now .\n`;
 
         if(!this.mainGraph && queryType == 'insert') q+= c;
@@ -447,6 +544,10 @@ export class OPMProp extends BaseModel {
         q+= 'WHERE {\n';
 
         q+= a; // Named graph
+
+        q+= `${b}\t# CREATE STATE URIs\n` +
+        `${b}\tBIND(URI(CONCAT("${host}", "state_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?stateURI)\n` +
+        `${b}\tBIND(now() AS ?now)\n`;
 
         // If posting to a specific FoI        
         if(foiURI) q+= `${b}\tBIND(${foiURI} AS ?foi)\n`;
@@ -465,20 +566,17 @@ export class OPMProp extends BaseModel {
 
         if(!propertyURI) q+= `${b}\t?foi ${property} ?propertyURI .\n`;
 
-        q+= `${b}\t?propertyURI seas:evaluation ?previousState .\n` +
-            `${b}\t?previousState a opm:CurrentState ;\n` +
-            `${b}\t\t\topm:valueAtState ?previousVal .\n\n`;
+        q+= `${b}\t?propertyURI opm:hasPropertyState ?previousState .\n` +
+            `${b}\t?previousState a opm:CurrentPropertyState ;\n` +
+            `${b}\t\t\tschema:value ?previousVal .\n\n`;
 
-        q+= `${b}\t# FILTER OUT DELETED OR CONFIRMED\n` +
+        q+= `${b}\t# FILTER OUT DELETED, DERIVED OR CONFIRMED\n` +
             `${b}\tMINUS{ ?previousState a opm:Deleted }\n` +
-            `${b}\tMINUS{ ?previousState a opm:Confirmed }\n\n` +
+            `${b}\tMINUS{ ?previousState a opm:Confirmed }\n` +
+            `${b}\tMINUS{ ?previousState a opm:Derived }\n\n` +
 
             `${b}\t# VALUE SHOULD BE DIFFERENT FROM THE PREVIOUS\n` +
-            `${b}\tFILTER(?previousVal != ?val)\n` +
-
-            `${b}\t# CREATE STATE URIs\n` +
-            `${b}\tBIND(URI(CONCAT("${host}", "state_", STRUUID())) AS ?stateURI)\n` +
-            `${b}\tBIND(now() AS ?now)\n`;
+            `${b}\tFILTER(str(?previousVal) != str(?val))\n`;
 
         q+= c; // Named graph
 
@@ -523,22 +621,22 @@ export class OPMProp extends BaseModel {
             // FIRST DELETE CURRENT STATE CLASS FROM PREVIOUS STATE
             q+= '\nDELETE {\n';
             if(!this.mainGraph) q+= `\tGRAPH <${host}> {\n`;
-            q+= `${d}\t?previousState a opm:CurrentState .\n`;
+            q+= `${d}\t?previousState a opm:CurrentPropertyState .\n`;
             if(!this.mainGraph) q+= c;
             q+= '}\n' +
                 'INSERT {\n';
             if(!this.mainGraph) q+= `\tGRAPH <${host}> {\n`;
-            q+= `${d}\t?previousState a opm:State .\n`;
+            q+= `${d}\t?previousState a opm:PropertyState .\n`;
         }
 
-        q+= `${d}\t?propertyURI seas:evaluation ?stateURI .\n`;
+        q+= `${d}\t?propertyURI opm:hasPropertyState ?stateURI .\n`;
 
         //Assign value directly to property when confirmed?
         //Mark property as confirmed?
 
         if(comment) q+= `${d}?stateURI rdfs:comment "${comment}" .\n`;
 
-        q+= `${d}\t?stateURI a opm:CurrentState , ?reliabilityClass ;\n` +
+        q+= `${d}\t?stateURI a opm:CurrentPropertyState , ?reliabilityClass ;\n` +
             `${d}\t\t?key ?val ;\n`;
 
         if(userURI) q+= `${d}\t\tprov:wasAttributedTo ?userURI ;\n`;
@@ -561,17 +659,20 @@ export class OPMProp extends BaseModel {
             `${b}\tBIND(${reliabilityClass} AS ?reliabilityClass)\n\n`
 
         q+= `${b}\t# CREATE URI FOR NEW STATE\n` +
-            `${b}\tBIND(URI(CONCAT("${host}", "state_", STRUUID())) AS ?stateURI)\n` +
+            `${b}\tBIND(URI(CONCAT("${host}", "state_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?stateURI)\n` +
             `${b}\tBIND(now() AS ?now)\n\n`;
 
         //Make sure latest state it is not deleted or confirmed and get data
         q+= `${b}\t# A STATE MUST EXIST AND MUST NOT BE DELETED OR CONFIRMED\n` +
-            `${b}\t?propertyURI seas:evaluation ?previousState .\n` +
-            `${b}\t?previousState a opm:CurrentState ;\n` +
+            `${b}\t?propertyURI opm:hasPropertyState ?previousState .\n` +
+            `${b}\t?previousState a opm:CurrentPropertyState ;\n` +
             `${b}\t\t?key ?val .\n\n` +
 
             `${b}\t# PREVIOUS OPM CLASSES SHOULD NOT BE COPIED\n` +
-            `${b}\tFILTER(namespace(?val) != "https://w3id.org/opm#")\n\n` +
+            `${b}\tFILTER (regex(str(?val), "^https://w3id.org/opm#", "i") != true)\n\n` +
+
+            `${b}\t# PREVIOUS TIME STAMP SHOULD NOT BE COPIED\n` +
+            `${b}\tFILTER(?key != prov:generatedAtTime)\n\n` +
 
             `${b}\t# CANNOT CHANGE STATE IF DELETED OR CONFIRMED\n` +
             `${b}\tMINUS { ?previousState a opm:Deleted }\n` +
@@ -618,17 +719,17 @@ export class OPMProp extends BaseModel {
             // FIRST DELETE CURRENT STATE CLASS FROM PREVIOUS STATE
             q+= '\nDELETE {\n';
             if(!mainGraph) q+= `\tGRAPH <${host}> {\n`;
-            q+= `${d}\t?previousState a opm:CurrentState .\n`;
+            q+= `${d}\t?previousState a opm:CurrentPropertyState .\n`;
             if(!mainGraph) q+= c;
             q+= '}\n' +
                 'INSERT {\n';
             if(!mainGraph) q+= `\tGRAPH <${host}> {\n`;
-            q+= `${d}\t?previousState a opm:State .\n`;
+            q+= `${d}\t?previousState a opm:PropertyState .\n`;
         }
 
-        q+= `${d}\t?propURI seas:evaluation ?stateURI .\n`;
+        q+= `${d}\t?propURI opm:hasPropertyState ?stateURI .\n`;
 
-        q+= '\t?stateURI a opm:CurrentState ;\n';
+        q+= '\t?stateURI a opm:CurrentPropertyState ;\n';
 
         if(userURI) q+= `${d}\t\tprov:wasAttributedTo ?userURI ;\n`;
         if(comment) q+= `${d}\t\trdfs:comment ?comment ;\n`;
@@ -647,20 +748,20 @@ export class OPMProp extends BaseModel {
         if(propertyURI) q+= `${b}\tBIND(${propertyURI} as ?propURI)\n\n`;
 
         q+= `${b}\t# CREATE STATE URI\n` +
-            `${b}\tBIND(URI(CONCAT("${host}", "state_", STRUUID())) AS ?stateURI)\n` +
+            `${b}\tBIND(URI(CONCAT("${host}", "state_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?stateURI)\n` +
             `${b}\tBIND(now() AS ?now)\n\n` +
 
             //Get latest state
             `${b}\t# GET THE TIME STAMP OF MOST RECENT PROPERTY THAT IS NOT DELETED\n` +
             `${b}\t{ SELECT ?propURI (MAX(?_t) AS ?t) WHERE {\n` +
-            `${b}\t\t?propURI seas:evaluation ?state .\n` +
+            `${b}\t\t?propURI opm:hasPropertyState ?state .\n` +
             `${b}\t\t?state prov:generatedAtTime ?_t .\n` +
             `${b}\t\tMINUS { ?state a opm:Deleted }\n` +
             `${b}\t} GROUP BY ?propURI }\n\n` +
 
             //Get data
             `${b}\t#GET DATA\n` +
-            `${b}\t?propURI seas:evaluation [\n` +
+            `${b}\t?propURI opm:hasPropertyState [\n` +
             `${b}\t\tprov:generatedAtTime ?t ;\n` +
             `${b}\t\t?key ?val ] .\n\n` +
 
@@ -670,8 +771,8 @@ export class OPMProp extends BaseModel {
 
         if(queryType != 'construct'){
             q+= `${b}\t# GET DELETED STATE\n`;
-            q+= `${b}\t?propURI seas:evaluation ?previousState .\n`;
-            q+= `${b}\t?previousState a opm:CurrentState .\n\n`;
+            q+= `${b}\t?propURI opm:hasPropertyState ?previousState .\n`;
+            q+= `${b}\t?previousState a opm:CurrentPropertyState .\n\n`;
         }
 
         if(!this.mainGraph) q+= c; // Named graph
@@ -712,16 +813,16 @@ export class OPMProp extends BaseModel {
         if(queryType == 'construct'){
             q+= '\nCONSTRUCT {\n' +
                 '\t?foi ?property ?propertyURI .\n' +
-                '\t?propertyURI seas:evaluation ?stateURI ';
+                '\t?propertyURI opm:hasPropertyState ?stateURI ';
 
             q+= this.mainGraph ? '.\n' : ';\n\t\tsd:namedGraph ?g .\n';
 
             q+= '\t?stateURI prov:generatedAtTime ?ts ;\n' +
                 '\t\ta ?stateClasses ;\n' +
-                '\t\topm:valueAtState ?value .\n' +
+                '\t\tschema:value ?value .\n' +
                 '}\n';
         }else{
-            q+= `SELECT DISTINCT ?foi ?property ?propertyURI ?value ?stateURI ?label (?g AS ?graphURI)\n`;
+            q+= `SELECT DISTINCT ?foi ?property ?ts ?propertyURI ?value ?stateURI ?label (?g AS ?graphURI)\n`;
         }
 
         // define a few variables to use with named graphs
@@ -744,16 +845,16 @@ export class OPMProp extends BaseModel {
         q+= `\n`;
 
         q+= `${b}\t?foi ?property ?propertyURI .\n` +
-            `${b}\t?propertyURI seas:evaluation ?stateURI .\n`;
+            `${b}\t?propertyURI opm:hasPropertyState ?stateURI .\n`;
 
         if(latest) {
             q+= `${b}\t# GET ONLY THE LATEST STATE\n` +
-                `${b}\t?stateURI a opm:CurrentState .\n\n`;
+                `${b}\t?stateURI a opm:CurrentPropertyState .\n\n`;
         }
 
         q+= `${b}\t?stateURI prov:generatedAtTime ?ts ;\n` +
             `${b}\t\ta ?stateClasses .\n` +
-            `${b}\tOPTIONAL{ ?stateURI opm:valueAtState ?value . }\n\n`;
+            `${b}\tOPTIONAL{ ?stateURI schema:value ?value . }\n\n`;
 
         // If restriction = deleted or querying for the full history, return also the opm:Deleted
         if(restriction != 'deleted' && latest){

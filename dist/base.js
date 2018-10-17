@@ -7,7 +7,7 @@ var BaseModel = /** @class */ (function () {
         // Get host
         this.host = host;
         // Get predefined prefixes
-        this.prefixes = require('../config.json').prefixes;
+        this.prefixes = require('./config.json').prefixes;
         // Append custom prefixes
         if (prefixes) {
             this.prefixes = this._concatenatePrefixes(prefixes);
@@ -35,7 +35,7 @@ var BaseModel = /** @class */ (function () {
     };
     BaseModel.prototype.mapReliability = function (reliability) {
         // Get reliability mappings
-        var mappings = require('../config.json').reliabilityMappings;
+        var mappings = require('./config.json').reliabilityMappings;
         // Derived can not be set as it is only inferred for derived properties
         var options = _.filter(mappings, function (obj) { return (obj.key != 'derived'); });
         // Return error if 
@@ -197,6 +197,24 @@ var BaseModel = /** @class */ (function () {
         else {
             return "\"" + string + "\"";
         }
+    };
+    BaseModel.prototype.cleanProp = function (string) {
+        // Handle properties that are not in quotation marks
+        if (!string.startsWith('"')) {
+            string = "\"" + string + "\"";
+        }
+        // Process line breaks
+        var s = string.replace(/\n/g, '\\n');
+        // Process quotation marks
+        // Get string between outer quotation marks
+        var subString = s.substring(s.indexOf('"') + 1, s.lastIndexOf('"'));
+        // If there are quotation marks inside the outer quotation marks these are replaced with '
+        if (subString && subString.indexOf('"') != -1) {
+            var newString = subString.replace(/\"/g, "'");
+            s = s.replace(subString, newString);
+        }
+        console.log(s);
+        return s;
     };
     return BaseModel;
 }());

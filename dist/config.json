@@ -7,7 +7,9 @@
         {"prefix": "opm", "uri": "https://w3id.org/opm#"},
         {"prefix": "seas", "uri": "https://w3id.org/seas/"},
         {"prefix": "bot", "uri": "https://w3id.org/bot#"},
-        {"prefix": "sd", "uri": "http://www.w3.org/ns/sparql-service-description#"}
+        {"prefix": "sd", "uri": "http://www.w3.org/ns/sparql-service-description#"},
+        {"prefix": "cdt", "uri": "http://w3id.org/lindt/custom_datatypes#"},
+        {"prefix": "schema", "uri": "http://schema.org/"}
     ],
     "reliabilityMappings": [
         {"key": "deleted", "class": "opm:Deleted"},

@@ -44,7 +44,7 @@ export class BaseModel {
         this.host = host;
 
         // Get predefined prefixes
-        this.prefixes = require('../config.json').prefixes;
+        this.prefixes = require('./config.json').prefixes;
 
         // Append custom prefixes
         if(prefixes){
@@ -82,7 +82,7 @@ export class BaseModel {
     public mapReliability(reliability: string){
 
         // Get reliability mappings
-        var mappings = require('../config.json').reliabilityMappings;
+        var mappings = require('./config.json').reliabilityMappings;
 
         // Derived can not be set as it is only inferred for derived properties
         var options = _.filter(mappings, obj => (obj.key != 'derived'));
@@ -265,6 +265,34 @@ export class BaseModel {
             return `"${string}"`;
         }
 
+    }
+
+    public cleanProp(string) {
+
+        // Handle properties that are not in quotation marks
+        if(!string.startsWith('"')){
+            string = `"${string}"`;
+        }
+    
+        // Process line breaks
+        var s = string.replace(/\n/g,'\\n');
+    
+        // Process quotation marks
+        // Get string between outer quotation marks
+        var subString = s.substring(
+            s.indexOf('"') + 1, 
+            s.lastIndexOf('"')
+        );
+        
+        // If there are quotation marks inside the outer quotation marks these are replaced with '
+        if(subString && subString.indexOf('"') != -1){
+            var newString = subString.replace(/\"/g, "'");
+            s = s.replace(subString, newString);
+        }
+
+        console.log(s);
+    
+        return s;
     }
 
 }

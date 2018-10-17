@@ -257,8 +257,8 @@
 //         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 //         var data = await jsonld.compact(res.body, context);    // Shorten URIs with prefixes ()
 
-//         var state = _.filter(data['@graph'], x => x['@type'] && x['@type'].indexOf('opm:CurrentState') != -1 )[0];
-//         var value = state['opm:valueAtState']['@value'];
+//         var state = _.filter(data['@graph'], x => x['@type'] && x['@type'].indexOf('opm:CurrentPropertyState') != -1 )[0];
+//         var value = state['schema:value']['@value'];
 
 //         var keys = _.flatten(data['@graph'].map(x => _.keys(x)));
 
@@ -420,9 +420,9 @@
 
 //         expect(res).to.have.property('status').that.is.equals(200); // Should return status 200
 //         expect(ids).to.include.members(['ex:FoI1']);   // Should have member ex:FoI1
-//         expect(keys).to.include.members(['props:heatingTemperatureDelta','seas:evaluation','prov:wasDerivedFrom']);
+//         expect(keys).to.include.members(['props:heatingTemperatureDelta','opm:hasPropertyState','prov:wasDerivedFrom']);
 
-//         var state = _.filter(data['@graph'], x => x['@type'] && x['@type'].indexOf('opm:CurrentState') != -1 )[0];
+//         var state = _.filter(data['@graph'], x => x['@type'] && x['@type'].indexOf('opm:CurrentPropertyState') != -1 )[0];
 
 //         // console.log(JSON.stringify(data['@graph'],null,2))
 

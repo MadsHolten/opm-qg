@@ -18,6 +18,7 @@ export interface PostCalcData extends Base {
     hostURI: string; //Needed as there is nothing else to extract it from
     expression: string;
     argumentPaths: string[];
+    type?: string;
     inferredProperty: InferredProperty;
 }
 
@@ -26,6 +27,7 @@ export interface PostPutCalc extends Base {
     expression: string;
     argumentPaths: string[];
     inferredProperty: string;
+    type?: string;
     path?: string;
     unit?: Literal;     //optional
     foiURI?: string;    //if only applicable to a specific FoI
@@ -205,11 +207,13 @@ export class OPMCalc extends BaseModel {
         var host = this.host;
 
         // Define variables
+        var graphURI = input.graphURI ? this.cleanURI(input.graphURI) : this.cleanURI(host);
         var label = this.cleanLiteral(input.label);
         var expression = this.cleanLiteral(input.expression);
         var argumentPaths = this.cleanArgPaths(input.argumentPaths).paths;
         var argumentVars = this.cleanArgPaths(input.argumentPaths).vars;
         var propertyURI = this.cleanURI(input.inferredProperty);
+        var type = input.type ? input.type.toLowerCase() : "regular";
 
         // Optional
         var comment = this.cleanLiteral(input.comment);
@@ -223,11 +227,22 @@ export class OPMCalc extends BaseModel {
 
         // Validate
         if(!label) return new Error('Please specify a label');
-        if(!expression) return new Error('Please specify an expression');
-        if(!argumentPaths) return new Error(`Specify ${expressionVars.length} argument path(s)`);
-        if(expressionVars.length != argumentPaths.length) return new Error('There is a mismatch between number of arguments used in the expression and the number of argument paths given');
-        // NB! In below slice prevents the sort() from changing the original order
-        if(!_.isEqual(expressionVars.sort(), argumentVars.slice().sort())) return new Error(`There is a mismatch between the arguments given in the expression (${expressionVars.sort()}) and the arguments given in the paths (${argumentVars.sort()})`);
+        if(!propertyURI) return new Error('Please specify a URI for the property that will be inferred by the calculation');
+
+        // Type must be either sum, count, min, max, avg or regular
+        var validTypes = ["sum", "count", "min", "max", "avg", "regular"];
+        if(validTypes.indexOf(type) == -1) return new Error(`"${type}" is not a valid calculation type!`);
+
+        if(type == "regular"){
+            if(!expression) return new Error('Please specify an expression');
+            if(!argumentPaths) return new Error(`Specify ${expressionVars.length} argument path(s)`);
+            if(expressionVars.length != argumentPaths.length) return new Error('There is a mismatch between number of arguments used in the expression and the number of argument paths given');
+
+            // NB! In below slice prevents the sort() from changing the original order
+            if(!_.isEqual(expressionVars.sort(), argumentVars.slice().sort())) return new Error(`There is a mismatch between the arguments given in the expression (${expressionVars.sort()}) and the arguments given in the paths (${argumentVars.sort()})`);
+        }else{
+            if(argumentPaths.length > 1) return new Error(`Specify only one argument path for calculations of type "${type}"`);
+        }
 
         //Make sure that argument paths begin with ?foi
         argumentPaths = _.map(argumentPaths, path => {
@@ -246,7 +261,7 @@ export class OPMCalc extends BaseModel {
         if(queryType == 'construct') q+= '\nCONSTRUCT {\n';
         if(queryType == 'insert') {
             q+= '\nINSERT {\n';
-            if(!this.mainGraph) q+= `\tGRAPH <${host}> {\n`;
+            if(!this.mainGraph) q+= `\tGRAPH ${graphURI} {\n`;
         }
 
         q+= `${d}\t?calculationURI a opm:Calculation ;\n` +
@@ -256,10 +271,11 @@ export class OPMCalc extends BaseModel {
         if(userURI) q+= `${d}\t\tprov:wasAttributedTo ${userURI} ;\n`;
         if(foiRestriction) q+= `${d}\t\topm:foiRestriction ${foiRestriction} ;\n`;
         if(pathRestriction) q+= `${d}\t\topm:pathRestriction ${pathRestriction} ;\n`;
+        if(expression) q+= `${d}\t\topm:expression ${expression} ;\n`;
 
         q+= `${d}\t\tprov:generatedAtTime ?now ;\n` +
+            `${d}\t\topm:calculationType "${type}" ;\n` +
             `${d}\t\topm:inferredProperty ${propertyURI} ;\n` +
-            `${d}\t\topm:expression ${expression} ;\n` +
             `${d}\t\topm:argumentPaths (\n`;
         
         _.each(argumentPaths, (obj, i) => {
@@ -272,7 +288,7 @@ export class OPMCalc extends BaseModel {
         q+= `}\n` +
             'WHERE {\n' +
             `\t# CREATE CALCULATION URI AND GET CURRENT TIME\n` +
-            `\tBIND(URI(CONCAT(STR("${host}"), "calculation_", STRUUID())) AS ?calculationURI)\n` +
+            `\tBIND(URI(CONCAT(STR("${host}"), "calculation_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?calculationURI)\n` +
             `\tBIND(now() AS ?now)\n` +
             '}';
 
@@ -321,7 +337,7 @@ export class OPMCalc extends BaseModel {
 
         if(foiURI && property){
             if(!mainGraph) q+= `\tGRAPH ${iGraph} {\n`;
-            q+= `${b}\t?foiURI ${property}/seas:evaluation [\n` +
+            q+= `${b}\t?foiURI ${property}/opm:hasPropertyState [\n` +
             `${b}\t\ta opm:Derived ;\n` +
             `${b}\t\tprov:wasAttributedTo ?calculationURI ] .\n\n`;
             q+= c;
@@ -376,9 +392,8 @@ export class OPMCalc extends BaseModel {
         q+= 'WHERE {\n';
         q+= a;
         q+= `${b}\t?calculationURI opm:inferredProperty ?inferredProperty ;\n` +
-            `${b}\t\tprov:generatedAtTime ?timestamp ;\n` +
-            `${b}\t\topm:expression ?expression ;\n` +
-            `${b}\tOPTIONAL{ ?arg opm:targetPath ?argTP . }\n` +
+            `${b}\t\tprov:generatedAtTime ?timestamp .\n` +
+            `${b}\tOPTIONAL{ ?calculationURI opm:expression ?expression . }\n` +
             `${b}\tOPTIONAL{ ?calculationURI a ?calcClasses . }\n` +
             `${b}\tOPTIONAL{ ?calculationURI rdfs:label ?label . }\n` +
             `${b}\tOPTIONAL{ ?calculationURI rdfs:comment ?comment . }\n`;
@@ -389,7 +404,7 @@ export class OPMCalc extends BaseModel {
     }
 
     // Insert derived values matching some calculation where they do not already exist
-    // NB! it could be useful to be able to apply a restriction that should be fulfilled. Fx ?foi a bot:Element
+    // NB! it could be useful to be able to apply a restriction that should be fulfilled. Eg. ?foi a bot:Element
     postCalcExtended(input: PostPutCalc) {
         
         // Get global variables
@@ -407,8 +422,8 @@ export class OPMCalc extends BaseModel {
         var foiURI = this.cleanURI(input.foiURI); //If only for a specific FoI
         var queryType = input.queryType ? input.queryType : this.queryType;     // Get default if not defined
         var userURI = this.cleanURI(input.userURI);
-        var path = this.cleanPath(input.path);
-        var pathString = this.cleanLiteral(input.path);
+        var path = input.path ? this.cleanPath(input.path) : undefined;
+        var pathString = input.path ? this.cleanLiteral(input.path) : undefined;
 
         //Clean argument paths and retrieve argument variables
         argumentVars = this.cleanArgPaths(argumentPaths).vars;
@@ -438,9 +453,9 @@ export class OPMCalc extends BaseModel {
 
         q+= `${b}\t?foi ?inferredProperty ?propertyURI .\n` +
             `${b}\t?propertyURI a opm:Property ;\n` +
-            `${b}\t\tseas:evaluation ?stateURI .\n` +
-            `${b}\t?stateURI a opm:CurrentState , opm:Derived , ?assumed ;\n` +
-            `${b}\t\topm:valueAtState ?res ;\n` +
+            `${b}\t\topm:hasPropertyState ?stateURI .\n` +
+            `${b}\t?stateURI a opm:CurrentPropertyState , opm:Derived , ?assumed ;\n` +
+            `${b}\t\tschema:value ?res ;\n` +
             `${b}\t\tprov:generatedAtTime ?now ;\n` +
             `${b}\t\tprov:wasDerivedFrom `;
 
@@ -485,7 +500,7 @@ export class OPMCalc extends BaseModel {
         q+= `${b}\t# MAKE NODES FOR CALCULATION LIST\n`;
 
         _.each(argumentPaths, (obj, i) => {
-            q+= `${b}\tBIND(URI(CONCAT("${host}", "bn_", STRUUID())) AS ?bn${i})\n`;
+            q+= `${b}\tBIND(URI(CONCAT("${host}", "bn_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?bn${i})\n`;
         });
         q+= '\n';
 
@@ -499,9 +514,9 @@ export class OPMCalc extends BaseModel {
             var _i = Number(i)+1;
             q+= `${b}\t# GET ARGUMENT ${_i} DATA\n` +
                 `${b}\t${argumentPaths[i]}_ .\n` +
-                `${b}\t${argumentVars[i]}_ seas:evaluation ?state${_i} .\n` +
-                `${b}\t?state${_i} a opm:CurrentState ;\n` +
-                `${b}\t\topm:valueAtState ${argumentVars[i]} .\n` +
+                `${b}\t${argumentVars[i]}_ opm:hasPropertyState ?state${_i} .\n` +
+                `${b}\t?state${_i} a opm:CurrentPropertyState ;\n` +
+                `${b}\t\tschema:value ${argumentVars[i]} .\n` +
                 `${b}\t# INHERIT CLASS OPM:ASSUMED\n` +
                 `${b}\tOPTIONAL {\n` +
                 `${b}\t\t?state${_i} a ?assumed .\n` +
@@ -517,14 +532,14 @@ export class OPMCalc extends BaseModel {
             `${b}\tBIND((${expression}) AS ?res)\n\n` +
 
             `${b}\t# CREATE STATE AND PROPERTY URIs\n` +
-            `${b}\tBIND(URI(CONCAT("${host}", "state_", STRUUID())) AS ?stateURI)\n` +
-            `${b}\tBIND(URI(CONCAT("${host}", "property_", STRUUID())) AS ?propertyURI)\n\n` +
+            `${b}\tBIND(URI(CONCAT("${host}", "state_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?stateURI)\n` +
+            `${b}\tBIND(URI(CONCAT("${host}", "property_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?propertyURI)\n\n` +
 
             `${b}\t# MAKE A URI FOR THE CALCULATION\n` +
             `${b}\t{ SELECT ?calculationURI WHERE {\n` +
             `${b}\t\t# MATCH ONE OF THE ARGUMENT PATHS\n` +
             `${b}\t\t${argumentPaths[i]}\n` +
-            `${b}\t\tBIND(URI(CONCAT("${host}", "calculation_", STRUUID())) AS ?calculationURI)\n` +
+            `${b}\t\tBIND(URI(CONCAT("${host}", "calculation_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?calculationURI)\n` +
             `${b}\t}LIMIT 1}\n\n` +
 
             `${b}\t# GET CURRENT TIME\n` +
@@ -552,11 +567,12 @@ export class OPMCalc extends BaseModel {
         var argumentPaths = input.argumentPaths;
         var argumentVars: string[] = [];
         var propertyURI = this.cleanURI(input.inferredProperty);
+        var type = input.type ? input.type.toLowerCase() : "regular";
         
         // Optional
         var foiURI = this.cleanURI(input.foiURI); //If only for a specific FoI
         var queryType = input.queryType ? input.queryType : this.queryType;     // Get default if not defined
-        var path = this.cleanPath(input.path);
+        var path = input.path ? this.cleanPath(input.path) : undefined;
 
         // Clean argument paths and retrieve argument variables
         argumentVars = this.cleanArgPaths(argumentPaths).vars;
@@ -564,11 +580,21 @@ export class OPMCalc extends BaseModel {
         var expressionVars = this.uniqueVarsInString(expression);
 
         // Validate arguments
-        if(!expression) return new Error('Specify an expression');
-        if(!argumentPaths) return new Error(`Specify ${expressionVars.length} argument path(s)`);
-        if(expressionVars.length != argumentPaths.length) return new Error('There is a mismatch between number of arguments used in the expression and the number of argument paths given');
-        // NB! In below slice prevents the sort() from changing the original order
-        if(!_.isEqual(expressionVars.sort(), argumentVars.slice().sort())) return new Error(`There is a mismatch between the arguments given in the expression (${expressionVars.sort()}) and the arguments given in the paths (${argumentVars.sort()})`);
+
+        // Type must be either sum, count, min, max, avg or regular
+        var validTypes = ["sum", "count", "min", "max", "avg", "regular"];
+        if(validTypes.indexOf(type) == -1) return new Error(`"${type}" is not a valid calculation type!`);
+
+        if(type == "regular"){
+            if(!expression) return new Error('Specify an expression');
+            if(!argumentPaths) return new Error(`Specify ${expressionVars.length} argument path(s)`);
+            if(expressionVars.length != argumentPaths.length) return new Error('There is a mismatch between number of arguments used in the expression and the number of argument paths given');
+            
+            // NB! In below slice prevents the sort() from changing the original order
+            if(!_.isEqual(expressionVars.sort(), argumentVars.slice().sort())) return new Error(`There is a mismatch between the arguments given in the expression (${expressionVars.sort()}) and the arguments given in the paths (${argumentVars.sort()})`);
+        }else{
+            if(argumentPaths.length > 1) return new Error(`Specify only one argument path for calculations of type "${type}"`);
+        }
 
         var q: string = '';
 
@@ -577,33 +603,38 @@ export class OPMCalc extends BaseModel {
         var b = mainGraph ? '' : '\t';
         var c = mainGraph ? '' : '\t}\n';
         var d = queryType != 'insert' ? '' : '\t';
+
+        if(queryType == 'count'){
+            q+= 'SELECT (COUNT(?foi) AS ?count)\n';
+        }else{
                       
-        if(queryType == 'construct') q+= '\nCONSTRUCT {\n';
-        if(queryType == 'insert') {
-            q+= '\nINSERT {\n';
-            if(!mainGraph) q+= `\tGRAPH ${iGraph} {\n`;
-        }
+            if(queryType == 'construct') q+= '\nCONSTRUCT {\n';
+            if(queryType == 'insert') {
+                q+= '\nINSERT {\n';
+                if(!mainGraph) q+= `\tGRAPH ${iGraph} {\n`;
+            }
 
-        q+= `${d}\t?foi ?inferredProperty ?propertyURI .\n` +
-            `${d}\t?propertyURI a opm:Property ;\n` +
-            `${d}\t\tseas:evaluation ?stateURI .\n` +
-            `${d}\t?stateURI a opm:CurrentState , opm:Derived , ?assumed ;\n` +
-            `${d}\t\topm:valueAtState ?res ;\n` +
-            `${d}\t\tprov:generatedAtTime ?now ;\n`;
-        
-        if(calculationURI) q+= `${d}\t\tprov:wasAttributedTo ${calculationURI} ;\n`;
+            q+= `${d}\t?foi ?inferredProperty ?propertyURI .\n` +
+                `${d}\t?propertyURI a opm:Property ;\n` +
+                `${d}\t\topm:hasPropertyState ?stateURI .\n` +
+                `${d}\t?stateURI a opm:CurrentPropertyState , opm:Derived , ?assumed ;\n` +
+                `${d}\t\tschema:value ?res ;\n` +
+                `${d}\t\tprov:generatedAtTime ?now ;\n`;
             
-        q+= `${d}\t\tprov:wasDerivedFrom `;
+            if(calculationURI) q+= `${d}\t\tprov:wasAttributedTo ${calculationURI} ;\n`;
+                
+            q+= `${d}\t\tprov:wasDerivedFrom `;
 
-        for(var i in argumentPaths){
-            var _i = Number(i)+1;
-            q+= `?state${_i}`
-            q+= (argumentPaths.length == _i) ? ' .\n' : ' , ';
+            for(var i in argumentPaths){
+                var _i = Number(i)+1;
+                q+= `?state${_i}`
+                q+= (argumentPaths.length == _i) ? ' .\n' : ' , ';
+            }
+
+            if(!this.mainGraph && queryType == 'insert') q+= c;
+
+            q+= `}\n`;
         }
-
-        if(!this.mainGraph && queryType == 'insert') q+= c;
-
-        q+= `}\n`;
 
         // Get data
         q+= `WHERE {\n`;
@@ -619,50 +650,93 @@ export class OPMCalc extends BaseModel {
             q+= c+'\n';
         }
 
-        // Retrieve data
-        for (var i in argumentPaths){
-            var _i = Number(i)+1;
-            q+= `\t# GET ARGUMENT ${_i} DATA\n`;
+        if(type == "regular"){
+            // Retrieve data
+            for (var i in argumentPaths){
+                var _i = Number(i)+1;
+                q+= `\t# GET ARGUMENT ${_i} DATA\n`;
+
+                // The data is potentially stored in different graphs
+                if(!mainGraph) q+= `\tGRAPH ?g${_i} {\n`;
+
+                q+= `${b}\t${argumentPaths[i]}_ .\n` +
+                    `${b}\t${argumentVars[i]}_ opm:hasPropertyState ?state${_i} .\n` +
+                    `${b}\t?state${_i} a opm:CurrentPropertyState ;\n` +
+                    `${b}\t\tschema:value ${argumentVars[i]} .\n` +
+                    `${b}\t# INHERIT CLASS OPM:ASSUMED\n` +
+                    `${b}\tOPTIONAL {\n` +
+                    `${b}\t\t?state${_i} a ?assumed .\n` +
+                    `${b}\t\tFILTER( ?assumed = opm:Assumed )\n` +
+                    `${b}\t}\n\n`;
+                q+= c;
+            }
+        }else{
+            q+= `\t# GET THE MOST RECENT STATES OF THE ARGUMENTS\n`;
 
             // The data is potentially stored in different graphs
-            if(!mainGraph) q+= `\tGRAPH ?g${_i} {\n`;
+            if(!mainGraph) q+= `\tGRAPH ?g {\n`;
 
-            q+= `${b}\t${argumentPaths[i]}_ .\n` +
-                `${b}\t${argumentVars[i]}_ seas:evaluation ?state${_i} .\n` +
-                `${b}\t?state${_i} a opm:CurrentState ;\n` +
-                `${b}\t\topm:valueAtState ${argumentVars[i]} .\n` +
-                `${b}\t# INHERIT CLASS OPM:ASSUMED\n` +
+            q+= `${b}\t{ SELECT ?foi (?state AS ?state1) WHERE {\n` +
+                `${b}\t\t${argumentPaths[0]}_ .\n` +
+                `${b}\t\t${argumentVars[0]}_ opm:hasPropertyState ?state .\n` +
+                `${b}\t\t?state a opm:CurrentPropertyState\n` +
+                `${b}\t}}\n\n`;
+
+            q+= `\t# CALCULATE THE ${type.toUpperCase()}\n`;
+
+            q+= `${b}\t{ SELECT ?foi (${type.toUpperCase()}(?res_) AS ${argumentVars[0]})\n` +
+                `${b}\t\t(URI(CONCAT("${host}", "state_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?stateURI)\n` +
+                `${b}\t\t(URI(CONCAT("${host}", "property_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?propertyURI)\n` +
+                `${b}\t\t(now() AS ?now)\n` +
+                `${b}\t  WHERE {\n` +
+                `${b}\t\t${argumentPaths[0]}_ .\n` +
+                `${b}\t\t${argumentVars[0]}_ opm:hasPropertyState ?state1 .\n` +
+                `${b}\t\t?state1 schema:value ${argumentVars[0]}__ .\n` +
+                `${b}\t\tBIND(IF(isnumeric(${argumentVars[0]}__), ${argumentVars[0]}__ , xsd:decimal(strbefore(xsd:string(${argumentVars[0]}__), ' '))) AS ?res_)\n` +
+                `${b}\t  } GROUP BY ?foi\n` +
+                `${b}\t}\n\n`;
+
+            q+= `${b}\t# INHERIT CLASS OPM:ASSUMED\n` +
                 `${b}\tOPTIONAL {\n` +
-                `${b}\t\t?state${_i} a ?assumed .\n` +
+                `${b}\t\t?state1 a ?assumed .\n` +
                 `${b}\t\tFILTER( ?assumed = opm:Assumed )\n` +
                 `${b}\t}\n\n`;
+
             q+= c;
+    
         }
 
         // No previous calculations must exist
         q+= `\t# DO NOT APPEND IF PROPERTY ALREADY DEFINED\n`;
-        
         q+= `\tMINUS { `;
         if(!mainGraph) q+= `GRAPH ${iGraph} { `;
         q+=`?foi ?inferredProperty ?prop }`;
         q+= mainGraph ? '\n\n' : ' }\n\n';
 
-        q+= `\t# PERFORM CALCULATION\n` +
-            `\tBIND((${expression}) AS ?res)\n\n` +
+        if(type == "regular"){
+            q+= `\t# PERFORM CALCULATION\n` +
+                `\tBIND((${expression}) AS ?res)\n\n` +
 
-            `\t# CREATE STATE AND PROPERTY URIs\n` +
-            `\tBIND(URI(CONCAT("${host}", "state_", STRUUID())) AS ?stateURI)\n` +
-            `\tBIND(URI(CONCAT("${host}", "property_", STRUUID())) AS ?propertyURI)\n\n` +
+                `\t# CREATE STATE AND PROPERTY URIs\n` +
+                `\tBIND(URI(CONCAT("${host}", "state_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?stateURI)\n` +
+                `\tBIND(URI(CONCAT("${host}", "property_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?propertyURI)\n\n` +
 
-            `\t# GET CURRENT TIME\n` +
-            `\tBIND(now() AS ?now)\n`;
+                `\t# GET CURRENT TIME\n` +
+                `\tBIND(now() AS ?now)\n`;
+        }else if(expression){
+            q+= `\t# APPLY EXPRESSION\n` +
+            `\tBIND((${expression}) AS ?res)\n`;
+        }else{
+            q+= `\t# APPLY EXPRESSION\n` +
+            `\tBIND((${argumentVars[0]}) AS ?res)\n`;
+        }
 
         q+= '}';
 
         return this.appendPrefixesToQuery(q);
     }
 
-    putCalc(input): string{
+    putCalc(input){
 
         // Get global variables
         var host = this.host;
@@ -675,14 +749,33 @@ export class OPMCalc extends BaseModel {
         var argumentPaths = input.argumentPaths;
         var argumentVars: string[] = [];
         var propertyURI = this.cleanURI(input.inferredProperty);
+        var type = input.type ? input.type.toLowerCase() : "regular";
 
         // Optional
         var foiURI = this.cleanURI(input.foiURI); //If only for a specific FoI
         var queryType = input.queryType ? input.queryType : this.queryType;     // Get default if not defined
 
-        //Clean argument paths and retrieve argument variables
+        // Clean argument paths and retrieve argument variables
         argumentVars = this.cleanArgPaths(argumentPaths).vars;
         argumentPaths = this.cleanArgPaths(argumentPaths).paths;
+        var expressionVars = this.uniqueVarsInString(expression);
+
+        // Validate arguments
+
+        // Type must be either sum, count, min, max, avg or regular
+        var validTypes = ["sum", "count", "min", "max", "avg", "regular"];
+        if(validTypes.indexOf(type) == -1) return new Error(`"${type}" is not a valid calculation type!`);
+
+        if(type == "regular"){
+            if(!expression) return new Error('Specify an expression');
+            if(!argumentPaths) return new Error(`Specify ${expressionVars.length} argument path(s)`);
+            if(expressionVars.length != argumentPaths.length) return new Error('There is a mismatch between number of arguments used in the expression and the number of argument paths given');
+            
+            // NB! In below slice prevents the sort() from changing the original order
+            if(!_.isEqual(expressionVars.sort(), argumentVars.slice().sort())) return new Error(`There is a mismatch between the arguments given in the expression (${expressionVars.sort()}) and the arguments given in the paths (${argumentVars.sort()})`);
+        }else{
+            if(argumentPaths.length > 1) return new Error(`Specify only one argument path for calculations of type "${type}"`);
+        }
 
         var q: string = '';
 
@@ -696,18 +789,18 @@ export class OPMCalc extends BaseModel {
             // FIRST DELETE CURRENT STATE CLASS FROM PREVIOUS STATE
             q+= '\nDELETE {\n';
             if(!mainGraph) q+= `\tGRAPH ${iGraph} {\n`;
-            q+= `${b}\t?previousState a opm:CurrentState .\n`;
+            q+= `${b}\t?previousState a opm:CurrentPropertyState .\n`;
             if(!mainGraph) q+= c;
             q+= '}\n' +
                 'INSERT {\n';
             if(!mainGraph) q+= `\tGRAPH ${iGraph} {\n`;
-            q+= `${b}\t?previousState a opm:State .\n`;
+            q+= `${b}\t?previousState a opm:PropertyState .\n`;
         }
 
         q+= `${b}\t?propertyURI a opm:Property ;\n` +
-            `${b}\t\tseas:evaluation ?stateURI .\n` +
-            `${b}\t?stateURI a opm:CurrentState , opm:Derived , ?assumed ;\n` +
-            `${b}\t\topm:valueAtState ?res ;\n` +
+            `${b}\t\topm:hasPropertyState ?stateURI .\n` +
+            `${b}\t?stateURI a opm:CurrentPropertyState , opm:Derived , ?assumed ;\n` +
+            `${b}\t\tschema:value ?res ;\n` +
             `${b}\t\tprov:generatedAtTime ?now ;\n` +
             `${b}\t\tprov:wasAttributedTo ${calculationURI} ;\n` +
             `${b}\t\tprov:wasDerivedFrom `;
@@ -727,60 +820,75 @@ export class OPMCalc extends BaseModel {
             
         q+= `\tBIND(${propertyURI} AS ?inferredProperty)\n\n`;
 
-        q+= `\t# GET THE STATES THAT THE LATEST CALCULATION WAS DERIVED FROM\n`;
-        q+= `\t{ SELECT ?foi WHERE {\n`;
-
-        if(!mainGraph) q+= `\tGRAPH ${iGraph} {\n`;
-
-        q+= `${b}\t?foi ?inferredProperty ?propertyURI .\n` +
-            `${b}\t?propertyURI seas:evaluation [\n` +
-            `${b}\t\ta opm:CurrentState ;\n` +
-            `${b}\t\tprov:wasDerivedFrom ?derivedFrom ] .\n` +
-            `${c}` +
-            `${b}\t# ONLY RETURN IF AN INPUT HAS CHANGED SINCE LAST CALCULATION\n` +
-            `${b}\tMINUS { `;
-
-        if(!mainGraph) q+= `GRAPH ${iGraph} { `;
-        q+= `?derivedFrom a opm:CurrentState }`;
-        q+= mainGraph ? ` \n` : ` }\n`;
-
-        q+= `\t} GROUP BY ?foi }\n\n` +
-
-            `\t# GET LATEST STATE\n`;
+        q+= `\t# GET LATEST STATE\n`;
         if(!mainGraph) q+= `\tGRAPH ${iGraph} {\n`;
             
         q+= `${b}\t?foi ?inferredProperty ?propertyURI .\n` +
-            `${b}\t?propertyURI seas:evaluation ?previousState .\n` +
-            `${b}\t?previousState a opm:CurrentState .\n`;
+            `${b}\t?propertyURI opm:hasPropertyState ?previousState .\n` +
+            `${b}\t?previousState a opm:CurrentPropertyState ;\n` +
+            `${b}\t\tschema:value ?previousValue .\n`;
         q+= mainGraph ? `\n` : `\t}\n`;
 
-        // Retrieve data
-        for (var i in argumentPaths){
-            var _i = Number(i)+1;
-            q+= `\t# GET ARGUMENT ${_i} DATA\n`;
+        if(type == "regular"){
+            // Retrieve data
+            for (var i in argumentPaths){
+                var _i = Number(i)+1;
+                q+= `\t# GET ARGUMENT ${_i} DATA\n`;
 
+                if(!mainGraph) q+= `\tGRAPH ?g${_i} {\n`;
+
+                q+= `${b}\t${argumentPaths[i]}_ .\n` +
+                    `${b}\t${argumentVars[i]}_ opm:hasPropertyState ?newState${_i} .\n` +
+                    `${b}\t?newState${_i} a opm:CurrentPropertyState ;\n` +
+                    `${b}\t\tschema:value ${argumentVars[i]} .\n` +
+                    `${b}\t# INHERIT CLASS OPM:ASSUMED\n` +
+                    `${b}\tOPTIONAL {\n` +
+                    `${b}\t\t?newState${_i} a ?assumed .\n` +
+                    `${b}\t\tFILTER( ?assumed = opm:Assumed )\n` +
+                    `${b}\t}\n`;
+
+                q+= mainGraph ? `\n` : `\t}\n`;
+            }
+        }else{
             if(!mainGraph) q+= `\tGRAPH ?g${_i} {\n`;
 
-            q+= `${b}\t${argumentPaths[i]}_ .\n` +
-                `${b}\t${argumentVars[i]}_ seas:evaluation ?newState${_i} .\n` +
-                `${b}\t?newState${_i} a opm:CurrentState ;\n` +
-                `${b}\t\topm:valueAtState ${argumentVars[i]} .\n` +
-                `${b}\t# INHERIT CLASS OPM:ASSUMED\n` +
+            q+= `\t# CALCULATE THE ${type.toUpperCase()}\n`;
+
+            var resVar = expression ? argumentVars[0] : '?res';
+
+            q+= `${b}\t{ SELECT ?foi (${type.toUpperCase()}(?res_) AS ${resVar})\n` +
+                `${b}\t\t(URI(CONCAT("${host}", "state_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?stateURI)\n` +
+                `${b}\t\t(now() AS ?now)\n` +
+                `${b}\t  WHERE {\n` +
+                `${b}\t\t${argumentPaths[0]}_ .\n` +
+                `${b}\t\t${argumentVars[0]}_ opm:hasPropertyState ?state1 .\n` +
+                `${b}\t\t?state1 schema:value ${argumentVars[0]}__ .\n` +
+                `${b}\t\tBIND(IF(isnumeric(${argumentVars[0]}__), ${argumentVars[0]}__ , xsd:decimal(strbefore(xsd:string(${argumentVars[0]}__), ' '))) AS ?res_)\n` +
+                `${b}\t  } GROUP BY ?foi\n` +
+                `${b}\t}\n\n`;
+
+            q+= `${b}\t# INHERIT CLASS OPM:ASSUMED\n` +
                 `${b}\tOPTIONAL {\n` +
-                `${b}\t\t?newState${_i} a ?assumed .\n` +
+                `${b}\t\t?state1 a ?assumed .\n` +
                 `${b}\t\tFILTER( ?assumed = opm:Assumed )\n` +
-                `${b}\t}\n`;
+                `${b}\t}\n\n`;
 
             q+= mainGraph ? `\n` : `\t}\n`;
         }
+        if(expression){
+            q+= `\t# APPLY EXPRESSION\n` +
+            `\tBIND((${expression}) AS ?res)\n\n`;
+        }
+        
+        q+= `\t# THE NEW RESULT MUST BE DIFFERENT FROM THE PREVIOUS\n` +
+            `\tFILTER(xsd:string(?res) != xsd:string(?previousValue))\n\n`;
 
-        q+= `\t# PERFORM CALCULATION\n` +
-            `\tBIND((${expression}) AS ?res)\n\n` +
-
-            `\t# CREATE STATE URIs\n` +
-            `\tBIND(URI(CONCAT("${host}", "state_", STRUUID())) AS ?stateURI)\n` +
-            `\t# GET CURRENT TIME\n` +
-            `\tBIND(now() AS ?now)\n`;        
+        if(type == "regular"){
+            q+= `\t# CREATE STATE URIs\n` +
+                `\tBIND(URI(CONCAT("${host}", "state_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?stateURI)\n` +
+                `\t# GET CURRENT TIME\n` +
+                `\tBIND(now() AS ?now)\n`;
+        }
 
         q+= '}';
 
@@ -805,31 +913,37 @@ export class OPMCalc extends BaseModel {
         var b = this.mainGraph ? '' : '\t';
         var c = this.mainGraph ? '' : '\t}\n';
 
-        if(queryType == 'construct') q+= '\nCONSTRUCT {\n';
-        if(queryType == 'insert') {
-            // FIRST DELETE CURRENT STATE CLASS FROM PREVIOUS STATE
-            q+= '\nDELETE {\n';
-            if(!this.mainGraph) q+= `\tGRAPH <${host}> {\n`;
-            q+= `${b}\t?previousState a opm:CurrentState .\n`;
+        if(queryType == 'count'){
+            q+= 'SELECT (COUNT(?foi) AS ?count)\n';
+        }else{
+
+            if(queryType == 'construct') q+= '\nCONSTRUCT {\n';
+            if(queryType == 'insert') {
+                // FIRST DELETE CURRENT STATE CLASS FROM PREVIOUS STATE
+                q+= '\nDELETE {\n';
+                if(!this.mainGraph) q+= `\tGRAPH <${host}> {\n`;
+                q+= `${b}\t?previousState a opm:CurrentPropertyState .\n`;
+                if(!this.mainGraph) q+= c;
+                q+= '}\n' +
+                    'INSERT {\n';
+                if(!this.mainGraph) q+= `\tGRAPH <${host}> {\n`;
+                q+= `${b}\t?previousState a opm:PropertyState .\n`;
+            }
+
+            q+= `${b}\t?propertyURI a opm:Property ;\n` +
+                `${b}\t\topm:hasPropertyState ?stateURI .\n` +
+                `${b}\t?stateURI a opm:CurrentPropertyState , opm:Derived , ?assumed ;\n` +
+                `${b}\t\tschema:value ?res ;\n` +
+                `${b}\t\tprov:generatedAtTime ?now ;\n` +
+                `${b}\t\tprov:wasAttributedTo ${calculationURI} ;\n` +
+                `${b}\t\tprov:wasDerivedFrom ?states .`;
+
             if(!this.mainGraph) q+= c;
-            q+= '}\n' +
-                'INSERT {\n';
-            if(!this.mainGraph) q+= `\tGRAPH <${host}> {\n`;
-            q+= `${b}\t?previousState a opm:State .\n`;
+            q+= '}\n';
         }
 
-        q+= `${b}\t?propertyURI a opm:Property ;\n` +
-            `${b}\t\tseas:evaluation ?stateURI .\n` +
-            `${b}\t?stateURI a opm:CurrentState , opm:Derived , ?assumed ;\n` +
-            `${b}\t\topm:valueAtState ?res ;\n` +
-            `${b}\t\tprov:generatedAtTime ?now ;\n` +
-            `${b}\t\tprov:wasAttributedTo ${calculationURI} ;\n` +
-            `${b}\t\tprov:wasDerivedFrom ?states .`;
-
-        if(!this.mainGraph) q+= c;
-
         // Get data
-        q+= `}\nWHERE {\n`;
+        q+= `WHERE {\n`;
 
         if(!this.mainGraph) q+= a;
             
@@ -838,7 +952,7 @@ export class OPMCalc extends BaseModel {
         q+= `${b}\t?calculationURI ?p ?o .` +
 
             `${b}\t# CREATE STATE URIs\n` +
-            `${b}\tBIND(URI(CONCAT("${host}", "state_", STRUUID())) AS ?stateURI)\n` +
+            `${b}\tBIND(URI(CONCAT("${host}", "state_", REPLACE(STR(UUID()), "urn:uuid:", ""))) AS ?stateURI)\n` +
             `${b}\t# GET CURRENT TIME\n` +
             `${b}\tBIND(now() AS ?now)\n`;
 
@@ -870,8 +984,8 @@ export class OPMCalc extends BaseModel {
         if(queryType == 'construct') {
             q+= '\nCONSTRUCT {\n' +
                 `\t?foi ?hasProp ?prop .\n` +
-                `\t?prop seas:evaluation ?state .\n` +
-                `\t?state a opm:CurrentState , opm:Derived ;\n` +
+                `\t?prop opm:hasPropertyState ?state .\n` +
+                `\t?state a opm:CurrentPropertyState , opm:Derived ;\n` +
                 `\t\tprov:wasAttributedTo ?calculationURI ;\n` +
                 `\t\tprov:wasDerivedFrom ?derivedFrom .\n\n` +
                 `}\n`;
@@ -887,8 +1001,8 @@ export class OPMCalc extends BaseModel {
         if(foiURI) q+= `\tBIND(${foiURI} AS ?foi)\n`;
 
         q+= `${b}\t?foi ?hasProp ?prop .\n` +
-            `${b}\t?prop seas:evaluation ?state .\n` +
-            `${b}\t?state a opm:CurrentState , opm:Derived ;\n` +
+            `${b}\t?prop opm:hasPropertyState ?state .\n` +
+            `${b}\t?state a opm:CurrentPropertyState , opm:Derived ;\n` +
             `${b}\t\tprov:wasAttributedTo ?calculationURI ;\n` +
             `${b}\t\tprov:wasDerivedFrom ?derivedFrom .\n\n`;
         q+= c;
@@ -896,7 +1010,7 @@ export class OPMCalc extends BaseModel {
         q+= `\t# RETURN ONLY IF AN ARGUMENT HAS CHANGED\n` +
             `\tMINUS { `;
             if(!mainGraph) q+= `GRAPH ?g { `;
-            q+=`?derivedFrom a opm:CurrentState }`;
+            q+=`?derivedFrom a opm:CurrentPropertyState }`;
             q+= mainGraph ? '\n' : ' }\n';
         q+= `}`
             
@@ -939,14 +1053,14 @@ export class OPMCalc extends BaseModel {
 
         if(property) q+= `${a}\t?foiURI ?property ?propertyURI .\n`;
 
-        q+= `${a}\t?propertyURI seas:evaluation ?propState .\n` +
+        q+= `${a}\t?propertyURI opm:hasPropertyState ?propState .\n` +
             `${a}\t?foiURI ?property ?propertyURI .\n`;
         
         if(!mainGraph) q+= '\t}\n';
 
         if(!mainGraph) q+= '\tGRAPH ?g2 {\n';
         
-        q+= `${a}\t?depProp seas:evaluation ?depState .\n` +
+        q+= `${a}\t?depProp opm:hasPropertyState ?depState .\n` +
             `${a}\t?depState prov:wasDerivedFrom ?propState .\n`;
 
         if(!mainGraph) q+= '\t}\n';

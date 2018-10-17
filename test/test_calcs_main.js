@@ -63,7 +63,7 @@
 //  */
 // describe("Prepare 3 Features of Interest each with a supply- and return water temperature for heating - main graph", () => {
     
-//         // Insert FoIs
+//         //Insert FoIs
 //         it('Insert four FoIs (ex:FoI1, ex:FoI2, ex:FoI3, ex:FoI4)', async () => {
 //             var q = `
 //             PREFIX bot: <https://w3id.org/bot#>
@@ -99,7 +99,7 @@
 //         it('Assign a property (props:supplyWaterTemperatureHeating) (70 Cel) to all FoIs (INSERT)', async () => {
             
 //             var q = opmProp.postByPath('?foi a ?class FILTER(?class = bot:Element || ?class = bot:Space)', 'props:supplyWaterTemperatureHeating', '"70"^^xsd:decimal', 'assumed');
-    
+
 //             const res = await query.execute(conn, dbName, q);
     
 //             expect(res).to.have.property('status').that.is.equals(200);                 // Should return status 200
@@ -223,7 +223,7 @@
 
 //         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 
-//         // Save URI of the calculation in a global variable
+//         //Save URI of the calculation in a global variable
 //         this.calcURI = res.body[0]['@id'];
 
 //         expect(res).to.have.property('status').that.is.equals(200);     // Should return status 200
@@ -238,8 +238,8 @@
 //      */
 //     it('get calculation data and append calculation where applicable (ex:FoI1) -> 30 Cel', async () => {
         
-//         // STEP 1
-//         // Get calculation data
+//         //STEP 1
+//         //Get calculation data
 
 //         var q = opmCalc.getCalcData({calculationURI: this.calcURI});
 
@@ -250,15 +250,38 @@
 
 //         var data = await jsonld.compact(res.body, context);    // Shorten URIs with prefixes ()
 
-//         // STEP 2
-//         // Post calculation to FoI
-
+//         // Store results in variables
 //         var calculationURI = this.calcURI;
 //         var expression = data['opm:expression'];
 //         var inferredProperty = data['opm:inferredProperty']['@id'];
 //         var argumentPaths = data['opm:argumentPaths']['@list'];
 //         var foiRestriction = data['opm:foiRestriction']['@id'];
-//         var q = opmCalc.postByFoI(foiRestriction, inferredProperty, expression, argumentPaths, calculationURI);
+
+//         //STEP 2 (OPTIONAL)
+//         //Count results
+
+//         var input = {
+//             calculationURI: calculationURI
+//         };
+//         var input = {
+//             inferredProperty: inferredProperty,
+//             expression: expression,
+//             argumentPaths: argumentPaths,
+//             calculationURI: calculationURI,
+//             queryType: 'count'
+//         }
+//         q = opmCalc.postCalc(input);
+
+//         res = await query.execute(conn, dbName, q);
+
+//         expect(res).to.have.property('status').that.is.equals(200);     // Should return status 200
+
+//         var count = res.body.results.bindings[0].count.value;
+//         console.log(count);
+
+//         //STEP 2
+//         //Post calculation to FoI
+//         q = opmCalc.postByFoI(foiRestriction, inferredProperty, expression, argumentPaths, calculationURI);
 
 //         res = await query.execute(conn, dbName, q, 'application/ld+json');
 
@@ -273,8 +296,8 @@
 //         const res = await query.execute(conn, dbName, q, 'application/ld+json');
 //         var data = await jsonld.compact(res.body, context);    // Shorten URIs with prefixes ()
 
-//         var state = _.filter(data['@graph'], x => x['@type'] && x['@type'].indexOf('opm:CurrentState') != -1 )[0];
-//         var value = state['opm:valueAtState']['@value'];
+//         var state = _.filter(data['@graph'], x => x['@type'] && x['@type'].indexOf('opm:CurrentPropertyState') != -1 )[0];
+//         var value = state['schema:value']['@value'];
 
 //         var keys = _.flatten(data['@graph'].map(x => _.keys(x)));
 
@@ -313,8 +336,8 @@
 //      */
 //     it('Post derived property props:heatingTemperatureDelta by path (?foi a bot:Element) (INSERT)', async () => {
 
-//         // STEP 1
-//         // Add calculation
+//         //STEP 1
+//         //Add calculation
 
 //         var input = {
 //             label: '"Heating temperature difference for all bot:Element instances"@en',
@@ -333,8 +356,8 @@
 
 //         expect(res).to.have.property('status').that.is.equals(200);     // Should return status 200
 
-//         // STEP 2
-//         // Get calculation data
+//         //STEP 2
+//         //Get calculation data
 
 //         q = opmCalc.getCalcData({label: input.label});
         
@@ -351,8 +374,8 @@
 //         expect(data).to.have.deep.any.key('prov:generatedAtTime');                  // Should have a generation time
 //         expect(data).to.have.deep.any.key('prov:wasAttributedTo');                  // Should be attributed to some user
 
-//         // STEP 3
-//         // Post to FoIs matching the path
+//         //STEP 3
+//         //Post to FoIs matching the path
 
 //         var calculationURI = data['@id'];
 //         var expression = data['opm:expression'];
@@ -436,21 +459,21 @@
 
 //         expect(res).to.have.property('status').that.is.equals(200); // Should return status 200
 //         expect(ids).to.include.members(['ex:FoI1']);   // Should have member ex:FoI1
-//         expect(keys).to.include.members(['props:heatingTemperatureDelta','seas:evaluation','prov:wasDerivedFrom']);
+//         expect(keys).to.include.members(['props:heatingTemperatureDelta','opm:hasPropertyState','prov:wasDerivedFrom']);
 
-//         var state = _.filter(data['@graph'], x => x['@type'] && x['@type'].indexOf('opm:CurrentState') != -1 )[0];
+//         var state = _.filter(data['@graph'], x => x['@type'] && x['@type'].indexOf('opm:CurrentPropertyState') != -1 )[0];
 
-//         // console.log(JSON.stringify(data['@graph'],null,2))
+//         //console.log(JSON.stringify(data['@graph'],null,2))
 
-//         // Save the calculation URI
-//         // this.calcURI = state['prov:wasAttributedTo']['@id'];
+//         //Save the calculation URI
+//         this.calcURI = state['prov:wasAttributedTo']['@id'];
 
 //     });
 
 //     it('Update derived property props:heatingTemperatureDelta for ex:FoI1', async () => {
 
-//         // STEP 1
-//         // Get data from the calculation that initially created the derived property
+//         //STEP 1
+//         //Get data from the calculation that initially created the derived property
 
 //         var foiURI = 'ex:FoI1';
 //         var property = 'props:heatingTemperatureDelta';
@@ -460,14 +483,14 @@
 //         var res = await query.execute(conn, dbName, q, 'application/ld+json');
 //         var data = await jsonld.compact(res.body, context);    // Shorten URIs with prefixes ()
 
-//         // Define missing variables retrieved from the calculation resource
+//         //Define missing variables retrieved from the calculation resource
 //         var calculationURI = data['@id'];
 //         var expression = data['opm:expression'];
 //         var argumentPaths = data['opm:argumentPaths']['@list'];
 //         var userURI = 'https://www.niras.dk/employees/mhra';
 
-//         // STEP 2
-//         // Update the property
+//         //STEP 2
+//         //Update the property
 
 //         q = opmCalc.putByFoI(foiURI, property, expression, argumentPaths, calculationURI, userURI);
 
@@ -527,34 +550,34 @@
 //     /**
 //      * Testing the extended post calc method
 //      */
-//     // it('Calculate the product of supply- and return water temperature - insert globally and add calculation resource at the same time', async () => {
+//     it('Calculate the product of supply- and return water temperature - insert globally and add calculation resource at the same time', async () => {
         
-//     //     var input = {
-//     //         label: '"temp product"@en',
-//     //         argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr'],
-//     //         comment: 'This calculation sums the supply- and return water temperature for heating',
-//     //         userURI: 'https://www.niras.dk/employees/mhra',
-//     //         expression: '?ts+?tr',
-//     //         inferredProperty: 'props:heatingTemperatureSum',
-//     //         queryType: 'construct'
-//     //     };
+//         var input = {
+//             label: '"temp product"@en',
+//             argumentPaths: ['?foi props:supplyWaterTemperatureHeating ?ts', '?foi props:returnWaterTemperatureHeating ?tr'],
+//             comment: 'This calculation sums the supply- and return water temperature for heating',
+//             userURI: 'https://www.niras.dk/employees/mhra',
+//             expression: '?ts+?tr',
+//             inferredProperty: 'props:heatingTemperatureSum',
+//             queryType: 'construct'
+//         };
 
-//     //     var q = opmCalc.postCalcExtended(input);
+//         var q = opmCalc.postCalcExtended(input);
 
-//     //     // var res = await query.execute(conn, dbName, q);
+//         // var res = await query.execute(conn, dbName, q);
 
-//     //     // expect(res).to.have.property('status').that.is.equals(200); // Should return status 200
+//         // expect(res).to.have.property('status').that.is.equals(200); // Should return status 200
 
-//     //     // q = opmCalc.getCalcDataByLabel(input.label);
+//         // q = opmCalc.getCalcDataByLabel(input.label);
 
-//     //     console.log(q);
+//         //console.log(q);
 
-//     //     // res = await query.execute(conn, dbName, q, 'application/ld+json');
+//         // res = await query.execute(conn, dbName, q, 'application/ld+json');
 
-//     //     // // Currently not working. Should only yeild one claculation URI!
+//         // // Currently not working. Should only yeild one claculation URI!
 
-//     //     // console.log(res);
+//         // console.log(res);
 
-//     // });
+//     });
 
 // });
