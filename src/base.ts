@@ -37,8 +37,9 @@ export class BaseModel {
     public reliabilityOptions: ReliabilityOption[];     // reliability mappings
     public mainGraph: boolean;                          // query the main graph or a named graph?
     public iGraph: string;                              // named graph to use for inferred triples
+    public namedGraphs: string[];                       // Limit to only query over a limited set of named graphs (SPARQL FROM NAMED)
 
-    constructor(host: string, prefixes?: Prefix[], mainGraph?: boolean, iGraph?: string){
+    constructor(host: string, prefixes?: Prefix[], mainGraph?: boolean, iGraph?: string, namedGraphs?: string[]){
 
         // Get host
         this.host = host;
@@ -58,7 +59,12 @@ export class BaseModel {
         this.mainGraph = mainGraph != undefined ? mainGraph : true;
 
         // Inference graph defaults to host+I
-        this.iGraph = iGraph ? iGraph : this.host+'I';
+        this.iGraph = iGraph && null != iGraph ? iGraph : this.host+'I';
+
+        // namedGraphs
+        if(namedGraphs){
+            this.namedGraphs = namedGraphs;
+        }
 
     }
 

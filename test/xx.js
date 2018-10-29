@@ -15,7 +15,7 @@ async function main() {
 
     var host = 'https://example.org/opmTest/';
 
-    var mainGraph = true;
+    var mainGraph = false;
 
     var prefixes = [
         {prefix: 'ex', uri: 'https://example.org/'},
@@ -40,15 +40,21 @@ async function main() {
     //     expression: "xsd:string(?res)"
     // }
 
-    var input = {
-        propertyURI: "https://prop",
-        value: "test",
-        queryType: 'insert'
-    }
+    input = {
+        graphURI: "https://web-bim/projects/1001/HVAC/",
+        calculationURI: "http://web-bim/projects/1001/calculation_f94fc9f8-36b3-4661-a5ef-bacbe7aac047",
+        label: '"Transmission heat loss for space"@en',
+        argumentPaths: ['?foi a ice:ThermalEnvironment ; ^ice:surfaceInterior ?i . ?i props:totalHeatTransferRate ?htr'],
+        comment: 'Sums the transmission heat loss through all the parts of the building envelope which face the space.',
+        userURI: 'https://www.niras.dk/employees/mhra',
+        expression: "sum(?htr)+20",
+        inferredProperty: 'props:transmissionHeatTransferRate',
+        queryType: 'construct'
+    };
   
-    var q = opmProp.putProp(input);
+    var q = opmCalc.putCalc(input);
 
-    console.log(q);
+    // console.log(q);
 
     // try{
     //     var q = opmCalc.getCalcDataByLabel('temp product');

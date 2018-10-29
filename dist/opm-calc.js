@@ -1,8 +1,11 @@
 "use strict";
 var __extends = (this && this.__extends) || (function () {
-    var extendStatics = Object.setPrototypeOf ||
-        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    }
     return function (d, b) {
         extendStatics(d, b);
         function __() { this.constructor = d; }
@@ -165,8 +168,10 @@ var OPMCalc = /** @class */ (function (_super) {
         return this.getOutdated(foiURI);
     };
     OPMCalc.prototype.postCalcData = function (input) {
+        var _this = this;
         // Get global variables
         var host = this.host;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
         // Define variables
         var graphURI = input.graphURI ? this.cleanURI(input.graphURI) : this.cleanURI(host);
         var label = this.cleanLiteral(input.label);
@@ -247,8 +252,12 @@ var OPMCalc = /** @class */ (function (_super) {
         });
         if (!this.mainGraph && queryType == 'insert')
             q += c;
-        q += "}\n" +
-            'WHERE {\n' +
+        q += "}\n";
+        if (queryType == 'construct' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "FROM NAMED " + uri + "\n"; });
+        if (queryType == 'insert' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "USING NAMED " + uri + "\n"; });
+        q += 'WHERE {\n' +
             "\t# CREATE CALCULATION URI AND GET CURRENT TIME\n" +
             ("\tBIND(URI(CONCAT(STR(\"" + host + "\"), \"calculation_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?calculationURI)\n") +
             "\tBIND(now() AS ?now)\n" +
@@ -256,10 +265,11 @@ var OPMCalc = /** @class */ (function (_super) {
         return this.appendPrefixesToQuery(q);
     };
     OPMCalc.prototype.getCalcData = function (input) {
+        var _this = this;
         // Global variables
         var mainGraph = this.mainGraph;
         var iGraph = this.cleanURI(this.iGraph);
-        var queryType = this.queryType;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
         if (input) {
             if (input.calculationURI)
                 var calculationURI = this.cleanURI(input.calculationURI);
@@ -285,6 +295,8 @@ var OPMCalc = /** @class */ (function (_super) {
             '\t?listRest rdf:first ?head ;\n' +
             '\t\trdf:rest ?tail .\n' +
             '}\n';
+        if (namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "FROM NAMED " + uri + "\n"; });
         q += 'WHERE {\n';
         if (calculationURI)
             q += "\tBIND(" + calculationURI + " AS ?calculationURI)\n";
@@ -313,6 +325,8 @@ var OPMCalc = /** @class */ (function (_super) {
         return this.appendPrefixesToQuery(q);
     };
     OPMCalc.prototype.listCalculations = function (input) {
+        var _this = this;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
         var queryType = this.queryType;
         if (input) {
             if (input.queryType)
@@ -338,6 +352,8 @@ var OPMCalc = /** @class */ (function (_super) {
         else {
             q += '\nSELECT ?calculationURI ?label ?comment\n';
         }
+        if (namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "FROM NAMED " + uri + "\n"; });
         q += 'WHERE {\n';
         q += a;
         q += b + "\t?calculationURI opm:inferredProperty ?inferredProperty ;\n" +
@@ -353,8 +369,10 @@ var OPMCalc = /** @class */ (function (_super) {
     // Insert derived values matching some calculation where they do not already exist
     // NB! it could be useful to be able to apply a restriction that should be fulfilled. Eg. ?foi a bot:Element
     OPMCalc.prototype.postCalcExtended = function (input) {
+        var _this = this;
         // Get global variables
         var host = this.host;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
         //Define variables
         var label = this.cleanLiteral(input.label);
         var comment = this.cleanLiteral(input.comment);
@@ -432,6 +450,10 @@ var OPMCalc = /** @class */ (function (_super) {
         if (!this.mainGraph)
             q += c;
         q += "}\n";
+        if (queryType == 'construct' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "FROM NAMED " + uri + "\n"; });
+        if (queryType == 'insert' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "USING NAMED " + uri + "\n"; });
         // Get data
         q += "WHERE {\n";
         q += a;
@@ -485,8 +507,10 @@ var OPMCalc = /** @class */ (function (_super) {
     // Insert derived values matching some calculation where they do not already exist
     // NB! it could be useful to be able to apply a restriction that should be fulfilled. Fx ?foi a bot:Element
     OPMCalc.prototype.postCalc = function (input) {
+        var _this = this;
         // Get global variables
         var host = this.host;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
         var mainGraph = this.mainGraph;
         var iGraph = this.cleanURI(this.iGraph); // Derived triples should be inferred in the I-Graph
         //Define variables
@@ -495,7 +519,23 @@ var OPMCalc = /** @class */ (function (_super) {
         var argumentPaths = input.argumentPaths;
         var argumentVars = [];
         var propertyURI = this.cleanURI(input.inferredProperty);
-        var type = input.type ? input.type.toLowerCase() : "regular";
+        //Extract calculation type from the expression
+        var type;
+        var validTypes = ["sum", "count", "min", "max", "avg"];
+        var typeMatches = validTypes.filter(function (w) {
+            return expression.toLowerCase().indexOf(w) != -1;
+        });
+        if (typeMatches.length > 1)
+            return new Error('Expression cannot contain both ' + typeMatches.join(' and '));
+        if (typeMatches.length == 1) {
+            type = typeMatches[0];
+            // Remove sum(?var), avg(?var) etc. from expression
+            var expSplit = expression.split(type);
+            expSplit[1] = expSplit[1].replace('(', '').replace(')', '');
+            expression = expSplit.join('');
+        }
+        else
+            type = "regular";
         // Optional
         var foiURI = this.cleanURI(input.foiURI); //If only for a specific FoI
         var queryType = input.queryType ? input.queryType : this.queryType; // Get default if not defined
@@ -505,25 +545,17 @@ var OPMCalc = /** @class */ (function (_super) {
         argumentPaths = this.cleanArgPaths(argumentPaths).paths;
         var expressionVars = this.uniqueVarsInString(expression);
         // Validate arguments
-        // Type must be either sum, count, min, max, avg or regular
-        var validTypes = ["sum", "count", "min", "max", "avg", "regular"];
-        if (validTypes.indexOf(type) == -1)
-            return new Error("\"" + type + "\" is not a valid calculation type!");
-        if (type == "regular") {
-            if (!expression)
-                return new Error('Specify an expression');
-            if (!argumentPaths)
-                return new Error("Specify " + expressionVars.length + " argument path(s)");
-            if (expressionVars.length != argumentPaths.length)
-                return new Error('There is a mismatch between number of arguments used in the expression and the number of argument paths given');
-            // NB! In below slice prevents the sort() from changing the original order
-            if (!_.isEqual(expressionVars.sort(), argumentVars.slice().sort()))
-                return new Error("There is a mismatch between the arguments given in the expression (" + expressionVars.sort() + ") and the arguments given in the paths (" + argumentVars.sort() + ")");
-        }
-        else {
-            if (argumentPaths.length > 1)
-                return new Error("Specify only one argument path for calculations of type \"" + type + "\"");
-        }
+        if (!expression)
+            return new Error('Specify an expression');
+        if (!calculationURI)
+            return new Error('Specify a calculation URI');
+        if (!argumentPaths)
+            return new Error("Specify " + expressionVars.length + " argument path(s)");
+        if (expressionVars.length != argumentPaths.length)
+            return new Error('There is a mismatch between number of arguments used in the expression and the number of argument paths given');
+        // NB! In below, slice prevents the sort() from changing the original order
+        if (!_.isEqual(expressionVars.sort(), argumentVars.slice().sort()))
+            return new Error("There is a mismatch between the arguments given in the expression (" + expressionVars.sort() + ") and the arguments given in the paths (" + argumentVars.sort() + ")");
         var q = '';
         // define a few variables to use with named graphs
         var a = mainGraph ? '' : '\tGRAPH ?g {\n';
@@ -559,6 +591,10 @@ var OPMCalc = /** @class */ (function (_super) {
                 q += c;
             q += "}\n";
         }
+        if (queryType == 'construct' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "FROM NAMED " + uri + "\n"; });
+        if (queryType == 'insert' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "USING NAMED " + uri + "\n"; });
         // Get data
         q += "WHERE {\n";
         if (foiURI)
@@ -600,7 +636,7 @@ var OPMCalc = /** @class */ (function (_super) {
                 (b + "\t\t" + argumentVars[0] + "_ opm:hasPropertyState ?state .\n") +
                 (b + "\t\t?state a opm:CurrentPropertyState\n") +
                 (b + "\t}}\n\n");
-            q += "\t# CALCULATE THE " + type.toUpperCase() + "\n";
+            q += b + "\t# CALCULATE THE " + type.toUpperCase() + "\n";
             q += b + "\t{ SELECT ?foi (" + type.toUpperCase() + "(?res_) AS " + argumentVars[0] + ")\n" +
                 (b + "\t\t(URI(CONCAT(\"" + host + "\", \"state_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?stateURI)\n") +
                 (b + "\t\t(URI(CONCAT(\"" + host + "\", \"property_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?propertyURI)\n") +
@@ -647,9 +683,11 @@ var OPMCalc = /** @class */ (function (_super) {
         return this.appendPrefixesToQuery(q);
     };
     OPMCalc.prototype.putCalc = function (input) {
+        var _this = this;
         // Get global variables
         var host = this.host;
         var mainGraph = this.mainGraph;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
         var iGraph = this.cleanURI(this.iGraph);
         // Define variables
         var calculationURI = this.cleanURI(input.calculationURI);
@@ -657,7 +695,23 @@ var OPMCalc = /** @class */ (function (_super) {
         var argumentPaths = input.argumentPaths;
         var argumentVars = [];
         var propertyURI = this.cleanURI(input.inferredProperty);
-        var type = input.type ? input.type.toLowerCase() : "regular";
+        //Extract calculation type from the expression
+        var type;
+        var validTypes = ["sum", "count", "min", "max", "avg"];
+        var typeMatches = validTypes.filter(function (w) {
+            return expression.toLowerCase().indexOf(w) != -1;
+        });
+        if (typeMatches.length > 1)
+            return new Error('Expression cannot contain both ' + typeMatches.join(' and '));
+        if (typeMatches.length == 1) {
+            type = typeMatches[0];
+            // Remove sum(?var), avg(?var) etc. from expression
+            var expSplit = expression.split(type);
+            expSplit[1] = expSplit[1].replace('(', '').replace(')', '');
+            expression = expSplit.join('');
+        }
+        else
+            type = "regular";
         // Optional
         var foiURI = this.cleanURI(input.foiURI); //If only for a specific FoI
         var queryType = input.queryType ? input.queryType : this.queryType; // Get default if not defined
@@ -666,25 +720,17 @@ var OPMCalc = /** @class */ (function (_super) {
         argumentPaths = this.cleanArgPaths(argumentPaths).paths;
         var expressionVars = this.uniqueVarsInString(expression);
         // Validate arguments
-        // Type must be either sum, count, min, max, avg or regular
-        var validTypes = ["sum", "count", "min", "max", "avg", "regular"];
-        if (validTypes.indexOf(type) == -1)
-            return new Error("\"" + type + "\" is not a valid calculation type!");
-        if (type == "regular") {
-            if (!expression)
-                return new Error('Specify an expression');
-            if (!argumentPaths)
-                return new Error("Specify " + expressionVars.length + " argument path(s)");
-            if (expressionVars.length != argumentPaths.length)
-                return new Error('There is a mismatch between number of arguments used in the expression and the number of argument paths given');
-            // NB! In below slice prevents the sort() from changing the original order
-            if (!_.isEqual(expressionVars.sort(), argumentVars.slice().sort()))
-                return new Error("There is a mismatch between the arguments given in the expression (" + expressionVars.sort() + ") and the arguments given in the paths (" + argumentVars.sort() + ")");
-        }
-        else {
-            if (argumentPaths.length > 1)
-                return new Error("Specify only one argument path for calculations of type \"" + type + "\"");
-        }
+        if (!expression)
+            return new Error('Specify an expression');
+        if (!calculationURI)
+            return new Error('Specify a calculation URI');
+        if (!argumentPaths)
+            return new Error("Specify " + expressionVars.length + " argument path(s)");
+        if (expressionVars.length != argumentPaths.length)
+            return new Error('There is a mismatch between number of arguments used in the expression and the number of argument paths given');
+        // NB! In below slice prevents the sort() from changing the original order
+        if (!_.isEqual(expressionVars.sort(), argumentVars.slice().sort()))
+            return new Error("There is a mismatch between the arguments given in the expression (" + expressionVars.sort() + ") and the arguments given in the paths (" + argumentVars.sort() + ")");
         var q = '';
         // define a few variables to use with named graphs
         var a = mainGraph ? '' : '\tGRAPH ?g {\n';
@@ -720,8 +766,13 @@ var OPMCalc = /** @class */ (function (_super) {
         }
         if (!this.mainGraph && queryType == 'insert')
             q += c;
+        q += "}\n";
+        if (queryType == 'construct' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "FROM NAMED " + uri + "\n"; });
+        if (queryType == 'insert' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "USING NAMED " + uri + "\n"; });
         // Get data
-        q += "}\nWHERE {\n";
+        q += "WHERE {\n";
         //BIND to FoIURI if one is given
         if (foiURI)
             q += "\tBIND(" + foiURI + " AS ?foi)\n";
@@ -732,9 +783,9 @@ var OPMCalc = /** @class */ (function (_super) {
         q += b + "\t?foi ?inferredProperty ?propertyURI .\n" +
             (b + "\t?propertyURI opm:hasPropertyState ?previousState .\n") +
             (b + "\t?previousState a opm:CurrentPropertyState ;\n") +
-            (b + "\t\tschema:value ?previousValue .\n");
-        q += mainGraph ? "\n" : "\t}\n";
+            (b + "\t\tschema:value ?previousValue .\n\n");
         if (type == "regular") {
+            q += mainGraph ? "\n" : "\t}\n";
             // Retrieve data
             for (var i in argumentPaths) {
                 var _i = Number(i) + 1;
@@ -754,9 +805,7 @@ var OPMCalc = /** @class */ (function (_super) {
             }
         }
         else {
-            if (!mainGraph)
-                q += "\tGRAPH ?g" + _i + " {\n";
-            q += "\t# CALCULATE THE " + type.toUpperCase() + "\n";
+            q += b + "\t# CALCULATE THE " + type.toUpperCase() + "\n";
             var resVar = expression ? argumentVars[0] : '?res';
             q += b + "\t{ SELECT ?foi (" + type.toUpperCase() + "(?res_) AS " + resVar + ")\n" +
                 (b + "\t\t(URI(CONCAT(\"" + host + "\", \"state_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?stateURI)\n") +
@@ -767,11 +816,6 @@ var OPMCalc = /** @class */ (function (_super) {
                 (b + "\t\t?state1 schema:value " + argumentVars[0] + "__ .\n") +
                 (b + "\t\tBIND(IF(isnumeric(" + argumentVars[0] + "__), " + argumentVars[0] + "__ , xsd:decimal(strbefore(xsd:string(" + argumentVars[0] + "__), ' '))) AS ?res_)\n") +
                 (b + "\t  } GROUP BY ?foi\n") +
-                (b + "\t}\n\n");
-            q += b + "\t# INHERIT CLASS OPM:ASSUMED\n" +
-                (b + "\tOPTIONAL {\n") +
-                (b + "\t\t?state1 a ?assumed .\n") +
-                (b + "\t\tFILTER( ?assumed = opm:Assumed )\n") +
                 (b + "\t}\n\n");
             q += mainGraph ? "\n" : "\t}\n";
         }
@@ -791,8 +835,10 @@ var OPMCalc = /** @class */ (function (_super) {
         return this.appendPrefixesToQuery(q);
     };
     OPMCalc.prototype.putByCalcURI = function (calculationURI, queryType) {
+        var _this = this;
         // Get global variables
         var host = this.host;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
         // Define variables
         var calculationURI = this.cleanURI(calculationURI);
         // Optional
@@ -833,6 +879,10 @@ var OPMCalc = /** @class */ (function (_super) {
                 q += c;
             q += '}\n';
         }
+        if (queryType == 'construct' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "FROM NAMED " + uri + "\n"; });
+        if (queryType == 'insert' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "USING NAMED " + uri + "\n"; });
         // Get data
         q += "WHERE {\n";
         if (!this.mainGraph)
@@ -849,8 +899,10 @@ var OPMCalc = /** @class */ (function (_super) {
         return this.appendPrefixesToQuery(q);
     };
     OPMCalc.prototype.getOutdated = function (foiURI, queryType) {
+        var _this = this;
         // Get global variables
         var mainGraph = this.mainGraph;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
         var iGraph = this.iGraph; // Graph holding inferred triples
         // Process variables
         foiURI = this.cleanURI(foiURI);
@@ -872,6 +924,8 @@ var OPMCalc = /** @class */ (function (_super) {
         if (queryType == 'select') {
             q += 'SELECT *\n';
         }
+        if (namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "FROM NAMED " + uri + "\n"; });
         q += "WHERE {\n";
         q += a; // handle named graph
         if (foiURI)
@@ -894,8 +948,10 @@ var OPMCalc = /** @class */ (function (_super) {
         return this.appendPrefixesToQuery(q);
     };
     OPMCalc.prototype.getSubscribers = function (input) {
+        var _this = this;
         // Get global variables
         var mainGraph = this.mainGraph;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
         // Optional variables
         var propertyURI = this.cleanURI(input.propertyURI);
         var foiURI = this.cleanURI(input.foiURI);
@@ -912,8 +968,10 @@ var OPMCalc = /** @class */ (function (_super) {
         var a = mainGraph ? '' : '\t';
         q += 'CONSTRUCT {\n' +
             '\t?propertyURI opm:hasSubscriber ?depProp .\n' +
-            '}\n' +
-            'WHERE {\n';
+            '}\n';
+        if (namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "FROM NAMED " + uri + "\n"; });
+        q += 'WHERE {\n';
         if (foiURI)
             q += "\tBIND(" + foiURI + " AS ?foiURI)\n";
         if (propertyURI)

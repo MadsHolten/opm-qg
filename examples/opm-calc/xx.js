@@ -43,6 +43,9 @@ var input = {
         }
     ]
 };
-var sc = new qg.OPMCalc;
-var q = sc.putCalc(input);
+var sc = new qg.OPMCalc(null,null,false,null,['http://localhost:5820/1001/arch/', 'http://localhost:5820/1001/niras/']);
+
+console.log(sc);
+
+var q = sc.getCalcData(input);
 console.log(q);

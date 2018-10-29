@@ -286,9 +286,11 @@ export class OPMProp extends BaseModel {
         
         // Get global variables
         var host = this.host;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(uri => this.cleanURI(uri)) : null;
 
         // Retrieve and process variables
         var property = input.property;
+        if(!input.value) return new Error('Specify a value');
         var value = this.cleanProp(input.value);
 
         // Optional arguments
@@ -340,6 +342,9 @@ export class OPMProp extends BaseModel {
 
         q+= '}\n';
 
+        if(queryType == 'construct' && namedGraphs) namedGraphs.forEach(uri => q+= `FROM NAMED ${uri}\n`);
+        if(queryType == 'insert' && namedGraphs) namedGraphs.forEach(uri => q+= `USING NAMED ${uri}\n`);
+
         q+= 'WHERE {\n';
         q+= a;
 
@@ -378,6 +383,7 @@ export class OPMProp extends BaseModel {
         
         // Get global variables
         var host = this.host;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(uri => this.cleanURI(uri)) : null;
 
         // Retrieve and process variables
         var property = input.property;
@@ -435,6 +441,9 @@ export class OPMProp extends BaseModel {
 
         q+= '}\n';
 
+        if(queryType == 'construct' && namedGraphs) namedGraphs.forEach(uri => q+= `FROM NAMED ${uri}\n`);
+        if(queryType == 'insert' && namedGraphs) namedGraphs.forEach(uri => q+= `USING NAMED ${uri}\n`);
+
         q+= 'WHERE {\n';
         q+= a;
 
@@ -474,6 +483,7 @@ export class OPMProp extends BaseModel {
     public putProp(input: PostPutProp) {
         // Get global variables
         var host = this.host;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(uri => this.cleanURI(uri)) : null;
 
         // Retrieve and process variables
         var value = this.cleanProp(input.value);
@@ -541,6 +551,9 @@ export class OPMProp extends BaseModel {
 
         q+= '}\n';
 
+        if(queryType == 'construct' && namedGraphs) namedGraphs.forEach(uri => q+= `FROM NAMED ${uri}\n`);
+        if(queryType == 'insert' && namedGraphs) namedGraphs.forEach(uri => q+= `USING NAMED ${uri}\n`);
+
         q+= 'WHERE {\n';
 
         q+= a; // Named graph
@@ -593,6 +606,7 @@ export class OPMProp extends BaseModel {
 
         // Get global variables
         var host = this.host;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(uri => this.cleanURI(uri)) : null;
 
         // Retrieve and process variables
         var comment = input.comment;
@@ -646,8 +660,12 @@ export class OPMProp extends BaseModel {
 
         if(!this.mainGraph && queryType == 'insert') q+= c;
 
-        q+= '}\n' +
-            'WHERE {\n';
+        q+= '}\n';
+
+        if(queryType == 'construct' && namedGraphs) namedGraphs.forEach(uri => q+= `FROM NAMED ${uri}\n`);
+        if(queryType == 'insert' && namedGraphs) namedGraphs.forEach(uri => q+= `USING NAMED ${uri}\n`);
+
+        q+= 'WHERE {\n';
 
         q+= a; // Named graph
 
@@ -698,7 +716,8 @@ export class OPMProp extends BaseModel {
 
         // Get global variables
         var host = this.host;
-        var mainGraph = this.mainGraph;      
+        var mainGraph = this.mainGraph;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(uri => this.cleanURI(uri)) : null;
 
         // Optional variables
         var propertyURI = this.cleanURI(input.propertyURI);                     // Giving no propertyURI will restore everything!
@@ -739,8 +758,12 @@ export class OPMProp extends BaseModel {
 
         if(!this.mainGraph && queryType == 'insert') q+= c;
 
-        q+= '}\n' +
-            'WHERE {\n';
+        q+= '}\n';
+        
+        if(queryType == 'construct' && namedGraphs) namedGraphs.forEach(uri => q+= `FROM NAMED ${uri}\n`);
+        if(queryType == 'insert' && namedGraphs) namedGraphs.forEach(uri => q+= `USING NAMED ${uri}\n`);
+
+        q+= 'WHERE {\n';
         q+= a;
 
         if(userURI) q+= `${b}\tBIND(${userURI} AS ?userURI)\n`;
@@ -792,6 +815,9 @@ export class OPMProp extends BaseModel {
     // Restrict to either 'deleted', 'assumptions', 'derived' or 'confirmed'
     public getProps(input: GetProp): string {
 
+        // Get global variables
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(uri => this.cleanURI(uri)) : null;
+
         // Process input
         var foiURI = this.cleanURI(input.foiURI);
         var property = this.cleanURI(input.property);
@@ -829,6 +855,8 @@ export class OPMProp extends BaseModel {
         var a = this.mainGraph ? '' : '\tGRAPH ?g {\n';
         var b = this.mainGraph ? '' : '\t';
         var c = this.mainGraph ? '' : '\t}\n';
+
+        if(namedGraphs) namedGraphs.forEach(uri => q+= `FROM NAMED ${uri}\n`);
 
         q+= `WHERE {\n`;
         q+= a; // Named graph

@@ -3,7 +3,7 @@ exports.__esModule = true;
 var _ = require("lodash");
 var _s = require("underscore.string");
 var BaseModel = /** @class */ (function () {
-    function BaseModel(host, prefixes, mainGraph, iGraph) {
+    function BaseModel(host, prefixes, mainGraph, iGraph, namedGraphs) {
         // Get host
         this.host = host;
         // Get predefined prefixes
@@ -17,7 +17,11 @@ var BaseModel = /** @class */ (function () {
         // Query main graph as default
         this.mainGraph = mainGraph != undefined ? mainGraph : true;
         // Inference graph defaults to host+I
-        this.iGraph = iGraph ? iGraph : this.host + 'I';
+        this.iGraph = iGraph && null != iGraph ? iGraph : this.host + 'I';
+        // namedGraphs
+        if (namedGraphs) {
+            this.namedGraphs = namedGraphs;
+        }
     }
     BaseModel.prototype.addPrefix = function (prefix) {
         this.prefixes = this._concatenatePrefixes([prefix]);

@@ -1,8 +1,11 @@
 "use strict";
 var __extends = (this && this.__extends) || (function () {
-    var extendStatics = Object.setPrototypeOf ||
-        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    }
     return function (d, b) {
         extendStatics(d, b);
         function __() { this.constructor = d; }
@@ -244,10 +247,14 @@ var OPMProp = /** @class */ (function (_super) {
      */
     // Create property for a FoI where it doesn't already exist
     OPMProp.prototype.postProp = function (input) {
+        var _this = this;
         // Get global variables
         var host = this.host;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
         // Retrieve and process variables
         var property = input.property;
+        if (!input.value)
+            return new Error('Specify a value');
         var value = this.cleanProp(input.value);
         // Optional arguments
         var foiURI = this.cleanURI(input.foiURI);
@@ -296,6 +303,10 @@ var OPMProp = /** @class */ (function (_super) {
         if (!this.mainGraph && queryType == 'insert')
             q += c;
         q += '}\n';
+        if (queryType == 'construct' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "FROM NAMED " + uri + "\n"; });
+        if (queryType == 'insert' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "USING NAMED " + uri + "\n"; });
         q += 'WHERE {\n';
         q += a;
         q += b + "\t# CREATE STATE AND PROPERTY URIs\n" +
@@ -323,8 +334,10 @@ var OPMProp = /** @class */ (function (_super) {
     };
     // Create property for a FoI where it doesn't already exist
     OPMProp.prototype.postClassProp = function (input) {
+        var _this = this;
         // Get global variables
         var host = this.host;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
         // Retrieve and process variables
         var property = input.property;
         var value = this.cleanProp(input.value);
@@ -378,6 +391,10 @@ var OPMProp = /** @class */ (function (_super) {
         if (!this.mainGraph && queryType == 'insert')
             q += c;
         q += '}\n';
+        if (queryType == 'construct' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "FROM NAMED " + uri + "\n"; });
+        if (queryType == 'insert' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "USING NAMED " + uri + "\n"; });
         q += 'WHERE {\n';
         q += a;
         q += b + "\t# CREATE STATE AND PROPERTY URIs\n" +
@@ -407,8 +424,10 @@ var OPMProp = /** @class */ (function (_super) {
     };
     // Update FoI property
     OPMProp.prototype.putProp = function (input) {
+        var _this = this;
         // Get global variables
         var host = this.host;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
         // Retrieve and process variables
         var value = this.cleanProp(input.value);
         // Optional
@@ -474,6 +493,10 @@ var OPMProp = /** @class */ (function (_super) {
         if (!this.mainGraph && queryType == 'insert')
             q += c;
         q += '}\n';
+        if (queryType == 'construct' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "FROM NAMED " + uri + "\n"; });
+        if (queryType == 'insert' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "USING NAMED " + uri + "\n"; });
         q += 'WHERE {\n';
         q += a; // Named graph
         q += b + "\t# CREATE STATE URIs\n" +
@@ -512,8 +535,10 @@ var OPMProp = /** @class */ (function (_super) {
     //Make it an assumption or a confirmed property
     //Also possible to delete it
     OPMProp.prototype.setReliability = function (input) {
+        var _this = this;
         // Get global variables
         var host = this.host;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
         // Retrieve and process variables
         var comment = input.comment;
         var propertyURI = this.cleanURI(input.propertyURI);
@@ -566,8 +591,12 @@ var OPMProp = /** @class */ (function (_super) {
         q += d + "\t\tprov:generatedAtTime ?now .\n";
         if (!this.mainGraph && queryType == 'insert')
             q += c;
-        q += '}\n' +
-            'WHERE {\n';
+        q += '}\n';
+        if (queryType == 'construct' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "FROM NAMED " + uri + "\n"; });
+        if (queryType == 'insert' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "USING NAMED " + uri + "\n"; });
+        q += 'WHERE {\n';
         q += a; // Named graph
         if (userURI)
             q += b + "\tBIND(" + userURI + " AS ?userURI)\n";
@@ -605,9 +634,11 @@ var OPMProp = /** @class */ (function (_super) {
     };
     //Restore a deleted property
     OPMProp.prototype.restoreProp = function (input) {
+        var _this = this;
         // Get global variables
         var host = this.host;
         var mainGraph = this.mainGraph;
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
         // Optional variables
         var propertyURI = this.cleanURI(input.propertyURI); // Giving no propertyURI will restore everything!
         var queryType = input.queryType ? input.queryType : this.queryType; // Get default if not defined
@@ -645,8 +676,12 @@ var OPMProp = /** @class */ (function (_super) {
             '\t\t?key ?val .\n';
         if (!this.mainGraph && queryType == 'insert')
             q += c;
-        q += '}\n' +
-            'WHERE {\n';
+        q += '}\n';
+        if (queryType == 'construct' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "FROM NAMED " + uri + "\n"; });
+        if (queryType == 'insert' && namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "USING NAMED " + uri + "\n"; });
+        q += 'WHERE {\n';
         q += a;
         if (userURI)
             q += b + "\tBIND(" + userURI + " AS ?userURI)\n";
@@ -693,6 +728,9 @@ var OPMProp = /** @class */ (function (_super) {
     // Return graph subset (construct query) by setting argument queryType = 'construct'
     // Restrict to either 'deleted', 'assumptions', 'derived' or 'confirmed'
     OPMProp.prototype.getProps = function (input) {
+        var _this = this;
+        // Get global variables
+        var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
         // Process input
         var foiURI = this.cleanURI(input.foiURI);
         var property = this.cleanURI(input.property);
@@ -724,6 +762,8 @@ var OPMProp = /** @class */ (function (_super) {
         var a = this.mainGraph ? '' : '\tGRAPH ?g {\n';
         var b = this.mainGraph ? '' : '\t';
         var c = this.mainGraph ? '' : '\t}\n';
+        if (namedGraphs)
+            namedGraphs.forEach(function (uri) { return q += "FROM NAMED " + uri + "\n"; });
         q += "WHERE {\n";
         q += a; // Named graph
         //If querying for a specific FoI
