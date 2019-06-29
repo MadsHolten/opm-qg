@@ -428,10 +428,6 @@ export class OPMCalc extends BaseModel {
         //Clean argument paths and retrieve argument variables
         argumentVars = this.cleanArgPaths(argumentPaths).vars;
         argumentPaths = this.cleanArgPaths(argumentPaths).paths;
-
-        // Append reasoning rules to arg paths
-        argumentPaths = this.argPathInferenceAppend(argumentPaths);
-        
         var expressionVars = this.uniqueVarsInString(expression);
 
         // Validate
@@ -458,7 +454,7 @@ export class OPMCalc extends BaseModel {
         q+= `${b}\t?foi ?inferredProperty ?propertyURI .\n` +
             `${b}\t?propertyURI a opm:Property ;\n` +
             `${b}\t\topm:hasPropertyState ?stateURI .\n` +
-            `${b}\t?stateURI a opm:CurrentPropertyState , opm:Derived , opm:InitialPropertyState , ?reliability ;\n` +
+            `${b}\t?stateURI a opm:CurrentPropertyState , opm:Derived , ?reliability ;\n` +
             `${b}\t\tschema:value ?res ;\n` +
             `${b}\t\tprov:generatedAtTime ?now ;\n` +
             `${b}\t\tprov:wasDerivedFrom `;
@@ -605,10 +601,6 @@ export class OPMCalc extends BaseModel {
         // Clean argument paths and retrieve argument variables
         argumentVars = this.cleanArgPaths(argumentPaths).vars;
         argumentPaths = this.cleanArgPaths(argumentPaths).paths;
-
-        // Append reasoning rules to arg paths
-        argumentPaths = this.argPathInferenceAppend(argumentPaths);
-
         var expressionVars = this.uniqueVarsInString(expression);
 
         // More validation
@@ -637,7 +629,7 @@ export class OPMCalc extends BaseModel {
             q+= `${d}\t?foi ?inferredProperty ?propertyURI .\n` +
                 `${d}\t?propertyURI a opm:Property ;\n` +
                 `${d}\t\topm:hasPropertyState ?stateURI .\n` +
-                `${d}\t?stateURI a opm:CurrentPropertyState , opm:Derived , opm:InitialPropertyState , ?reliability ;\n` +
+                `${d}\t?stateURI a opm:CurrentPropertyState , opm:Derived , ?reliability ;\n` +
                 `${d}\t\tschema:value ?res ;\n` +
                 `${d}\t\tprov:generatedAtTime ?now ;\n`;
             
@@ -797,10 +789,6 @@ export class OPMCalc extends BaseModel {
         // Clean argument paths and retrieve argument variables
         argumentVars = this.cleanArgPaths(argumentPaths).vars;
         argumentPaths = this.cleanArgPaths(argumentPaths).paths;
-
-        // Append reasoning rules to arg paths
-        argumentPaths = this.argPathInferenceAppend(argumentPaths);
-
         var expressionVars = this.uniqueVarsInString(expression);
 
         // Validate arguments
@@ -829,7 +817,7 @@ export class OPMCalc extends BaseModel {
             q+= '}\n' +
                 'INSERT {\n';
             if(!mainGraph) q+= `\tGRAPH ${iGraph} {\n`;
-            q+= `${b}\t?previousState a opm:PropertyState , opm:OutdatedPropertyState .\n`;
+            q+= `${b}\t?previousState a opm:PropertyState .\n`;
         }
 
         q+= `${b}\t?propertyURI a opm:Property ;\n` +
@@ -964,7 +952,7 @@ export class OPMCalc extends BaseModel {
                 q+= '}\n' +
                     'INSERT {\n';
                 if(!this.mainGraph) q+= `\tGRAPH ${iGraph} {\n`;
-                q+= `${b}\t?previousState a opm:PropertyState , opm:OutdatedPropertyState .\n`;
+                q+= `${b}\t?previousState a opm:PropertyState .\n`;
             }
 
             q+= `${b}\t?propertyURI a opm:Property ;\n` +

@@ -248,20 +248,21 @@ export class BaseModel {
 
         return paths.map(path => {
 
-            var pathElements = path.split(' ');
+            // var pathElements = path.split(' ');
 
-            pathElements = pathElements.map(w => {
+            // pathElements = pathElements.map(w => {
                 
-                // Replace 'a' with 'a/rdfs:subClassOf+'
-                if(w == 'a') w = 'a/rdfs:subClassOf+';
+            //     // Replace 'a' with 'a/rdfs:subClassOf+'
+            //     if(w == 'a'){
 
-                // Replace 'rdf:type' with 'rdf:type/rdfs:subClassOf+'
-                if(w == 'rdf:type') w = 'rdf:type/rdfs:subClassOf+';
+            //     }
+            // })
+            
+            // Replace 'a' with 'a/rdfs:subClassOf+'
+            var regex = new RegExp(' a ', 'g');
+            path.replace(regex, ' a/rdfs:subClassOf+ ');
 
-                return w;
-            })
-
-            path = pathElements.join(' ');
+            console.log(path);
 
             return path;
         })

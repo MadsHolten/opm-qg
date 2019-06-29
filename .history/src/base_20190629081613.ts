@@ -250,18 +250,13 @@ export class BaseModel {
 
             var pathElements = path.split(' ');
 
-            pathElements = pathElements.map(w => {
-                
-                // Replace 'a' with 'a/rdfs:subClassOf+'
-                if(w == 'a') w = 'a/rdfs:subClassOf+';
 
-                // Replace 'rdf:type' with 'rdf:type/rdfs:subClassOf+'
-                if(w == 'rdf:type') w = 'rdf:type/rdfs:subClassOf+';
+            
+            // // Replace 'a' with 'a/rdfs:subClassOf+'
+            // var regex = new RegExp(' a ', 'g');
+            // path.replace(regex, ' a/rdfs:subClassOf+ ');
 
-                return w;
-            })
-
-            path = pathElements.join(' ');
+            console.log(pathElements);
 
             return path;
         })

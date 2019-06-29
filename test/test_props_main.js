@@ -23,7 +23,7 @@ var propURI;
 var prefixes = [
     {prefix: 'ex', uri: 'https://example.org/'},
     {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'},
-    {prefix: 'props', uri: 'https://w3id.org/product/props/'}
+    {prefix: 'props', uri: 'https://w3id.org/props#'}
 ];
 
 let opmProp = new OPMProp(host, prefixes, mainGraph);
@@ -123,11 +123,8 @@ describe("Test property insert - main graph", () => {
                 foiURI: 'ex:FoI',
                 property: 'props:designAmbientTemperature'
             };
-
-            console.log(input);
     
             var q = opmProp.postProp(input);
-            console.log(q);
     
             expect(q).to.be.a('error');
     
@@ -203,7 +200,7 @@ describe("Test property insert - main graph", () => {
             // Get property URI for ex:FoI
             var q = `
             PREFIX ex: <https://example.org/>
-            PREFIX props: <https://w3id.org/product/props/>
+            PREFIX props: <https://w3id.org/props#>
         
             SELECT ?uri
             WHERE {
@@ -317,19 +314,7 @@ describe("Test property insert - main graph", () => {
 
 
     describe("Test property update - main graph", () => {
-    
-        var host = 'https://example.org/';
-    
-        var mainGraph = true;
         
-        var prefixes = [
-            {prefix: 'ex', uri: 'https://example.org/'},
-            {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'},
-            {prefix: 'props', uri: 'https://w3id.org/product/props/'}
-        ];
-    
-        let opmProp = new OPMProp(host, prefixes, mainGraph);
-    
         /**
          * It should not be possible to update a property with the same value as the previous
          */
@@ -394,11 +379,8 @@ describe("Test property insert - main graph", () => {
         it('Update the property (INSERT)', async () => {
             
             var q = opmProp.putByFoI('ex:FoI', 'props:designAmbientTemperature', '"65 Cel"^^cdt:temperature', 'assumed');
-            // console.log(q);
 
             const res = await query.execute(conn, dbName, q, 'application/ld+json');
-
-            // console.log(res);
     
             expect(res).to.have.property('status').that.is.equals(200);     // Should return status 200
     
@@ -415,7 +397,7 @@ describe("Test property insert - main graph", () => {
             PREFIX  opm: <https://w3id.org/opm#>
             PREFIX  seas: <https://w3id.org/seas/>
             PREFIX ex: <https://example.org/>
-            PREFIX props: <https://w3id.org/product/props/>
+            PREFIX props: <https://w3id.org/props#>
 
             SELECT (COUNT(?state) AS ?count)
             WHERE {

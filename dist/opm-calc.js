@@ -34,7 +34,6 @@ var OPMCalc = /** @class */ (function (_super) {
         return this.getCalcData(input);
     };
     OPMCalc.prototype.getCalcDataByLabel = function (label) {
-        console.log(label);
         var input = {
             label: label
         };
@@ -172,14 +171,13 @@ var OPMCalc = /** @class */ (function (_super) {
         // Get global variables
         var host = this.host;
         var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
+        var iGraph = this.cleanURI(this.iGraph); // New triples should be inferred in the I-Graph
         // Define variables
-        var graphURI = input.graphURI ? this.cleanURI(input.graphURI) : this.cleanURI(host);
         var label = this.cleanLiteral(input.label);
         var expression = this.cleanLiteral(input.expression);
         var argumentPaths = this.cleanArgPaths(input.argumentPaths).paths;
         var argumentVars = this.cleanArgPaths(input.argumentPaths).vars;
         var propertyURI = this.cleanURI(input.inferredProperty);
-        var type = input.type ? input.type.toLowerCase() : "regular";
         // Optional
         var comment = this.cleanLiteral(input.comment);
         var userURI = this.cleanURI(input.userURI);
@@ -193,25 +191,15 @@ var OPMCalc = /** @class */ (function (_super) {
             return new Error('Please specify a label');
         if (!propertyURI)
             return new Error('Please specify a URI for the property that will be inferred by the calculation');
-        // Type must be either sum, count, min, max, avg or regular
-        var validTypes = ["sum", "count", "min", "max", "avg", "regular"];
-        if (validTypes.indexOf(type) == -1)
-            return new Error("\"" + type + "\" is not a valid calculation type!");
-        if (type == "regular") {
-            if (!expression)
-                return new Error('Please specify an expression');
-            if (!argumentPaths)
-                return new Error("Specify " + expressionVars.length + " argument path(s)");
-            if (expressionVars.length != argumentPaths.length)
-                return new Error('There is a mismatch between number of arguments used in the expression and the number of argument paths given');
-            // NB! In below slice prevents the sort() from changing the original order
-            if (!_.isEqual(expressionVars.sort(), argumentVars.slice().sort()))
-                return new Error("There is a mismatch between the arguments given in the expression (" + expressionVars.sort() + ") and the arguments given in the paths (" + argumentVars.sort() + ")");
-        }
-        else {
-            if (argumentPaths.length > 1)
-                return new Error("Specify only one argument path for calculations of type \"" + type + "\"");
-        }
+        if (!expression)
+            return new Error('Please specify an expression');
+        if (!argumentPaths)
+            return new Error("Specify " + expressionVars.length + " argument path(s)");
+        if (expressionVars.length != argumentPaths.length)
+            return new Error('There is a mismatch between number of arguments used in the expression and the number of argument paths given');
+        // NB! In below slice prevents the sort() from changing the original order
+        if (!_.isEqual(expressionVars.sort(), argumentVars.slice().sort()))
+            return new Error("There is a mismatch between the arguments given in the expression (" + expressionVars.sort() + ") and the arguments given in the paths (" + argumentVars.sort() + ")");
         //Make sure that argument paths begin with ?foi
         argumentPaths = _.map(argumentPaths, function (path) {
             var firstSubjectVar = _s.strLeft(_s.strRight(path, '?'), ' ');
@@ -228,7 +216,7 @@ var OPMCalc = /** @class */ (function (_super) {
         if (queryType == 'insert') {
             q += '\nINSERT {\n';
             if (!this.mainGraph)
-                q += "\tGRAPH " + graphURI + " {\n";
+                q += "\tGRAPH " + iGraph + " {\n";
         }
         q += d + "\t?calculationURI a opm:Calculation ;\n" +
             (d + "\t\trdfs:label " + label + " ;\n");
@@ -243,7 +231,6 @@ var OPMCalc = /** @class */ (function (_super) {
         if (expression)
             q += d + "\t\topm:expression " + expression + " ;\n";
         q += d + "\t\tprov:generatedAtTime ?now ;\n" +
-            (d + "\t\topm:calculationType \"" + type + "\" ;\n") +
             (d + "\t\topm:inferredProperty " + propertyURI + " ;\n") +
             (d + "\t\topm:argumentPaths (\n");
         _.each(argumentPaths, function (obj, i) {
@@ -259,7 +246,7 @@ var OPMCalc = /** @class */ (function (_super) {
             namedGraphs.forEach(function (uri) { return q += "USING NAMED " + uri + "\n"; });
         q += 'WHERE {\n' +
             "\t# CREATE CALCULATION URI AND GET CURRENT TIME\n" +
-            ("\tBIND(URI(CONCAT(STR(\"" + host + "\"), \"calculation_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?calculationURI)\n") +
+            ("\tBIND(URI(CONCAT(STR(\"" + host + "\"), \"calculations/\", STRUUID())) AS ?calculationURI)\n") +
             "\tBIND(now() AS ?now)\n" +
             '}';
         return this.appendPrefixesToQuery(q);
@@ -373,6 +360,7 @@ var OPMCalc = /** @class */ (function (_super) {
         // Get global variables
         var host = this.host;
         var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
+        var iGraph = this.cleanURI(this.iGraph); // New triples should be inferred in the I-Graph
         //Define variables
         var label = this.cleanLiteral(input.label);
         var comment = this.cleanLiteral(input.comment);
@@ -389,6 +377,8 @@ var OPMCalc = /** @class */ (function (_super) {
         //Clean argument paths and retrieve argument variables
         argumentVars = this.cleanArgPaths(argumentPaths).vars;
         argumentPaths = this.cleanArgPaths(argumentPaths).paths;
+        // Append reasoning rules to arg paths
+        argumentPaths = this.argPathInferenceAppend(argumentPaths);
         var expressionVars = this.uniqueVarsInString(expression);
         // Validate
         if (!label)
@@ -412,12 +402,12 @@ var OPMCalc = /** @class */ (function (_super) {
         if (queryType == 'insert') {
             q += '\nINSERT {\n';
             if (!this.mainGraph)
-                q += "\tGRAPH <" + host + "> {\n";
+                q += "\tGRAPH " + iGraph + " {\n";
         }
         q += b + "\t?foi ?inferredProperty ?propertyURI .\n" +
             (b + "\t?propertyURI a opm:Property ;\n") +
             (b + "\t\topm:hasPropertyState ?stateURI .\n") +
-            (b + "\t?stateURI a opm:CurrentPropertyState , opm:Derived , ?assumed ;\n") +
+            (b + "\t?stateURI a opm:CurrentPropertyState , opm:Derived , opm:InitialPropertyState , ?reliability ;\n") +
             (b + "\t\tschema:value ?res ;\n") +
             (b + "\t\tprov:generatedAtTime ?now ;\n") +
             (b + "\t\tprov:wasDerivedFrom ");
@@ -462,7 +452,7 @@ var OPMCalc = /** @class */ (function (_super) {
         q += b + "\tBIND(" + propertyURI + " AS ?inferredProperty)\n\n";
         q += b + "\t# MAKE NODES FOR CALCULATION LIST\n";
         _.each(argumentPaths, function (obj, i) {
-            q += b + "\tBIND(URI(CONCAT(\"" + host + "\", \"bn_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?bn" + i + ")\n";
+            q += b + "\tBIND(URI(CONCAT(\"" + host + "\", \"bn/\", STRUUID())) AS ?bn" + i + ")\n";
         });
         q += '\n';
         if (path) {
@@ -477,10 +467,10 @@ var OPMCalc = /** @class */ (function (_super) {
                 (b + "\t" + argumentVars[i] + "_ opm:hasPropertyState ?state" + _i + " .\n") +
                 (b + "\t?state" + _i + " a opm:CurrentPropertyState ;\n") +
                 (b + "\t\tschema:value " + argumentVars[i] + " .\n") +
-                (b + "\t# INHERIT CLASS OPM:ASSUMED\n") +
+                (b + "\t# INHERIT CLASS OPM:ASSUMED OR OPM:DELETED\n") +
                 (b + "\tOPTIONAL {\n") +
-                (b + "\t\t?state" + _i + " a ?assumed .\n") +
-                (b + "\t\tFILTER( ?assumed = opm:Assumed )\n") +
+                (b + "\t\t?state" + _i + " a ?reliability .\n") +
+                (b + "\t\tFILTER( ?reliability = opm:Assumed || ?reliability = opm:Deleted )\n") +
                 (b + "\t}\n\n");
         }
         // No previous calculations must exist
@@ -489,13 +479,13 @@ var OPMCalc = /** @class */ (function (_super) {
         q += b + "\t# PERFORM CALCULATION\n" +
             (b + "\tBIND((" + expression + ") AS ?res)\n\n") +
             (b + "\t# CREATE STATE AND PROPERTY URIs\n") +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?stateURI)\n") +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"property_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?propertyURI)\n\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"states/\", STRUUID())) AS ?stateURI)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"properties/\", STRUUID())) AS ?propertyURI)\n\n") +
             (b + "\t# MAKE A URI FOR THE CALCULATION\n") +
             (b + "\t{ SELECT ?calculationURI WHERE {\n") +
             (b + "\t\t# MATCH ONE OF THE ARGUMENT PATHS\n") +
             (b + "\t\t" + argumentPaths[i] + "\n") +
-            (b + "\t\tBIND(URI(CONCAT(\"" + host + "\", \"calculation_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?calculationURI)\n") +
+            (b + "\t\tBIND(URI(CONCAT(\"" + host + "\", \"calculations/\", STRUUID())) AS ?calculationURI)\n") +
             (b + "\t}LIMIT 1}\n\n") +
             (b + "\t# GET CURRENT TIME\n") +
             (b + "\tBIND(now() AS ?now)\n");
@@ -519,6 +509,13 @@ var OPMCalc = /** @class */ (function (_super) {
         var argumentPaths = input.argumentPaths;
         var argumentVars = [];
         var propertyURI = this.cleanURI(input.inferredProperty);
+        // Validate arguments
+        if (!expression)
+            return new Error('Specify an expression');
+        if (!calculationURI)
+            return new Error('Specify a calculation URI');
+        if (!argumentPaths)
+            return new Error("Specify " + expressionVars.length + " argument path(s)");
         //Extract calculation type from the expression
         var type;
         var validTypes = ["sum", "count", "min", "max", "avg"];
@@ -543,14 +540,10 @@ var OPMCalc = /** @class */ (function (_super) {
         // Clean argument paths and retrieve argument variables
         argumentVars = this.cleanArgPaths(argumentPaths).vars;
         argumentPaths = this.cleanArgPaths(argumentPaths).paths;
+        // Append reasoning rules to arg paths
+        argumentPaths = this.argPathInferenceAppend(argumentPaths);
         var expressionVars = this.uniqueVarsInString(expression);
-        // Validate arguments
-        if (!expression)
-            return new Error('Specify an expression');
-        if (!calculationURI)
-            return new Error('Specify a calculation URI');
-        if (!argumentPaths)
-            return new Error("Specify " + expressionVars.length + " argument path(s)");
+        // More validation
         if (expressionVars.length != argumentPaths.length)
             return new Error('There is a mismatch between number of arguments used in the expression and the number of argument paths given');
         // NB! In below, slice prevents the sort() from changing the original order
@@ -576,7 +569,7 @@ var OPMCalc = /** @class */ (function (_super) {
             q += d + "\t?foi ?inferredProperty ?propertyURI .\n" +
                 (d + "\t?propertyURI a opm:Property ;\n") +
                 (d + "\t\topm:hasPropertyState ?stateURI .\n") +
-                (d + "\t?stateURI a opm:CurrentPropertyState , opm:Derived , ?assumed ;\n") +
+                (d + "\t?stateURI a opm:CurrentPropertyState , opm:Derived , opm:InitialPropertyState , ?reliability ;\n") +
                 (d + "\t\tschema:value ?res ;\n") +
                 (d + "\t\tprov:generatedAtTime ?now ;\n");
             if (calculationURI)
@@ -618,10 +611,10 @@ var OPMCalc = /** @class */ (function (_super) {
                     (b + "\t" + argumentVars[i] + "_ opm:hasPropertyState ?state" + _i + " .\n") +
                     (b + "\t?state" + _i + " a opm:CurrentPropertyState ;\n") +
                     (b + "\t\tschema:value " + argumentVars[i] + " .\n") +
-                    (b + "\t# INHERIT CLASS OPM:ASSUMED\n") +
+                    (b + "\t# INHERIT CLASS OPM:ASSUMED OR OPM:DELETED\n") +
                     (b + "\tOPTIONAL {\n") +
-                    (b + "\t\t?state" + _i + " a ?assumed .\n") +
-                    (b + "\t\tFILTER( ?assumed = opm:Assumed )\n") +
+                    (b + "\t\t?state" + _i + " a ?reliability .\n") +
+                    (b + "\t\tFILTER( ?reliability = opm:Assumed || ?reliability = opm:Deleted )\n") +
                     (b + "\t}\n\n");
                 q += c;
             }
@@ -638,8 +631,8 @@ var OPMCalc = /** @class */ (function (_super) {
                 (b + "\t}}\n\n");
             q += b + "\t# CALCULATE THE " + type.toUpperCase() + "\n";
             q += b + "\t{ SELECT ?foi (" + type.toUpperCase() + "(?res_) AS " + argumentVars[0] + ")\n" +
-                (b + "\t\t(URI(CONCAT(\"" + host + "\", \"state_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?stateURI)\n") +
-                (b + "\t\t(URI(CONCAT(\"" + host + "\", \"property_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?propertyURI)\n") +
+                (b + "\t\t(URI(CONCAT(\"" + host + "\", \"states/\", STRUUID())) AS ?stateURI)\n") +
+                (b + "\t\t(URI(CONCAT(\"" + host + "\", \"properties/\", STRUUID())) AS ?propertyURI)\n") +
                 (b + "\t\t(now() AS ?now)\n") +
                 (b + "\t  WHERE {\n") +
                 (b + "\t\t" + argumentPaths[0] + "_ .\n") +
@@ -648,10 +641,10 @@ var OPMCalc = /** @class */ (function (_super) {
                 (b + "\t\tBIND(IF(isnumeric(" + argumentVars[0] + "__), " + argumentVars[0] + "__ , xsd:decimal(strbefore(xsd:string(" + argumentVars[0] + "__), ' '))) AS ?res_)\n") +
                 (b + "\t  } GROUP BY ?foi\n") +
                 (b + "\t}\n\n");
-            q += b + "\t# INHERIT CLASS OPM:ASSUMED\n" +
+            q += b + "\t# INHERIT CLASS OPM:ASSUMED OR OPM:DELETED\n" +
                 (b + "\tOPTIONAL {\n") +
-                (b + "\t\t?state1 a ?assumed .\n") +
-                (b + "\t\tFILTER( ?assumed = opm:Assumed )\n") +
+                (b + "\t\t?state1 a ?reliability .\n") +
+                (b + "\t\tFILTER( ?reliability = opm:Assumed || ?reliability = opm:Deleted )\n") +
                 (b + "\t}\n\n");
             q += c;
         }
@@ -666,8 +659,8 @@ var OPMCalc = /** @class */ (function (_super) {
             q += "\t# PERFORM CALCULATION\n" +
                 ("\tBIND((" + expression + ") AS ?res)\n\n") +
                 "\t# CREATE STATE AND PROPERTY URIs\n" +
-                ("\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?stateURI)\n") +
-                ("\tBIND(URI(CONCAT(\"" + host + "\", \"property_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?propertyURI)\n\n") +
+                ("\tBIND(URI(CONCAT(\"" + host + "\", \"states/\", STRUUID())) AS ?stateURI)\n") +
+                ("\tBIND(URI(CONCAT(\"" + host + "\", \"properties/\", STRUUID())) AS ?propertyURI)\n\n") +
                 "\t# GET CURRENT TIME\n" +
                 "\tBIND(now() AS ?now)\n";
         }
@@ -718,6 +711,8 @@ var OPMCalc = /** @class */ (function (_super) {
         // Clean argument paths and retrieve argument variables
         argumentVars = this.cleanArgPaths(argumentPaths).vars;
         argumentPaths = this.cleanArgPaths(argumentPaths).paths;
+        // Append reasoning rules to arg paths
+        argumentPaths = this.argPathInferenceAppend(argumentPaths);
         var expressionVars = this.uniqueVarsInString(expression);
         // Validate arguments
         if (!expression)
@@ -750,11 +745,11 @@ var OPMCalc = /** @class */ (function (_super) {
                 'INSERT {\n';
             if (!mainGraph)
                 q += "\tGRAPH " + iGraph + " {\n";
-            q += b + "\t?previousState a opm:PropertyState .\n";
+            q += b + "\t?previousState a opm:PropertyState , opm:OutdatedPropertyState .\n";
         }
         q += b + "\t?propertyURI a opm:Property ;\n" +
             (b + "\t\topm:hasPropertyState ?stateURI .\n") +
-            (b + "\t?stateURI a opm:CurrentPropertyState , opm:Derived , ?assumed ;\n") +
+            (b + "\t?stateURI a opm:CurrentPropertyState , opm:Derived , ?reliability ;\n") +
             (b + "\t\tschema:value ?res ;\n") +
             (b + "\t\tprov:generatedAtTime ?now ;\n") +
             (b + "\t\tprov:wasAttributedTo " + calculationURI + " ;\n") +
@@ -793,13 +788,13 @@ var OPMCalc = /** @class */ (function (_super) {
                 if (!mainGraph)
                     q += "\tGRAPH ?g" + _i + " {\n";
                 q += b + "\t" + argumentPaths[i] + "_ .\n" +
-                    (b + "\t" + argumentVars[i] + "_ opm:hasPropertyState ?newState" + _i + " .\n") +
-                    (b + "\t?newState" + _i + " a opm:CurrentPropertyState ;\n") +
+                    (b + "\t" + argumentVars[i] + "_ opm:hasPropertyState ?state" + _i + " .\n") +
+                    (b + "\t?state" + _i + " a opm:CurrentPropertyState ;\n") +
                     (b + "\t\tschema:value " + argumentVars[i] + " .\n") +
-                    (b + "\t# INHERIT CLASS OPM:ASSUMED\n") +
+                    (b + "\t# INHERIT CLASS OPM:ASSUMED OR OPM:DELETED\n") +
                     (b + "\tOPTIONAL {\n") +
-                    (b + "\t\t?newState" + _i + " a ?assumed .\n") +
-                    (b + "\t\tFILTER( ?assumed = opm:Assumed )\n") +
+                    (b + "\t\t?state" + _i + " a ?reliability .\n") +
+                    (b + "\t\tFILTER( ?reliability = opm:Assumed || ?reliability = opm:Deleted )\n") +
                     (b + "\t}\n");
                 q += mainGraph ? "\n" : "\t}\n";
             }
@@ -808,7 +803,7 @@ var OPMCalc = /** @class */ (function (_super) {
             q += b + "\t# CALCULATE THE " + type.toUpperCase() + "\n";
             var resVar = expression ? argumentVars[0] : '?res';
             q += b + "\t{ SELECT ?foi (" + type.toUpperCase() + "(?res_) AS " + resVar + ")\n" +
-                (b + "\t\t(URI(CONCAT(\"" + host + "\", \"state_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?stateURI)\n") +
+                (b + "\t\t(URI(CONCAT(\"" + host + "\", \"states/\", STRUUID())) AS ?stateURI)\n") +
                 (b + "\t\t(now() AS ?now)\n") +
                 (b + "\t  WHERE {\n") +
                 (b + "\t\t" + argumentPaths[0] + "_ .\n") +
@@ -827,7 +822,7 @@ var OPMCalc = /** @class */ (function (_super) {
             "\tFILTER(xsd:string(?res) != xsd:string(?previousValue))\n\n";
         if (type == "regular") {
             q += "\t# CREATE STATE URIs\n" +
-                ("\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?stateURI)\n") +
+                ("\tBIND(URI(CONCAT(\"" + host + "\", \"states/\", STRUUID())) AS ?stateURI)\n") +
                 "\t# GET CURRENT TIME\n" +
                 "\tBIND(now() AS ?now)\n";
         }
@@ -839,6 +834,7 @@ var OPMCalc = /** @class */ (function (_super) {
         // Get global variables
         var host = this.host;
         var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
+        var iGraph = this.cleanURI(this.iGraph); // New triples should be inferred in the I-Graph
         // Define variables
         var calculationURI = this.cleanURI(calculationURI);
         // Optional
@@ -858,19 +854,19 @@ var OPMCalc = /** @class */ (function (_super) {
                 // FIRST DELETE CURRENT STATE CLASS FROM PREVIOUS STATE
                 q += '\nDELETE {\n';
                 if (!this.mainGraph)
-                    q += "\tGRAPH <" + host + "> {\n";
+                    q += "\tGRAPH " + iGraph + " {\n";
                 q += b + "\t?previousState a opm:CurrentPropertyState .\n";
                 if (!this.mainGraph)
                     q += c;
                 q += '}\n' +
                     'INSERT {\n';
                 if (!this.mainGraph)
-                    q += "\tGRAPH <" + host + "> {\n";
-                q += b + "\t?previousState a opm:PropertyState .\n";
+                    q += "\tGRAPH " + iGraph + " {\n";
+                q += b + "\t?previousState a opm:PropertyState , opm:OutdatedPropertyState .\n";
             }
             q += b + "\t?propertyURI a opm:Property ;\n" +
                 (b + "\t\topm:hasPropertyState ?stateURI .\n") +
-                (b + "\t?stateURI a opm:CurrentPropertyState , opm:Derived , ?assumed ;\n") +
+                (b + "\t?stateURI a opm:CurrentPropertyState , opm:Derived , ?reliability ;\n") +
                 (b + "\t\tschema:value ?res ;\n") +
                 (b + "\t\tprov:generatedAtTime ?now ;\n") +
                 (b + "\t\tprov:wasAttributedTo " + calculationURI + " ;\n") +
@@ -890,7 +886,7 @@ var OPMCalc = /** @class */ (function (_super) {
         q += b + "\tBIND(" + calculationURI + " AS ?calculationURI)\n\n";
         q += b + "\t?calculationURI ?p ?o ." +
             (b + "\t# CREATE STATE URIs\n") +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?stateURI)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"states/\", STRUUID())) AS ?stateURI)\n") +
             (b + "\t# GET CURRENT TIME\n") +
             (b + "\tBIND(now() AS ?now)\n");
         if (!this.mainGraph)
@@ -903,13 +899,12 @@ var OPMCalc = /** @class */ (function (_super) {
         // Get global variables
         var mainGraph = this.mainGraph;
         var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
-        var iGraph = this.iGraph; // Graph holding inferred triples
         // Process variables
         foiURI = this.cleanURI(foiURI);
         queryType = queryType ? queryType : this.queryType; // Get default if not defined
         var q = '';
         // define a few variables to use with named graphs
-        var a = this.mainGraph ? '' : "\tGRAPH <" + iGraph + "> {\n";
+        var a = this.mainGraph ? '' : "\tGRAPH ?g {\n";
         var b = this.mainGraph ? '' : '\t';
         var c = this.mainGraph ? '' : '\t}\n';
         if (queryType == 'construct') {

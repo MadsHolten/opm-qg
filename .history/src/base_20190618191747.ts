@@ -214,12 +214,9 @@ export class BaseModel {
 
     // Clean argument paths and return the variables used for the arguments
     public cleanArgPaths(paths): any{
-
         var vars: string[] = [];
-
         // Argument paths should not include space and dot in end
         paths = _.chain(paths).map(path => {
-
             //Find the first variable
             var firstVar = '?'+_s.strLeft(_s.strRight(path, '?'), ' ');
             if(firstVar != '?foi'){
@@ -238,34 +235,7 @@ export class BaseModel {
             vars.push(lastVar);
             return path;
         }).value();
-
         return {paths: paths, vars: vars};
-    }
-
-    // Append inference rules to arg paths
-    // For exampe '?foi a ?class' to '?foi a/rdfs:subClassOf+ ?class'
-    public argPathInferenceAppend(paths): any{
-
-        return paths.map(path => {
-
-            var pathElements = path.split(' ');
-
-            pathElements = pathElements.map(w => {
-                
-                // Replace 'a' with 'a/rdfs:subClassOf+'
-                if(w == 'a') w = 'a/rdfs:subClassOf+';
-
-                // Replace 'rdf:type' with 'rdf:type/rdfs:subClassOf+'
-                if(w == 'rdf:type') w = 'rdf:type/rdfs:subClassOf+';
-
-                return w;
-            })
-
-            path = pathElements.join(' ');
-
-            return path;
-        })
-
     }
 
     // clean URI by adding <> if it is a full URI

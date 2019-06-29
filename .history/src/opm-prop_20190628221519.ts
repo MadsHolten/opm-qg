@@ -331,7 +331,7 @@ export class OPMProp extends BaseModel {
 
         if(reliabilityClass) q+= `${d}\t?stateURI a ${reliabilityClass} .\n`;
 
-        q+= `${d}\t?stateURI a opm:CurrentPropertyState , opm:InitialPropertyState ;\n`;
+        q+= `${d}\t?stateURI a opm:CurrentPropertyState ;\n`;
 
         if(userURI) q+= `${d}\t\tprov:wasAttributedTo ?userURI ;\n`;
         if(comment) q+= `${d}\t\trdfs:comment ?comment ;\n`;
@@ -432,7 +432,7 @@ export class OPMProp extends BaseModel {
 
         if(reliabilityClass) q+= `${d}\t?stateURI a ${reliabilityClass} .\n`;
 
-        q+= `${d}\t?stateURI a opm:CurrentPropertyState , opm:InitialPropertyState ;\n`;
+        q+= `${d}\t?stateURI a opm:CurrentPropertyState ;\n`;
 
         if(userURI) q+= `${d}\t\tprov:wasAttributedTo ?userURI ;\n`;
         if(comment) q+= `${d}\t\trdfs:comment ?comment ;\n`;

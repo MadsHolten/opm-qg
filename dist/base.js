@@ -5,7 +5,7 @@ var _s = require("underscore.string");
 var BaseModel = /** @class */ (function () {
     function BaseModel(host, prefixes, mainGraph, iGraph, namedGraphs) {
         // Get host
-        this.host = host;
+        this.host = host.slice(-1) == '/' ? host : host + '/';
         // Get predefined prefixes
         this.prefixes = require('./config.json').prefixes;
         // Append custom prefixes
@@ -169,6 +169,24 @@ var BaseModel = /** @class */ (function () {
             return path;
         }).value();
         return { paths: paths, vars: vars };
+    };
+    // Append inference rules to arg paths
+    // For exampe '?foi a ?class' to '?foi a/rdfs:subClassOf+ ?class'
+    BaseModel.prototype.argPathInferenceAppend = function (paths) {
+        return paths.map(function (path) {
+            var pathElements = path.split(' ');
+            pathElements = pathElements.map(function (w) {
+                // Replace 'a' with 'a/rdfs:subClassOf+'
+                if (w == 'a')
+                    w = 'a/rdfs:subClassOf+';
+                // Replace 'rdf:type' with 'rdf:type/rdfs:subClassOf+'
+                if (w == 'rdf:type')
+                    w = 'rdf:type/rdfs:subClassOf+';
+                return w;
+            });
+            path = pathElements.join(' ');
+            return path;
+        });
     };
     // clean URI by adding <> if it is a full URI
     BaseModel.prototype.cleanURI = function (someURI) {

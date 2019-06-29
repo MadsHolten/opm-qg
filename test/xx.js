@@ -20,17 +20,20 @@ async function main() {
     var prefixes = [
         {prefix: 'ex', uri: 'https://example.org/'},
         {prefix: 'cdt', uri: 'http://w3id.org/lindt/custom_datatypes#'},
-        {prefix: 'props', uri: 'https://w3id.org/product/props/'}
+        {prefix: 'props', uri: 'https://w3id.org/props#'}
     ]
 
     let opmCalc = new OPMCalc(host, prefixes, mainGraph);
     let opmProp = new OPMProp(host, prefixes);
 
-    // var input = {
-    //     foiURI: 'inst:xx',
-    //     property: 'props:area',
-    //     value: '"20 m2"^^cdt:area'
-    // }
+    var input = {
+        label:            'transmission heat loss for space',
+        calculationURI:   'https://host/db/HVAC/c2',
+        argumentPaths:    ['?foi ^ice:surfaceInterior ?i . ?i props:totalHeatTransferRate ?htr'],
+        inferredProperty: 'props:transmissionHeatTransferRate',
+        pathRestriction:  '?foi a ice:ThermalEnvironment',
+        expression:       'sum(?htr)'
+    }
 
     // var input = {
     //     type: "sum",
@@ -40,19 +43,19 @@ async function main() {
     //     expression: "xsd:string(?res)"
     // }
 
-    input = {
-        graphURI: "https://web-bim/projects/1001/HVAC/",
-        calculationURI: "http://web-bim/projects/1001/calculation_f94fc9f8-36b3-4661-a5ef-bacbe7aac047",
-        label: '"Transmission heat loss for space"@en',
-        argumentPaths: ['?foi a ice:ThermalEnvironment ; ^ice:surfaceInterior ?i . ?i props:totalHeatTransferRate ?htr'],
-        comment: 'Sums the transmission heat loss through all the parts of the building envelope which face the space.',
-        userURI: 'https://www.niras.dk/employees/mhra',
-        expression: "sum(?htr)+20",
-        inferredProperty: 'props:transmissionHeatTransferRate',
-        queryType: 'construct'
-    };
-  
-    var q = opmCalc.putCalc(input);
+    // input = {
+    //     graphURI: "http://web-bim/",
+    //     calculationURI: "http://web-bim/",
+    //     label: '"Total heat loss for space"@en',
+    //     argumentPaths: ['?foi props:transmissionHeatTransferRate ?tr', '?foi props:infiltrationHeatTransferRate ?inf'],
+    //     comment: 'Returns the sum of the infiltration heat loss and the transmission heat loss for each space.',
+    //     userURI: 'https://www.niras.dk/employees/mhra',
+    //     expression: "concat(xsd:string(xsd:decimal(strbefore(str(?tr), ' '))+xsd:decimal(strbefore(str(?inf), ' '))), ' W')",
+    //     inferredProperty: 'props:heatingDemand',
+    //     queryType: 'insert'
+    // };
+
+    var q = opmCalc.postCalc(input);
 
     // console.log(q);
 

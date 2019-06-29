@@ -1,8 +1,8 @@
 {
-  "name": "opm-query-generator",
-  "version": "0.1.0",
+  "name": "opm-qg",
+  "version": "0.1.5",
   "description": "A SPARQL query generator for managing data with OPM.",
-  "main": "dist/index.js",
+  "main": "index.js",
   "scripts": {
     "start": "tsc && node examples/opm-calc/example1.js",
     "test": "mocha --reporter spec"
@@ -11,25 +11,17 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/w3c-lbd-cg/opm.git"
+    "url": "https://github.com/MadsHolten/opm-qg"
   },
   "keywords": [
     "sparql",
-    "seas",
     "opm",
     "lbd"
   ],
   "dependencies": {
     "@types/lodash": "^4.14.107",
     "@types/underscore.string": "0.0.32",
-    "chai": "^4.1.2",
-    "jsonld": "^1.1.0",
     "lodash": "^4.17.5",
-    "mocha": "^5.0.5",
-    "stardog": "^1.2.2",
     "underscore.string": "^3.3.4"
-  },
-  "devDependencies": {
-    "typescript": "^2.8.3"
   }
 }

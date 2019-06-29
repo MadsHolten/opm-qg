@@ -262,6 +262,13 @@ export class BaseModel {
             })
 
             path = pathElements.join(' ');
+            
+            // // Replace 'a' with 'a/rdfs:subClassOf+'
+            // var regex = new RegExp(' a ', 'g');
+            // path.replace(regex, ' a/rdfs:subClassOf+ ');
+
+            console.log(pathElements);
+            console.log(path);
 
             return path;
         })

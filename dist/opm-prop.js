@@ -251,6 +251,7 @@ var OPMProp = /** @class */ (function (_super) {
         // Get global variables
         var host = this.host;
         var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
+        var iGraph = this.cleanURI(this.iGraph); // New triples should be inferred in the I-Graph
         // Retrieve and process variables
         var property = input.property;
         if (!input.value)
@@ -286,14 +287,14 @@ var OPMProp = /** @class */ (function (_super) {
         if (queryType == 'insert') {
             q += '\nINSERT {\n';
             if (!this.mainGraph)
-                q += "\tGRAPH <" + host + "> {\n";
+                q += "\tGRAPH " + iGraph + " {\n";
         }
         q += d + "\t?foi " + property + " ?propertyURI .\n" +
             (d + "\t?propertyURI a opm:Property ;\n") +
             (d + "\t\topm:hasPropertyState ?stateURI .\n");
         if (reliabilityClass)
             q += d + "\t?stateURI a " + reliabilityClass + " .\n";
-        q += d + "\t?stateURI a opm:CurrentPropertyState ;\n";
+        q += d + "\t?stateURI a opm:CurrentPropertyState , opm:InitialPropertyState ;\n";
         if (userURI)
             q += d + "\t\tprov:wasAttributedTo ?userURI ;\n";
         if (comment)
@@ -310,8 +311,8 @@ var OPMProp = /** @class */ (function (_super) {
         q += 'WHERE {\n';
         q += a;
         q += b + "\t# CREATE STATE AND PROPERTY URIs\n" +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?stateURI)\n") +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"property_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?propertyURI)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"states/\", STRUUID())) AS ?stateURI)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"properties/\", STRUUID())) AS ?propertyURI)\n") +
             (b + "\tBIND(now() AS ?now)\n");
         // If posting to a specific FoI
         if (foiURI)
@@ -338,8 +339,11 @@ var OPMProp = /** @class */ (function (_super) {
         // Get global variables
         var host = this.host;
         var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
+        var iGraph = this.cleanURI(this.iGraph); // New triples should be inferred in the I-Graph
         // Retrieve and process variables
         var property = input.property;
+        if (!input.value)
+            return new Error('Specify a value');
         var value = this.cleanProp(input.value);
         // Optional arguments
         var foiURI = this.cleanURI(input.foiURI);
@@ -370,7 +374,7 @@ var OPMProp = /** @class */ (function (_super) {
         if (queryType == 'insert') {
             q += '\nINSERT {\n';
             if (!this.mainGraph)
-                q += "\tGRAPH <" + host + "> {\n";
+                q += "\tGRAPH " + iGraph + " {\n";
         }
         q += d + "\t?foi rdfs:subClassOf [\n" +
             (d + "\t\ta owl:Restriction ;\n") +
@@ -381,7 +385,7 @@ var OPMProp = /** @class */ (function (_super) {
             (d + "\t\topm:hasPropertyState ?stateURI .\n");
         if (reliabilityClass)
             q += d + "\t?stateURI a " + reliabilityClass + " .\n";
-        q += d + "\t?stateURI a opm:CurrentPropertyState ;\n";
+        q += d + "\t?stateURI a opm:CurrentPropertyState , opm:InitialPropertyState ;\n";
         if (userURI)
             q += d + "\t\tprov:wasAttributedTo ?userURI ;\n";
         if (comment)
@@ -398,8 +402,8 @@ var OPMProp = /** @class */ (function (_super) {
         q += 'WHERE {\n';
         q += a;
         q += b + "\t# CREATE STATE AND PROPERTY URIs\n" +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?stateURI)\n") +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"property_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?propertyURI)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"states/\", STRUUID())) AS ?stateURI)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"properties/\", STRUUID())) AS ?propertyURI)\n") +
             (b + "\tBIND(now() AS ?now)\n");
         // If posting to a specific FoI
         if (foiURI)
@@ -428,10 +432,10 @@ var OPMProp = /** @class */ (function (_super) {
         // Get global variables
         var host = this.host;
         var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
+        var iGraph = this.cleanURI(this.iGraph); // New triples should be inferred in the I-Graph
         // Retrieve and process variables
         var value = this.cleanProp(input.value);
         // Optional
-        var graphURI = input.graphURI ? this.cleanURI(input.graphURI) : this.cleanURI(host);
         var propertyURI = this.cleanURI(input.propertyURI); // OPTION 1
         var foiURI = this.cleanURI(input.foiURI); // OPTION 2
         var property = input.property; // OPTION 2
@@ -471,15 +475,15 @@ var OPMProp = /** @class */ (function (_super) {
             // FIRST DELETE CURRENT STATE CLASS FROM PREVIOUS STATE
             q += '\nDELETE {\n';
             if (!this.mainGraph)
-                q += "\tGRAPH " + graphURI + " {\n";
+                q += "\tGRAPH " + iGraph + " {\n";
             q += d + "\t?previousState a opm:CurrentPropertyState .\n";
             if (!this.mainGraph)
                 q += c;
             q += '}\n';
             q += 'INSERT {\n';
             if (!this.mainGraph)
-                q += "\tGRAPH " + graphURI + " {\n";
-            q += d + "\t?previousState a opm:PropertyState .";
+                q += "\tGRAPH " + iGraph + " {\n";
+            q += d + "\t?previousState a opm:PropertyState , opm:OutdatedPropertyState .";
         }
         q += d + "\t?propertyURI opm:hasPropertyState ?stateURI .\n";
         q += d + "\t?stateURI a opm:CurrentPropertyState";
@@ -500,7 +504,7 @@ var OPMProp = /** @class */ (function (_super) {
         q += 'WHERE {\n';
         q += a; // Named graph
         q += b + "\t# CREATE STATE URIs\n" +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?stateURI)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"states/\", STRUUID())) AS ?stateURI)\n") +
             (b + "\tBIND(now() AS ?now)\n");
         // If posting to a specific FoI        
         if (foiURI)
@@ -539,6 +543,7 @@ var OPMProp = /** @class */ (function (_super) {
         // Get global variables
         var host = this.host;
         var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
+        var iGraph = this.cleanURI(this.iGraph); // New triples should be inferred in the I-Graph
         // Retrieve and process variables
         var comment = input.comment;
         var propertyURI = this.cleanURI(input.propertyURI);
@@ -567,15 +572,15 @@ var OPMProp = /** @class */ (function (_super) {
             // FIRST DELETE CURRENT STATE CLASS FROM PREVIOUS STATE
             q += '\nDELETE {\n';
             if (!this.mainGraph)
-                q += "\tGRAPH <" + host + "> {\n";
+                q += "\tGRAPH " + iGraph + " {\n";
             q += d + "\t?previousState a opm:CurrentPropertyState .\n";
             if (!this.mainGraph)
                 q += c;
             q += '}\n' +
                 'INSERT {\n';
             if (!this.mainGraph)
-                q += "\tGRAPH <" + host + "> {\n";
-            q += d + "\t?previousState a opm:PropertyState .\n";
+                q += "\tGRAPH " + iGraph + " {\n";
+            q += d + "\t?previousState a opm:PropertyState , opm:OutdatedPropertyState .\n";
         }
         q += d + "\t?propertyURI opm:hasPropertyState ?stateURI .\n";
         //Assign value directly to property when confirmed?
@@ -606,7 +611,7 @@ var OPMProp = /** @class */ (function (_super) {
         q += b + "\tBIND(" + propertyURI + " AS ?propertyURI)\n" +
             (b + "\tBIND(" + reliabilityClass + " AS ?reliabilityClass)\n\n");
         q += b + "\t# CREATE URI FOR NEW STATE\n" +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?stateURI)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"states/\", STRUUID())) AS ?stateURI)\n") +
             (b + "\tBIND(now() AS ?now)\n\n");
         //Make sure latest state it is not deleted or confirmed and get data
         q += b + "\t# A STATE MUST EXIST AND MUST NOT BE DELETED OR CONFIRMED\n" +
@@ -639,6 +644,7 @@ var OPMProp = /** @class */ (function (_super) {
         var host = this.host;
         var mainGraph = this.mainGraph;
         var namedGraphs = this.namedGraphs ? this.namedGraphs.map(function (uri) { return _this.cleanURI(uri); }) : null;
+        var iGraph = this.cleanURI(this.iGraph); // New triples should be inferred in the I-Graph
         // Optional variables
         var propertyURI = this.cleanURI(input.propertyURI); // Giving no propertyURI will restore everything!
         var queryType = input.queryType ? input.queryType : this.queryType; // Get default if not defined
@@ -656,15 +662,15 @@ var OPMProp = /** @class */ (function (_super) {
             // FIRST DELETE CURRENT STATE CLASS FROM PREVIOUS STATE
             q += '\nDELETE {\n';
             if (!mainGraph)
-                q += "\tGRAPH <" + host + "> {\n";
+                q += "\tGRAPH " + iGraph + " {\n";
             q += d + "\t?previousState a opm:CurrentPropertyState .\n";
             if (!mainGraph)
                 q += c;
             q += '}\n' +
                 'INSERT {\n';
             if (!mainGraph)
-                q += "\tGRAPH <" + host + "> {\n";
-            q += d + "\t?previousState a opm:PropertyState .\n";
+                q += "\tGRAPH " + iGraph + " {\n";
+            q += d + "\t?previousState a opm:PropertyState , opm:OutdatedPropertyState .\n";
         }
         q += d + "\t?propURI opm:hasPropertyState ?stateURI .\n";
         q += '\t?stateURI a opm:CurrentPropertyState ;\n';
@@ -690,7 +696,7 @@ var OPMProp = /** @class */ (function (_super) {
         if (propertyURI)
             q += b + "\tBIND(" + propertyURI + " as ?propURI)\n\n";
         q += b + "\t# CREATE STATE URI\n" +
-            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"state_\", REPLACE(STR(UUID()), \"urn:uuid:\", \"\"))) AS ?stateURI)\n") +
+            (b + "\tBIND(URI(CONCAT(\"" + host + "\", \"states/\", STRUUID())) AS ?stateURI)\n") +
             (b + "\tBIND(now() AS ?now)\n\n") +
             (
             //Get latest state
@@ -752,6 +758,8 @@ var OPMProp = /** @class */ (function (_super) {
             q += this.mainGraph ? '.\n' : ';\n\t\tsd:namedGraph ?g .\n';
             q += '\t?stateURI prov:generatedAtTime ?ts ;\n' +
                 '\t\ta ?stateClasses ;\n' +
+                '\t\tprov:wasDerivedFrom ?derFrom ;\n' +
+                '\t\tprov:wasAttributedTo ?attrTo ;\n' +
                 '\t\tschema:value ?value .\n' +
                 '}\n';
         }
@@ -784,6 +792,8 @@ var OPMProp = /** @class */ (function (_super) {
         }
         q += b + "\t?stateURI prov:generatedAtTime ?ts ;\n" +
             (b + "\t\ta ?stateClasses .\n") +
+            (b + "\tOPTIONAL{ ?stateURI prov:wasDerivedFrom ?derFrom . }\n\n") +
+            (b + "\tOPTIONAL{ ?stateURI prov:wasAttributedTo ?attrTo . }\n\n") +
             (b + "\tOPTIONAL{ ?stateURI schema:value ?value . }\n\n");
         // If restriction = deleted or querying for the full history, return also the opm:Deleted
         if (restriction != 'deleted' && latest) {

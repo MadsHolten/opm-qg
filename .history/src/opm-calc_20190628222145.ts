@@ -428,10 +428,6 @@ export class OPMCalc extends BaseModel {
         //Clean argument paths and retrieve argument variables
         argumentVars = this.cleanArgPaths(argumentPaths).vars;
         argumentPaths = this.cleanArgPaths(argumentPaths).paths;
-
-        // Append reasoning rules to arg paths
-        argumentPaths = this.argPathInferenceAppend(argumentPaths);
-        
         var expressionVars = this.uniqueVarsInString(expression);
 
         // Validate
@@ -605,10 +601,6 @@ export class OPMCalc extends BaseModel {
         // Clean argument paths and retrieve argument variables
         argumentVars = this.cleanArgPaths(argumentPaths).vars;
         argumentPaths = this.cleanArgPaths(argumentPaths).paths;
-
-        // Append reasoning rules to arg paths
-        argumentPaths = this.argPathInferenceAppend(argumentPaths);
-
         var expressionVars = this.uniqueVarsInString(expression);
 
         // More validation
@@ -797,10 +789,6 @@ export class OPMCalc extends BaseModel {
         // Clean argument paths and retrieve argument variables
         argumentVars = this.cleanArgPaths(argumentPaths).vars;
         argumentPaths = this.cleanArgPaths(argumentPaths).paths;
-
-        // Append reasoning rules to arg paths
-        argumentPaths = this.argPathInferenceAppend(argumentPaths);
-
         var expressionVars = this.uniqueVarsInString(expression);
 
         // Validate arguments
