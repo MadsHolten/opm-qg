@@ -1,6 +1,6 @@
 {
   "name": "opm-qg",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "description": "A SPARQL query generator for managing data with OPM.",
   "main": "index.js",
   "scripts": {

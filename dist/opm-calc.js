@@ -687,7 +687,9 @@ var OPMCalc = /** @class */ (function (_super) {
         var expression = input.expression;
         var argumentPaths = input.argumentPaths;
         var argumentVars = [];
-        var propertyURI = this.cleanURI(input.inferredProperty);
+        var inferredProperty = this.cleanURI(input.inferredProperty);
+        // If a specific property URI is provided, then only treat this particular property
+        var propertyURI = this.cleanURI(input.propertyURI);
         //Extract calculation type from the expression
         var type;
         var validTypes = ["sum", "count", "min", "max", "avg"];
@@ -731,37 +733,42 @@ var OPMCalc = /** @class */ (function (_super) {
         var a = mainGraph ? '' : '\tGRAPH ?g {\n';
         var b = mainGraph ? '' : '\t';
         var c = mainGraph ? '' : '\t}\n';
-        if (queryType == 'construct')
-            q += '\nCONSTRUCT {\n';
-        if (queryType == 'insert') {
-            // FIRST DELETE CURRENT STATE CLASS FROM PREVIOUS STATE
-            q += '\nDELETE {\n';
-            if (!mainGraph)
-                q += "\tGRAPH " + iGraph + " {\n";
-            q += b + "\t?previousState a opm:CurrentPropertyState .\n";
-            if (!mainGraph)
+        if (queryType == 'count') {
+            q += 'SELECT (COUNT(?foi) AS ?count)\n';
+        }
+        else {
+            if (queryType == 'construct')
+                q += '\nCONSTRUCT {\n';
+            if (queryType == 'insert') {
+                // FIRST DELETE CURRENT STATE CLASS FROM PREVIOUS STATE
+                q += '\nDELETE {\n';
+                if (!mainGraph)
+                    q += "\tGRAPH " + iGraph + " {\n";
+                q += b + "\t?previousState a opm:CurrentPropertyState .\n";
+                if (!mainGraph)
+                    q += c;
+                q += '}\n' +
+                    'INSERT {\n';
+                if (!mainGraph)
+                    q += "\tGRAPH " + iGraph + " {\n";
+                q += b + "\t?previousState a opm:PropertyState , opm:OutdatedPropertyState .\n";
+            }
+            q += b + "\t?propertyURI a opm:Property ;\n" +
+                (b + "\t\topm:hasPropertyState ?stateURI .\n") +
+                (b + "\t?stateURI a opm:CurrentPropertyState , opm:Derived , ?reliability ;\n") +
+                (b + "\t\tschema:value ?res ;\n") +
+                (b + "\t\tprov:generatedAtTime ?now ;\n") +
+                (b + "\t\tprov:wasAttributedTo " + calculationURI + " ;\n") +
+                (b + "\t\tprov:wasDerivedFrom ");
+            for (var i in argumentPaths) {
+                var _i = Number(i) + 1;
+                q += "?state" + _i;
+                q += (argumentPaths.length == _i) ? ' .\n' : ' , ';
+            }
+            if (!this.mainGraph && queryType == 'insert')
                 q += c;
-            q += '}\n' +
-                'INSERT {\n';
-            if (!mainGraph)
-                q += "\tGRAPH " + iGraph + " {\n";
-            q += b + "\t?previousState a opm:PropertyState , opm:OutdatedPropertyState .\n";
+            q += "}\n";
         }
-        q += b + "\t?propertyURI a opm:Property ;\n" +
-            (b + "\t\topm:hasPropertyState ?stateURI .\n") +
-            (b + "\t?stateURI a opm:CurrentPropertyState , opm:Derived , ?reliability ;\n") +
-            (b + "\t\tschema:value ?res ;\n") +
-            (b + "\t\tprov:generatedAtTime ?now ;\n") +
-            (b + "\t\tprov:wasAttributedTo " + calculationURI + " ;\n") +
-            (b + "\t\tprov:wasDerivedFrom ");
-        for (var i in argumentPaths) {
-            var _i = Number(i) + 1;
-            q += "?state" + _i;
-            q += (argumentPaths.length == _i) ? ' .\n' : ' , ';
-        }
-        if (!this.mainGraph && queryType == 'insert')
-            q += c;
-        q += "}\n";
         if (queryType == 'construct' && namedGraphs)
             namedGraphs.forEach(function (uri) { return q += "FROM NAMED " + uri + "\n"; });
         if (queryType == 'insert' && namedGraphs)
@@ -771,7 +778,10 @@ var OPMCalc = /** @class */ (function (_super) {
         //BIND to FoIURI if one is given
         if (foiURI)
             q += "\tBIND(" + foiURI + " AS ?foi)\n";
-        q += "\tBIND(" + propertyURI + " AS ?inferredProperty)\n\n";
+        //BIND to PropertyURI if one is given
+        if (propertyURI)
+            q += "\tBIND(" + propertyURI + " AS ?propertyURI)\n";
+        q += "\tBIND(" + inferredProperty + " AS ?inferredProperty)\n\n";
         q += "\t# GET LATEST STATE\n";
         if (!mainGraph)
             q += "\tGRAPH " + iGraph + " {\n";
