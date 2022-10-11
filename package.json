@@ -23,7 +23,7 @@
     "@types/lodash": "^4.14.107",
     "@types/underscore.string": "0.0.32",
     "chai": "^4.1.2",
-    "jsonld": "^1.1.0",
+    "jsonld": "^8.1.0",
     "lodash": "^4.17.5",
     "mocha": "^5.0.5",
     "stardog": "^1.2.2",
