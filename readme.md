@@ -35,7 +35,7 @@ $ tsc install https://github.com/MadsHolten/opm-qg.git
 #### Example 1
 ##### Properties exist directly on the FoI
 ##### postCalc() // putCalc()
-If the property exists on the FoI itself the following input will construct a new (or update existing if using put) "seas:fluidTemperatureDifference"-property for all FoIs that have a "seas:fluidSupplyTemperature" and a "seas:fluidSupplyTemperature".
+If the property exists on the FoI itself the following input will construct a new (or update existing if using put) "seas:fluidTemperatureDifference"-property for all FoIs that have a "seas:fluidSupplyTemperature" and a "seas:fluidReturnTemperature".
 
 The calculation is defined with the expression variable, and the arguments are defined in the argument paths as a triple pattern originating from the FoI to which the new property should be infered.
 The result will get a unit °C and datatype cdt:temperature. This prefix cdt is not defined as default and must be defined under prefixes.
